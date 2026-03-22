@@ -10,7 +10,7 @@ type Message = {
 const content = {
   fr: {
     tagline: "Les autres évaluent, nous on révèle, oriente et améliore",
-    btnLang: "🇺🇸 English",
+    btnLang: "English",
     placeholder: "Écrivez votre réponse...",
     send: "Envoyer",
     thinking: "En train d'analyser...",
@@ -18,7 +18,7 @@ const content = {
   },
   en: {
     tagline: "Others evaluate, we reveal, guide and improve",
-    btnLang: "🇫🇷 Français",
+    btnLang: "Français",
     placeholder: "Write your answer...",
     send: "Send",
     thinking: "Analyzing...",
@@ -100,10 +100,10 @@ export default function Home() {
           </p>
           <div style={{ display: "flex", gap: "12px", marginBottom: "28px" }}>
             <button onClick={() => selectLang("fr")} style={{ flex: 1, background: "#1A1A2E", color: "white", border: "none", padding: "15px", borderRadius: "14px", fontSize: "14px", fontWeight: 700, cursor: "pointer" }}>
-              🇫🇷 Français
+              Français
             </button>
             <button onClick={() => selectLang("en")} style={{ flex: 1, background: "white", color: "#1A1A2E", border: "2px solid #E8E8F0", padding: "15px", borderRadius: "14px", fontSize: "14px", fontWeight: 700, cursor: "pointer" }}>
-              🇺🇸 English
+              English
             </button>
           </div>
 
