@@ -15,16 +15,6 @@ const content = {
     send: "Envoyer",
     thinking: "En train d'analyser...",
     welcome: "Bonjour ! Je suis votre assistant YELMA. Mon rôle est de vous aider à découvrir vos points forts et à trouver les opportunités qui vous correspondent le mieux. Pour commencer, pouvez-vous me parler un peu de vous et de votre situation actuelle ?",
-    chooseLang: "Choisissez votre langue / Choose your language",
-    card1title: "Révèle",
-    card1sub: "vos forces",
-    card2title: "Oriente",
-    card2sub: "vers les postes",
-    card3title: "Améliore",
-    card3sub: "avec formations",
-    slogan1: "Les autres évaluent,",
-    slogan2: "nous on révèle, oriente et améliore",
-    slogan3: "Others evaluate, we reveal, guide and improve",
   },
   en: {
     tagline: "Others evaluate, we reveal, guide and improve",
@@ -33,16 +23,6 @@ const content = {
     send: "Send",
     thinking: "Analyzing...",
     welcome: "Hello! I am your YELMA assistant. My role is to help you discover your strengths and find the opportunities that suit you best. To start, could you tell me a little about yourself and your current situation?",
-    chooseLang: "Choose your language / Choisissez votre langue",
-    card1title: "Reveals",
-    card1sub: "your strengths",
-    card2title: "Guides",
-    card2sub: "toward jobs",
-    card3title: "Improves",
-    card3sub: "with training",
-    slogan1: "Others evaluate,",
-    slogan2: "we reveal, guide and improve",
-    slogan3: "Les autres évaluent, nous on révèle, oriente et améliore",
   },
 };
 
@@ -68,7 +48,6 @@ export default function Home() {
     setMessages(newMessages);
     setInput("");
     setLoading(true);
-
     try {
       const res = await fetch("/api/chat", {
         method: "POST",
@@ -93,118 +72,96 @@ export default function Home() {
   if (!lang) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center px-6" style={{ background: "#FAFBFF" }}>
-        <div className="w-full max-w-sm text-center">
+        <div className="w-full max-w-sm" style={{ textAlign: "center" }}>
 
           {/* Icône animée */}
-          <div className="flex justify-center items-end gap-1 mb-4" style={{ height: "32px" }}>
+          <div style={{ display: "flex", justifyContent: "center", alignItems: "flex-end", gap: "4px", height: "32px", margin: "0 auto 16px" }}>
             {[12, 20, 28, 20, 12].map((h, i) => (
-              <div key={i} style={{
-                width: "5px",
-                borderRadius: "4px",
-                background: "#FF7043",
-                height: `${h}px`,
-                animation: `wave 1.1s ease-in-out infinite`,
-                animationDelay: `${i * 0.15}s`,
-              }}/>
+              <div key={i} style={{ width: "5px", borderRadius: "4px", background: "#FF7043", height: `${h}px`, animation: `wave 1.1s ease-in-out infinite`, animationDelay: `${i * 0.15}s` }}/>
             ))}
           </div>
 
           {/* Logo */}
-          <h1 className="font-black tracking-tight mb-2" style={{ fontSize: "56px", color: "#1A1A2E", letterSpacing: "-2px" }}>
-            YELMA
-          </h1>
+          <h1 style={{ fontSize: "56px", fontWeight: 800, color: "#1A1A2E", letterSpacing: "-2px", margin: "0 0 8px" }}>YELMA</h1>
           <div style={{ width: "36px", height: "3px", background: "#FF7043", borderRadius: "4px", margin: "0 auto 20px" }}/>
 
-          {/* Slogan adapté à la langue sélectionnée */}
-          <p className="mb-1" style={{ fontSize: "15px", color: "#2D2D44", fontWeight: 500, lineHeight: 1.6 }}>
-            {lang === "en" ? content.en.slogan1 : content.fr.slogan1}{" "}
-            <span style={{ color: "#FF7043", fontWeight: 700 }}>
-              {lang === "en" ? content.en.slogan2 : content.fr.slogan2}
-            </span>
+          {/* Slogan */}
+          <p style={{ fontSize: "15px", color: "#2D2D44", fontWeight: 500, lineHeight: 1.6, margin: "0 0 4px" }}>
+            Les autres évaluent,{" "}
+            <span style={{ color: "#FF7043", fontWeight: 700 }}>nous on révèle, oriente et améliore</span>
           </p>
-          <p className="mb-8" style={{ fontSize: "13px", color: "#aaa", fontStyle: "italic" }}>
-            {lang === "en" ? content.en.slogan3 : content.fr.slogan3}
+          <p style={{ fontSize: "12px", color: "#aaa", fontStyle: "italic", margin: "0 0 28px" }}>
+            Others evaluate, we reveal, guide and improve
           </p>
 
           {/* Boutons langue */}
-          <p className="mb-4" style={{ fontSize: "13px", color: "#888" }}>
-            {content.fr.chooseLang}
+          <p style={{ fontSize: "12px", color: "#888", margin: "0 0 12px" }}>
+            Choisissez votre langue / Choose your language
           </p>
-          <div className="flex gap-3 mb-8">
-            <button
-              onClick={() => selectLang("fr")}
-              className="flex-1 font-bold text-white py-4 rounded-2xl text-base transition-transform hover:-translate-y-1"
-              style={{ background: "#1A1A2E", border: "none", cursor: "pointer" }}
-            >
+          <div style={{ display: "flex", gap: "12px", marginBottom: "28px" }}>
+            <button onClick={() => selectLang("fr")} style={{ flex: 1, background: "#1A1A2E", color: "white", border: "none", padding: "15px", borderRadius: "14px", fontSize: "14px", fontWeight: 700, cursor: "pointer" }}>
               🇫🇷 Français
             </button>
-            <button
-              onClick={() => selectLang("en")}
-              className="flex-1 font-bold py-4 rounded-2xl text-base transition-transform hover:-translate-y-1"
-              style={{ background: "white", color: "#1A1A2E", border: "2px solid #E8E8F0", cursor: "pointer" }}
-            >
+            <button onClick={() => selectLang("en")} style={{ flex: 1, background: "white", color: "#1A1A2E", border: "2px solid #E8E8F0", padding: "15px", borderRadius: "14px", fontSize: "14px", fontWeight: 700, cursor: "pointer" }}>
               🇺🇸 English
             </button>
           </div>
 
-          {/* 3 cartes */}
-          <div className="flex gap-2">
-            <div className="flex-1 bg-white rounded-2xl p-3 text-center" style={{ border: "1.5px solid #FFE0D6" }}>
-              <div className="flex justify-center mb-2">
-                <svg width="28" height="28" viewBox="0 0 28 28">
-                  <circle cx="14" cy="14" r="10" fill="none" stroke="#FFE0D6" strokeWidth="3"/>
-                  <circle cx="14" cy="14" r="10" fill="none" stroke="#FF7043" strokeWidth="3" strokeDasharray="20 44" style={{ animation: "rotate 2s linear infinite", transformOrigin: "center" }}/>
-                  <circle cx="14" cy="14" r="4" fill="#FF7043" style={{ animation: "pulse1 1.5s ease-in-out infinite" }}/>
-                </svg>
-              </div>
-              <div style={{ fontSize: "11px", color: "#FF7043", fontWeight: 700 }}>
-                {lang === "en" ? content.en.card1title : content.fr.card1title}
-              </div>
-              <div style={{ fontSize: "10px", color: "#999", marginTop: "2px" }}>
-                {lang === "en" ? content.en.card1sub : content.fr.card1sub}
-              </div>
+          {/* 3 cartes bilingues */}
+          <div style={{ display: "flex", gap: "10px" }}>
+
+            {/* Carte 1 */}
+            <div style={{ flex: 1, background: "white", borderRadius: "16px", padding: "16px 8px", textAlign: "center", border: "1.5px solid #FFE0D6", display: "flex", flexDirection: "column", alignItems: "center", gap: "6px" }}>
+              <div style={{ fontSize: "10px", fontWeight: 600, color: "#aaa", letterSpacing: ".5px" }}>UNCOVERS</div>
+              <div style={{ fontSize: "9px", color: "#bbb" }}>your hidden potential</div>
+              <div style={{ width: "1px", height: "8px", background: "#FFE0D6" }}/>
+              <svg width="28" height="28" viewBox="0 0 28 28">
+                <circle cx="14" cy="14" r="10" fill="none" stroke="#FFE0D6" strokeWidth="3"/>
+                <circle cx="14" cy="14" r="10" fill="none" stroke="#FF7043" strokeWidth="3" strokeDasharray="20 44" style={{ animation: "rotate 2s linear infinite", transformOrigin: "center" }}/>
+                <circle cx="14" cy="14" r="4" fill="#FF7043" style={{ animation: "pulse1 1.5s ease-in-out infinite" }}/>
+              </svg>
+              <div style={{ width: "1px", height: "8px", background: "#FFE0D6" }}/>
+              <div style={{ fontSize: "12px", fontWeight: 700, color: "#FF7043" }}>RÉVÈLE</div>
+              <div style={{ fontSize: "9px", color: "#FF7043", opacity: .8 }}>vos forces cachées</div>
             </div>
 
-            <div className="flex-1 bg-white rounded-2xl p-3 text-center" style={{ border: "1.5px solid #D6F0FF" }}>
-              <div className="flex justify-center mb-2">
-                <svg width="28" height="28" viewBox="0 0 28 28">
-                  <circle cx="14" cy="14" r="11" fill="none" stroke="#D6F0FF" strokeWidth="2"/>
-                  <path d="M14 6 L18 14 L14 22 L10 14 Z" fill="#0EA5E9" style={{ animation: "bounce 1.5s ease-in-out infinite" }}/>
-                </svg>
-              </div>
-              <div style={{ fontSize: "11px", color: "#0EA5E9", fontWeight: 700 }}>
-                {lang === "en" ? content.en.card2title : content.fr.card2title}
-              </div>
-              <div style={{ fontSize: "10px", color: "#999", marginTop: "2px" }}>
-                {lang === "en" ? content.en.card2sub : content.fr.card2sub}
-              </div>
+            {/* Carte 2 */}
+            <div style={{ flex: 1, background: "white", borderRadius: "16px", padding: "16px 8px", textAlign: "center", border: "1.5px solid #D6F0FF", display: "flex", flexDirection: "column", alignItems: "center", gap: "6px" }}>
+              <div style={{ fontSize: "10px", fontWeight: 600, color: "#aaa", letterSpacing: ".5px" }}>DIRECTS</div>
+              <div style={{ fontSize: "9px", color: "#bbb" }}>apply where you shine</div>
+              <div style={{ width: "1px", height: "8px", background: "#D6F0FF" }}/>
+              <svg width="28" height="28" viewBox="0 0 28 28">
+                <circle cx="14" cy="14" r="11" fill="none" stroke="#D6F0FF" strokeWidth="2"/>
+                <path d="M14 6 L18 14 L14 22 L10 14 Z" fill="#0EA5E9" style={{ animation: "bounce 1.5s ease-in-out infinite" }}/>
+              </svg>
+              <div style={{ width: "1px", height: "8px", background: "#D6F0FF" }}/>
+              <div style={{ fontSize: "12px", fontWeight: 700, color: "#0EA5E9" }}>ORIENTE</div>
+              <div style={{ fontSize: "9px", color: "#0EA5E9", opacity: .8 }}>où vous êtes imbattable</div>
             </div>
 
-            <div className="flex-1 bg-white rounded-2xl p-3 text-center" style={{ border: "1.5px solid #D6FFE8" }}>
-              <div className="flex justify-center mb-2">
-                <svg width="28" height="28" viewBox="0 0 28 28">
-                  <rect x="4" y="18" width="4" height="6" rx="2" fill="#D6FFE8"/>
-                  <rect x="12" y="12" width="4" height="12" rx="2" fill="#10B981" style={{ animation: "pulse2 1.3s ease-in-out infinite", animationDelay: "0.2s" }}/>
-                  <rect x="20" y="6" width="4" height="18" rx="2" fill="#10B981" style={{ animation: "pulse3 1.3s ease-in-out infinite", animationDelay: "0.4s" }}/>
-                </svg>
-              </div>
-              <div style={{ fontSize: "11px", color: "#10B981", fontWeight: 700 }}>
-                {lang === "en" ? content.en.card3title : content.fr.card3title}
-              </div>
-              <div style={{ fontSize: "10px", color: "#999", marginTop: "2px" }}>
-                {lang === "en" ? content.en.card3sub : content.fr.card3sub}
-              </div>
+            {/* Carte 3 */}
+            <div style={{ flex: 1, background: "white", borderRadius: "16px", padding: "16px 8px", textAlign: "center", border: "1.5px solid #D6FFE8", display: "flex", flexDirection: "column", alignItems: "center", gap: "6px" }}>
+              <div style={{ fontSize: "10px", fontWeight: 600, color: "#aaa", letterSpacing: ".5px" }}>BOOSTS</div>
+              <div style={{ fontSize: "9px", color: "#bbb" }}>your extra income</div>
+              <div style={{ width: "1px", height: "8px", background: "#D6FFE8" }}/>
+              <svg width="28" height="28" viewBox="0 0 28 28">
+                <rect x="4" y="18" width="4" height="6" rx="2" fill="#D6FFE8"/>
+                <rect x="12" y="12" width="4" height="12" rx="2" fill="#10B981" style={{ animation: "bars 1.3s ease-in-out infinite", animationDelay: ".2s" }}/>
+                <rect x="20" y="6" width="4" height="18" rx="2" fill="#10B981" style={{ animation: "bars 1.3s ease-in-out infinite", animationDelay: ".4s" }}/>
+              </svg>
+              <div style={{ width: "1px", height: "8px", background: "#D6FFE8" }}/>
+              <div style={{ fontSize: "12px", fontWeight: 700, color: "#10B981" }}>BOOST</div>
+              <div style={{ fontSize: "9px", color: "#10B981", opacity: .8 }}>revenus complémentaires</div>
             </div>
+
           </div>
-
         </div>
 
         <style>{`
           @keyframes wave { 0%,100%{transform:scaleY(1)} 50%{transform:scaleY(1.8)} }
           @keyframes rotate { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
           @keyframes pulse1 { 0%,100%{transform:scale(1)} 50%{transform:scale(1.3)} }
-          @keyframes pulse2 { 0%,100%{transform:scaleY(1)} 50%{transform:scaleY(1.3)} }
-          @keyframes pulse3 { 0%,100%{transform:scaleY(1)} 50%{transform:scaleY(1.3)} }
+          @keyframes bars { 0%,100%{transform:scaleY(1)} 50%{transform:scaleY(1.4)} }
           @keyframes bounce { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-5px)} }
         `}</style>
       </div>
