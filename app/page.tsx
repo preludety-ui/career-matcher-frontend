@@ -98,7 +98,7 @@ export default function Home() {
         {/* Input */}
         <div className="px-4 py-3 border-t border-gray-100 flex gap-2">
           <input
-            className="flex-1 border border-gray-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-blue-400"
+            className="flex-1 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-400 text-gray-900 bg-white"
             placeholder="Écrivez votre réponse..."
             value={input}
             onChange={(e) => setInput(e.target.value)}
