@@ -15,6 +15,16 @@ const content = {
     send: "Envoyer",
     thinking: "En train d'analyser...",
     welcome: "Bonjour ! Je suis votre assistant YELMA. Mon rôle est de vous aider à découvrir vos points forts et à trouver les opportunités qui vous correspondent le mieux. Pour commencer, pouvez-vous me parler un peu de vous et de votre situation actuelle ?",
+    chooseLang: "Choisissez votre langue / Choose your language",
+    card1title: "Révèle",
+    card1sub: "vos forces",
+    card2title: "Oriente",
+    card2sub: "vers les postes",
+    card3title: "Améliore",
+    card3sub: "avec formations",
+    slogan1: "Les autres évaluent,",
+    slogan2: "nous on révèle, oriente et améliore",
+    slogan3: "Others evaluate, we reveal, guide and improve",
   },
   en: {
     tagline: "Others evaluate, we reveal, guide and improve",
@@ -23,6 +33,16 @@ const content = {
     send: "Send",
     thinking: "Analyzing...",
     welcome: "Hello! I am your YELMA assistant. My role is to help you discover your strengths and find the opportunities that suit you best. To start, could you tell me a little about yourself and your current situation?",
+    chooseLang: "Choose your language / Choisissez votre langue",
+    card1title: "Reveals",
+    card1sub: "your strengths",
+    card2title: "Guides",
+    card2sub: "toward jobs",
+    card3title: "Improves",
+    card3sub: "with training",
+    slogan1: "Others evaluate,",
+    slogan2: "we reveal, guide and improve",
+    slogan3: "Les autres évaluent, nous on révèle, oriente et améliore",
   },
 };
 
@@ -77,14 +97,14 @@ export default function Home() {
 
           {/* Icône animée */}
           <div className="flex justify-center items-end gap-1 mb-4" style={{ height: "32px" }}>
-            {[0, 0.15, 0.3, 0.45, 0.6].map((delay, i) => (
+            {[12, 20, 28, 20, 12].map((h, i) => (
               <div key={i} style={{
                 width: "5px",
                 borderRadius: "4px",
                 background: "#FF7043",
-                height: `${[12, 20, 28, 20, 12][i]}px`,
+                height: `${h}px`,
                 animation: `wave 1.1s ease-in-out infinite`,
-                animationDelay: `${delay}s`,
+                animationDelay: `${i * 0.15}s`,
               }}/>
             ))}
           </div>
@@ -95,18 +115,20 @@ export default function Home() {
           </h1>
           <div style={{ width: "36px", height: "3px", background: "#FF7043", borderRadius: "4px", margin: "0 auto 20px" }}/>
 
-          {/* Slogan */}
+          {/* Slogan adapté à la langue sélectionnée */}
           <p className="mb-1" style={{ fontSize: "15px", color: "#2D2D44", fontWeight: 500, lineHeight: 1.6 }}>
-            Les autres évaluent,{" "}
-            <span style={{ color: "#FF7043", fontWeight: 700 }}>nous on révèle, oriente et améliore</span>
+            {lang === "en" ? content.en.slogan1 : content.fr.slogan1}{" "}
+            <span style={{ color: "#FF7043", fontWeight: 700 }}>
+              {lang === "en" ? content.en.slogan2 : content.fr.slogan2}
+            </span>
           </p>
           <p className="mb-8" style={{ fontSize: "13px", color: "#aaa", fontStyle: "italic" }}>
-            Others evaluate, we reveal, guide and improve
+            {lang === "en" ? content.en.slogan3 : content.fr.slogan3}
           </p>
 
           {/* Boutons langue */}
           <p className="mb-4" style={{ fontSize: "13px", color: "#888" }}>
-            Choisissez votre langue / Choose your language
+            {content.fr.chooseLang}
           </p>
           <div className="flex gap-3 mb-8">
             <button
@@ -135,8 +157,12 @@ export default function Home() {
                   <circle cx="14" cy="14" r="4" fill="#FF7043" style={{ animation: "pulse1 1.5s ease-in-out infinite" }}/>
                 </svg>
               </div>
-              <div style={{ fontSize: "11px", color: "#FF7043", fontWeight: 700 }}>Révèle</div>
-              <div style={{ fontSize: "10px", color: "#999", marginTop: "2px" }}>vos forces</div>
+              <div style={{ fontSize: "11px", color: "#FF7043", fontWeight: 700 }}>
+                {lang === "en" ? content.en.card1title : content.fr.card1title}
+              </div>
+              <div style={{ fontSize: "10px", color: "#999", marginTop: "2px" }}>
+                {lang === "en" ? content.en.card1sub : content.fr.card1sub}
+              </div>
             </div>
 
             <div className="flex-1 bg-white rounded-2xl p-3 text-center" style={{ border: "1.5px solid #D6F0FF" }}>
@@ -146,8 +172,12 @@ export default function Home() {
                   <path d="M14 6 L18 14 L14 22 L10 14 Z" fill="#0EA5E9" style={{ animation: "bounce 1.5s ease-in-out infinite" }}/>
                 </svg>
               </div>
-              <div style={{ fontSize: "11px", color: "#0EA5E9", fontWeight: 700 }}>Oriente</div>
-              <div style={{ fontSize: "10px", color: "#999", marginTop: "2px" }}>vers les postes</div>
+              <div style={{ fontSize: "11px", color: "#0EA5E9", fontWeight: 700 }}>
+                {lang === "en" ? content.en.card2title : content.fr.card2title}
+              </div>
+              <div style={{ fontSize: "10px", color: "#999", marginTop: "2px" }}>
+                {lang === "en" ? content.en.card2sub : content.fr.card2sub}
+              </div>
             </div>
 
             <div className="flex-1 bg-white rounded-2xl p-3 text-center" style={{ border: "1.5px solid #D6FFE8" }}>
@@ -158,8 +188,12 @@ export default function Home() {
                   <rect x="20" y="6" width="4" height="18" rx="2" fill="#10B981" style={{ animation: "pulse3 1.3s ease-in-out infinite", animationDelay: "0.4s" }}/>
                 </svg>
               </div>
-              <div style={{ fontSize: "11px", color: "#10B981", fontWeight: 700 }}>Améliore</div>
-              <div style={{ fontSize: "10px", color: "#999", marginTop: "2px" }}>avec formations</div>
+              <div style={{ fontSize: "11px", color: "#10B981", fontWeight: 700 }}>
+                {lang === "en" ? content.en.card3title : content.fr.card3title}
+              </div>
+              <div style={{ fontSize: "10px", color: "#999", marginTop: "2px" }}>
+                {lang === "en" ? content.en.card3sub : content.fr.card3sub}
+              </div>
             </div>
           </div>
 
@@ -214,7 +248,7 @@ export default function Home() {
 
       <div className="bg-white px-4 py-3 border-t border-gray-100 flex gap-2 flex-shrink-0">
         <input
-          className="flex-1 border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 bg-white focus:outline-none"
+          className="flex-1 border rounded-xl px-4 py-3 text-sm text-gray-900 bg-white focus:outline-none"
           style={{ borderColor: "#E8E8F0" }}
           placeholder={t.placeholder}
           value={input}
