@@ -140,20 +140,27 @@ export async function POST(req: NextRequest) {
     const reply = data.choices[0].message.content;
 
     // Sauvegarder dans Supabase si rapport final détecté
-    if (reply.includes("---YELMA_DATA---") && email) {
-      const rapportData = extractData(reply);
-      if (rapportData) {
-        await supabaseAdmin
-          .from("candidats")
-          .upsert({
-            email,
-            langue: lang || "fr",
-            ...rapportData,
-            nb_entretiens: 1,
-            dernier_entretien: new Date().toISOString(),
-          }, { onConflict: "email" });
-      }
-    }
+console.log("REPLY CONTAINS DATA TAG:", reply.includes("---YELMA_DATA---"));
+console.log("EMAIL:", email);
+if (reply.includes("---YELMA_DATA---") && email) {
+  console.log("SAVING TO SUPABASE...");
+  const rapportData = extractData(reply);
+  console.log("RAPPORT DATA:", JSON.stringify(rapportData));
+  if (rapportData) {
+    const { error } = await supabaseAdmin
+      .from("candidats")
+      .upsert({
+        email,
+        langue: lang || "fr",
+        ...rapportData,
+        nb_entretiens: 1,
+        dernier_entretien: new Date().toISOString(),
+      }, { onConflict: "email" });
+    if (error) console.error("SUPABASE ERROR:", error);
+    else console.log("SAVED SUCCESSFULLY!");
+  }
+}
+
 
     // Nettoyer les balises de données
     const cleanReply = reply
