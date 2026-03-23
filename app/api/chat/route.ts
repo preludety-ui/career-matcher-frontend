@@ -68,20 +68,23 @@ CERTIFICATIONS RECOMMANDEES
 
 [Message final tres encourageant et personnalise de 3-4 phrases]
 
+
+VILLE:IMPORTANT - DONNEES TECHNIQUES (OBLIGATOIRE - ne pas omettre) :
 ---YELMA_DATA---
-NIVEAU: [UNIVERSITAIRE/TECHNIQUE/AUTODIDACTE/JUNIOR]
-VILLE: [ville]
-PAYS: [pays]
-SALAIRE: [chiffre]
-FORCE1: [force1]
-FORCE2: [force2]
-FORCE3: [force3]
-AN1: [titre]|[salaire]|[action]
-AN2: [titre]|[salaire]|[action]
-AN3: [titre]|[salaire]|[action]
-AN4: [titre]|[salaire]|[action]
-AN5: [titre]|[salaire]|[action]
----END_DATA---`;
+NIVEAU: [UNIVERSITAIRE ou TECHNIQUE ou AUTODIDACTE ou JUNIOR]
+VILLE: [ville detectee ou Montreal par defaut]
+PAYS: [pays detecte ou Canada par defaut]
+SALAIRE: [salaire actuel en chiffres ex: 0]
+FORCE1: [premiere force en 2-3 mots]
+FORCE2: [deuxieme force en 2-3 mots]
+FORCE3: [troisieme force en 2-3 mots]
+AN1: [titre poste]|[salaire ex:46000]|[action cle]
+AN2: [titre poste]|[salaire ex:60000]|[action cle]
+AN3: [titre poste]|[salaire ex:75000]|[action cle]
+AN4: [titre poste]|[salaire ex:90000]|[action cle]
+AN5: [titre poste]|[salaire ex:110000]|[objectif final]
+---END_DATA---
+ATTENTION: Ces balises ---YELMA_DATA--- et ---END_DATA--- sont OBLIGATOIRES dans chaque rapport final. Ne jamais les oublier.`;
 
 function extractData(text: string) {
   const start = text.indexOf("---YELMA_DATA---");
