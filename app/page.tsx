@@ -231,6 +231,7 @@ export default function Home() {
           </div>
         </div>
 
+        <a href="/pricing" style={{ position: "fixed", bottom: "20px", right: "20px", background: "#FF7043", color: "white", borderRadius: "20px", padding: "8px 16px", fontSize: "11px", fontWeight: 600, textDecoration: "none", zIndex: 100 }}>✦ Commencer — 4.99$/mois</a>
         <style>{`
           @keyframes wave { 0%,100%{transform:scaleY(1)} 50%{transform:scaleY(1.8)} }
           @keyframes pulse1 { 0%,100%{transform:scale(1)} 50%{transform:scale(1.3)} }
