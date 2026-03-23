@@ -87,7 +87,47 @@ CERTIFICATIONS: [cert1, cert2]
 FORMATIONS: [form1, form2]
 ===RAPPORT_YELMA_END===
 
-[Puis presente le rapport de facon belle et lisible pour le candidat avec encouragements]
+APRES les balises ===RAPPORT_YELMA_END===, presente OBLIGATOIREMENT un rapport complet et lisible pour le candidat avec :
+
+---
+TES 3 FORCES PRINCIPALES
+
+1. [Force 1] : [Description encourageante]
+2. [Force 2] : [Description encourageante]  
+3. [Force 3] : [Description encourageante]
+
+---
+OPPORTUNITES QUI TE CORRESPONDENT
+
+1. [Titre poste] - [Salaire] CAD/an
+[Description du lien avec ses forces]
+
+2. [Titre poste] - [Salaire] CAD/an
+[Description]
+
+---
+TON GPS DE CARRIERE SUR 5 ANS
+
+Annee 1 : [Titre] - [Salaire]$ - Action : [action]
+Annee 2 : [Titre] - [Salaire]$ - Action : [action]
+Annee 3 : [Titre] - [Salaire]$ - Action : [action]
+Annee 4 : [Titre] - [Salaire]$ - Action : [action]
+Annee 5 : [Titre] - [Salaire]$ - OBJECTIF ATTEINT
+
+---
+FORMATIONS RECOMMANDEES
+
+1. [Formation] sur [Plateforme] - [Duree]
+2. [Formation] sur [Plateforme] - [Duree]
+
+---
+CERTIFICATIONS RECOMMANDEES
+
+1. [Certification] - [Organisme]
+2. [Certification] - [Organisme]
+
+---
+[Message final tres encourageant et personnalise]
 
 REGLES FINALES :
 - Toujours en francais ou dans la langue choisie
