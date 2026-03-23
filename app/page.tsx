@@ -1,10 +1,25 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import RapportGPSComponent from "./components/RapportGPS";
 
 type Message = {
   role: "bot" | "user";
   text: string;
+  rapport?: {
+    force1?: string;
+    force2?: string;
+    force3?: string;
+    salaire_actuel?: number;
+    titre_actuel?: string;
+    gps_an1?: { titre: string; salaire: number; action: string };
+    gps_an2?: { titre: string; salaire: number; action: string };
+    gps_an3?: { titre: string; salaire: number; action: string };
+    gps_an4?: { titre: string; salaire: number; action: string };
+    gps_an5?: { titre: string; salaire: number; action: string };
+    competences?: string[];
+   certifications?: string[];
+  };
 };
 
 type MarketData = {
@@ -96,7 +111,7 @@ const defaultMarket: MarketData = {
 
 export default function Home() {
   const [lang, setLang] = useState<"fr" | "en" | null>(null);
-  const [userInfo, setUserInfo] = useState<{ nom: string; prenom: string; email: string } | null>(null);
+  const [userInfo, setUserInfo] = useState<{ nom: string; prenom: string; email: string; plan: string } | null>(null);
   const [formData, setFormData] = useState({ nom: "", prenom: "", email: "" });
   const [formError, setFormError] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
@@ -146,7 +161,7 @@ export default function Home() {
       setFormError(lang === "fr" ? "Email invalide" : "Invalid email");
       return;
     }
-    setUserInfo(formData);
+    setUserInfo({ ...formData, plan: "gratuit" });
     setMessages([{ role: "bot", text: content[lang!].welcome }]);
   };
 
@@ -172,7 +187,9 @@ export default function Home() {
         }),
       });
       const data = await res.json();
-      setMessages([...newMessages, { role: "bot", text: data.reply }]);
+      const { parseRapport } = await import("./components/RapportGPS");
+      const rapport = parseRapport(data.reply);
+      setMessages([...newMessages, { role: "bot", text: data.reply, rapport: rapport || undefined }]);
     } catch {
       setMessages([...newMessages, { role: "bot", text: lang === "fr" ? "Une erreur est survenue." : "An error occurred." }]);
     } finally {
@@ -420,7 +437,10 @@ export default function Home() {
         {messages.map((m, i) => (
           <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
             <div className={`max-w-[80%] px-4 py-3 rounded-2xl text-sm leading-relaxed ${m.role === "user" ? "text-white rounded-br-sm" : "bg-white text-gray-800 rounded-bl-sm shadow-sm"}`} style={m.role === "user" ? { background: "#1A1A2E" } : {}}>
-              {m.text.split("\n").map((line, j) => (<span key={j}>{line}<br /></span>))}
+             {m.text.split("\n").map((line, j) => (<span key={j}>{line}<br /></span>))}
+{m.rapport && (
+  <RapportGPSComponent data={m.rapport} plan={userInfo?.plan || "gratuit"} />
+)}
             </div>
           </div>
         ))}
