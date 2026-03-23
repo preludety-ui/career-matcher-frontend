@@ -213,13 +213,13 @@ export default function Home() {
             {[["Diplômé universitaire", "Bac+", "#D6F0FF", "#0C447C", [["Analyste financier junior", "48 000 $"], ["Développeur junior", "55 000 $"], ["Assistant marketing", "42 000 $"]]], ["Cégep / École technique", "Technique", "#D6FFE8", "#085041", [["Technicien informatique", "44 000 $"], ["Technicien comptabilité", "40 000 $"], ["Technicien santé", "52 000 $"]]], ["Autodidacte / Sans diplôme", "Self-taught", "#FFE0D6", "#993C1D", [["Développeur web (bootcamp)", "45 000 $"], ["Community manager", "38 000 $"], ["Assistant administratif", "36 000 $"]]]].map(([title, badge, bg, color, jobs], i) => (
               <div key={i} style={{ border: `0.5px solid ${bg}`, borderRadius: "10px", padding: "10px", marginBottom: "8px" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
-                  <span style={{ fontSize: "11px", fontWeight: 500, color }}>{title as string}</span>
-                  <span style={{ background: bg as string, color, borderRadius: "20px", padding: "2px 7px", fontSize: "9px" }}>{badge as string}</span>
+                  <span style={{ fontSize: "11px", fontWeight: 500, color: color as string }}>{title as string}</span>
+                  <span style={{ background: bg as string, color: color as string, borderRadius: "20px", padding: "2px 7px", fontSize: "9px" }}>{badge as string}</span>
                 </div>
                 {(jobs as string[][]).map(([job, salary], j) => (
                   <div key={j} style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", marginBottom: "2px" }}>
                     <span style={{ color: "var(--color-text-secondary)" }}>{job}</span>
-                    <span style={{ color, fontWeight: 500 }}>{salary}</span>
+                    <span style={{ color: color as string, fontWeight: 500 }}>{salary}</span>
                   </div>
                 ))}
               </div>
