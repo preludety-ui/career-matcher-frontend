@@ -7,6 +7,16 @@ type Message = {
   text: string;
 };
 
+type MarketData = {
+  taux_chomage: string;
+  salaire_junior: string;
+  postes_tech: string;
+  competences: string[];
+  secteurs: { nom: string; niveau: string; pourcentage: number }[];
+  technologies: string[];
+  conseil: string;
+};
+
 const content = {
   fr: {
     tagline: "Les autres évaluent, nous on révèle, oriente et améliore",
@@ -34,6 +44,9 @@ const content = {
     card3title: "AMÉLIORE", card3sub: "vos compétences", card3EN: "BOOSTS", card3subEN: "your skills & career",
     market: "MARCHÉ · CANADA · LIVE",
     seeMore: "+ voir →",
+    chomage: "Chômage jeunes",
+    salaire: "Salaire junior",
+    postes: "Postes tech",
   },
   en: {
     tagline: "Others evaluate, we reveal, guide and improve",
@@ -60,8 +73,25 @@ const content = {
     card2title: "DIRECTS", card2sub: "apply where you shine", card2EN: "ORIENTE", card2subEN: "où vous êtes imbattable",
     card3title: "BOOSTS", card3sub: "your skills & career", card3EN: "AMÉLIORE", card3subEN: "vos compétences",
     market: "MARKET · CANADA · LIVE",
-    seeMore: "+ see more →",
+    seeMore: "+ see →",
+    chomage: "Youth unemployment",
+    salaire: "Junior salary",
+    postes: "Tech jobs",
   },
+};
+
+const defaultMarket: MarketData = {
+  taux_chomage: "14.1%",
+  salaire_junior: "42K$",
+  postes_tech: "+23%",
+  competences: ["IA & Machine Learning", "Python", "Analyse de données", "Communication", "Cloud AWS"],
+  secteurs: [
+    { nom: "Technologie & IA", niveau: "Très fort", pourcentage: 90 },
+    { nom: "Santé & Services", niveau: "Fort", pourcentage: 75 },
+    { nom: "Finance & Comptabilité", niveau: "Modéré", pourcentage: 65 },
+  ],
+  technologies: ["ChatGPT & LLMs", "Power BI", "Cybersécurité", "React / Next.js", "SQL avancé", "Figma / UX"],
+  conseil: "Les employeurs canadiens cherchent des jeunes qui savent utiliser l'IA. Une certification IA augmente tes chances de 40% !"
 };
 
 export default function Home() {
@@ -72,6 +102,8 @@ export default function Home() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [marketData, setMarketData] = useState<MarketData>(defaultMarket);
+  const [marketLoading, setMarketLoading] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -82,9 +114,23 @@ export default function Home() {
     const params = new URLSearchParams(window.location.search);
     const l = params.get("lang") as "fr" | "en" | null;
     const free = params.get("free");
-    if (l && free) {
-      setLang(l);
-    }
+    if (l && free) setLang(l);
+  }, []);
+
+  // Charger les données du marché
+  useEffect(() => {
+    const loadMarket = async () => {
+      try {
+        const res = await fetch("/api/market");
+        const json = await res.json();
+        if (json.data) setMarketData(json.data);
+      } catch (e) {
+        console.error("Market data error:", e);
+      } finally {
+        setMarketLoading(false);
+      }
+    };
+    loadMarket();
   }, []);
 
   const selectLang = (l: "fr" | "en") => {
@@ -121,9 +167,8 @@ export default function Home() {
           })),
           lang,
           email: userInfo?.email,
-nom: userInfo?.nom,
-prenom: userInfo?.prenom,
-
+          nom: userInfo?.nom,
+          prenom: userInfo?.prenom,
         }),
       });
       const data = await res.json();
@@ -140,11 +185,14 @@ prenom: userInfo?.prenom,
     return (
       <div className="min-h-screen flex flex-col items-center justify-center px-4 py-6" style={{ background: "#FAFBFF" }}>
         <div className="w-full max-w-sm" style={{ textAlign: "center" }}>
+
+          {/* Logo animé */}
           <div style={{ display: "flex", justifyContent: "center", alignItems: "flex-end", gap: "3px", height: "20px", margin: "0 auto 8px" }}>
             {[7, 13, 20, 13, 7].map((h, i) => (
               <div key={i} style={{ width: "4px", borderRadius: "3px", background: "#FF7043", height: `${h}px`, animation: `wave 1.1s ease-in-out infinite`, animationDelay: `${i * 0.15}s` }}/>
             ))}
           </div>
+
           <h1 style={{ fontSize: "32px", fontWeight: 800, color: "#1A1A2E", letterSpacing: "-1px", margin: "0 0 4px" }}>YELMA</h1>
           <div style={{ width: "28px", height: "2px", background: "#FF7043", borderRadius: "4px", margin: "0 auto 6px" }}/>
           <div style={{ display: "inline-block", background: "#FFE0D6", borderRadius: "20px", padding: "3px 12px", marginBottom: "6px" }}>
@@ -155,18 +203,31 @@ prenom: userInfo?.prenom,
             {t.slogan1} <span style={{ color: "#FF7043", fontWeight: 700 }}>{t.slogan2}</span>
           </p>
           <p style={{ fontSize: "9px", color: "#aaa", fontStyle: "italic", margin: "0 0 10px" }}>{t.sloganEN}</p>
+
+          {/* Stats marché DYNAMIQUES */}
           <div style={{ background: "#1A1A2E", borderRadius: "10px", padding: "8px 12px", display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
-            <div style={{ fontSize: "8px", color: "#FF7043", fontWeight: 600 }}>{t.market}</div>
+            <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+              <div style={{ fontSize: "8px", color: "#FF7043", fontWeight: 600 }}>{t.market}</div>
+              {marketLoading && <div style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#FF7043", animation: "pulse1 1s ease-in-out infinite" }}/>}
+            </div>
             <div style={{ display: "flex", gap: "12px" }}>
-              {[["14.1%", "Chômage jeunes", "#FF7043"], ["+23%", "Postes tech", "#10B981"], ["42K$", "Salaire junior", "#0EA5E9"]].map(([v, l, c], i) => (
-                <div key={i} style={{ textAlign: "center" }}>
-                  <div style={{ fontSize: "13px", fontWeight: 500, color: c }}>{v}</div>
-                  <div style={{ fontSize: "7px", color: "#aaa" }}>{l}</div>
-                </div>
-              ))}
+              <div style={{ textAlign: "center" }}>
+                <div style={{ fontSize: "13px", fontWeight: 500, color: "#FF7043" }}>{marketData.taux_chomage}</div>
+                <div style={{ fontSize: "7px", color: "#aaa" }}>{t.chomage}</div>
+              </div>
+              <div style={{ textAlign: "center" }}>
+                <div style={{ fontSize: "13px", fontWeight: 500, color: "#10B981" }}>{marketData.postes_tech}</div>
+                <div style={{ fontSize: "7px", color: "#aaa" }}>{t.postes}</div>
+              </div>
+              <div style={{ textAlign: "center" }}>
+                <div style={{ fontSize: "13px", fontWeight: 500, color: "#0EA5E9" }}>{marketData.salaire_junior}</div>
+                <div style={{ fontSize: "7px", color: "#aaa" }}>{t.salaire}</div>
+              </div>
               <button onClick={() => document.getElementById("yelma-popup")!.style.display = "flex"} style={{ background: "#FF7043", border: "none", color: "white", fontSize: "8px", cursor: "pointer", fontWeight: 600, padding: "4px 8px", borderRadius: "6px" }}>{t.seeMore}</button>
             </div>
           </div>
+
+          {/* 3 cartes */}
           <div style={{ display: "flex", gap: "6px", marginBottom: "8px" }}>
             {[
               { bg: "#FFE0D6", stroke: "#FF7043", title: t.card1title, sub: t.card1sub, titleEN: t.card1EN, subEN: t.card1subEN },
@@ -186,6 +247,8 @@ prenom: userInfo?.prenom,
               </div>
             ))}
           </div>
+
+          {/* YELMA c'est pour toi si */}
           <div style={{ background: "white", borderRadius: "10px", padding: "10px 12px", border: "0.5px solid var(--color-border-tertiary)", marginBottom: "8px" }}>
             <div style={{ display: "flex", gap: "8px", alignItems: "flex-start" }}>
               <div style={{ background: "#FFE0D6", borderRadius: "8px", padding: "5px 7px", flexShrink: 0, textAlign: "center" }}>
@@ -206,6 +269,8 @@ prenom: userInfo?.prenom,
               </div>
             </div>
           </div>
+
+          {/* Boutons langue */}
           <p style={{ fontSize: "10px", color: "#888", margin: "0 0 8px" }}>{t.chooseLang}</p>
           <div style={{ display: "flex", gap: "8px" }}>
             <button onClick={() => selectLang("fr")} style={{ flex: 1, background: "#1A1A2E", color: "white", border: "none", padding: "13px", borderRadius: "12px", fontSize: "14px", fontWeight: 700, cursor: "pointer" }}>Français</button>
@@ -215,35 +280,76 @@ prenom: userInfo?.prenom,
 
         <a href="/pricing" style={{ position: "fixed", bottom: "20px", right: "20px", background: "#FF7043", color: "white", borderRadius: "20px", padding: "8px 16px", fontSize: "11px", fontWeight: 600, textDecoration: "none", zIndex: 100 }}>✦ Commencer — 4.99$/mois</a>
 
+        {/* POPUP tendances dynamiques */}
         <div id="yelma-popup" style={{ display: "none", position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.5)", zIndex: 999, alignItems: "center", justifyContent: "center" }} onClick={(e) => { if (e.target === e.currentTarget) (e.currentTarget as HTMLElement).style.display = "none"; }}>
           <div style={{ background: "white", borderRadius: "16px", padding: "18px", width: "92%", maxWidth: "380px", maxHeight: "85vh", overflowY: "auto" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
               <div>
                 <div style={{ fontSize: "14px", fontWeight: 500, color: "#1A1A2E" }}>Tendances marché · Canada 2026</div>
-                <div style={{ fontSize: "10px", color: "#FF7043" }}>Mise à jour en temps réel</div>
+                <div style={{ fontSize: "10px", color: "#FF7043" }}>Mise à jour quotidienne · Données réelles</div>
               </div>
               <button onClick={() => { const p = document.getElementById("yelma-popup"); if (p) p.style.display = "none"; }} style={{ background: "none", border: "none", fontSize: "20px", cursor: "pointer" }}>×</button>
             </div>
-            {[["Diplômé universitaire", "Bac+", "#D6F0FF", "#0C447C", [["Analyste financier junior", "48 000 $"], ["Développeur junior", "55 000 $"], ["Assistant marketing", "42 000 $"]]], ["Cégep / École technique", "Technique", "#D6FFE8", "#085041", [["Technicien informatique", "44 000 $"], ["Technicien comptabilité", "40 000 $"], ["Technicien santé", "52 000 $"]]], ["Autodidacte / Sans diplôme", "Self-taught", "#FFE0D6", "#993C1D", [["Développeur web (bootcamp)", "45 000 $"], ["Community manager", "38 000 $"], ["Assistant administratif", "36 000 $"]]]].map(([title, badge, bg, color, jobs], i) => (
-              <div key={i} style={{ border: `0.5px solid ${bg}`, borderRadius: "10px", padding: "10px", marginBottom: "8px" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
-                  <span style={{ fontSize: "11px", fontWeight: 500, color: color as string }}>{title as string}</span>
-                  <span style={{ background: bg as string, color: color as string, borderRadius: "20px", padding: "2px 7px", fontSize: "9px" }}>{badge as string}</span>
+
+            {/* Stats */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "6px", marginBottom: "14px" }}>
+              {[
+                [marketData.taux_chomage, "Chômage jeunes", "#FF7043"],
+                [marketData.postes_tech, "Postes tech", "#10B981"],
+                [marketData.salaire_junior, "Salaire junior", "#0EA5E9"]
+              ].map(([val, label, color], i) => (
+                <div key={i} style={{ background: "#FAFBFF", borderRadius: "8px", padding: "8px", textAlign: "center" }}>
+                  <div style={{ fontSize: "16px", fontWeight: 500, color }}>{val}</div>
+                  <div style={{ fontSize: "8px", color: "var(--color-text-secondary)" }}>{label}</div>
                 </div>
-                {(jobs as string[][]).map(([job, salary], j) => (
-                  <div key={j} style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", marginBottom: "2px" }}>
-                    <span style={{ color: "var(--color-text-secondary)" }}>{job}</span>
-                    <span style={{ color: color as string, fontWeight: 500 }}>{salary}</span>
-                  </div>
+              ))}
+            </div>
+
+            {/* Compétences dynamiques */}
+            <div style={{ marginBottom: "12px" }}>
+              <div style={{ fontSize: "9px", fontWeight: 600, color: "var(--color-text-secondary)", marginBottom: "6px" }}>TOP COMPÉTENCES DEMANDÉES</div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "5px" }}>
+                {marketData.competences.map((c, i) => (
+                  <span key={i} style={{ background: "#FFE0D6", color: "#993C1D", borderRadius: "20px", padding: "3px 8px", fontSize: "10px" }}>{c}</span>
                 ))}
               </div>
-            ))}
+            </div>
+
+            {/* Secteurs dynamiques */}
+            <div style={{ marginBottom: "12px" }}>
+              <div style={{ fontSize: "9px", fontWeight: 600, color: "var(--color-text-secondary)", marginBottom: "6px" }}>SECTEURS QUI RECRUTENT</div>
+              {marketData.secteurs.map((s, i) => (
+                <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
+                  <span style={{ fontSize: "12px", color: "var(--color-text-primary)" }}>{s.nom}</span>
+                  <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                    <div style={{ width: "80px", height: "5px", background: "var(--color-background-secondary)", borderRadius: "3px", overflow: "hidden" }}>
+                      <div style={{ width: `${s.pourcentage}%`, height: "100%", background: i === 0 ? "#FF7043" : i === 1 ? "#10B981" : "#0EA5E9", borderRadius: "3px" }}/>
+                    </div>
+                    <span style={{ fontSize: "10px", color: i === 0 ? "#FF7043" : i === 1 ? "#10B981" : "#0EA5E9", fontWeight: 500 }}>{s.niveau}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Technologies dynamiques */}
+            <div style={{ marginBottom: "12px" }}>
+              <div style={{ fontSize: "9px", fontWeight: 600, color: "var(--color-text-secondary)", marginBottom: "6px" }}>TECHNOLOGIES QUI MONTENT</div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "5px" }}>
+                {marketData.technologies.map((t, i) => (
+                  <span key={i} style={{ background: "#D6F0FF", color: "#0C447C", borderRadius: "20px", padding: "3px 8px", fontSize: "10px" }}>{t}</span>
+                ))}
+              </div>
+            </div>
+
+            {/* Conseil dynamique */}
             <div style={{ background: "#F8F6FF", borderLeft: "3px solid #FF7043", borderRadius: "0 10px 10px 0", padding: "10px 12px" }}>
               <div style={{ fontSize: "9px", fontWeight: 600, color: "var(--color-text-secondary)", marginBottom: "3px" }}>CONSEIL YELMA DU MOMENT</div>
-              <div style={{ fontSize: "11px", color: "#1A1A2E", lineHeight: 1.6 }}>Peu importe ton niveau, les employeurs cherchent des jeunes qui utilisent l&apos;IA. Une certification IA augmente tes chances de <span style={{ fontWeight: 500, color: "#FF7043" }}>40%</span> !</div>
+              <div style={{ fontSize: "11px", color: "#1A1A2E", lineHeight: 1.6 }}>{marketData.conseil}</div>
             </div>
+
           </div>
         </div>
+
         <style>{`
           @keyframes wave { 0%,100%{transform:scaleY(1)} 50%{transform:scaleY(1.8)} }
           @keyframes pulse1 { 0%,100%{transform:scale(1)} 50%{transform:scale(1.3)} }
@@ -254,7 +360,6 @@ prenom: userInfo?.prenom,
 
   const t = content[lang];
 
-  // Formulaire nom, prénom, email
   if (!userInfo) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center px-6" style={{ background: "#FAFBFF" }}>
@@ -271,57 +376,22 @@ prenom: userInfo?.prenom,
           </div>
           <div className="flex flex-col gap-4">
             <div>
-              <label className="text-xs font-semibold mb-1 block" style={{ color: "#1A1A2E" }}>
-                {lang === "fr" ? "Prénom" : "First name"}
-              </label>
-              <input
-                className="w-full border rounded-xl px-4 py-3 text-sm text-gray-900 bg-white focus:outline-none"
-                style={{ borderColor: "#E8E8F0" }}
-                placeholder={lang === "fr" ? "Votre prénom" : "Your first name"}
-                value={formData.prenom}
-                onChange={(e) => setFormData({ ...formData, prenom: e.target.value })}
-              />
+              <label className="text-xs font-semibold mb-1 block" style={{ color: "#1A1A2E" }}>{lang === "fr" ? "Prénom" : "First name"}</label>
+              <input className="w-full border rounded-xl px-4 py-3 text-sm text-gray-900 bg-white focus:outline-none" style={{ borderColor: "#E8E8F0" }} placeholder={lang === "fr" ? "Votre prénom" : "Your first name"} value={formData.prenom} onChange={(e) => setFormData({ ...formData, prenom: e.target.value })}/>
             </div>
             <div>
-              <label className="text-xs font-semibold mb-1 block" style={{ color: "#1A1A2E" }}>
-                {lang === "fr" ? "Nom" : "Last name"}
-              </label>
-              <input
-                className="w-full border rounded-xl px-4 py-3 text-sm text-gray-900 bg-white focus:outline-none"
-                style={{ borderColor: "#E8E8F0" }}
-                placeholder={lang === "fr" ? "Votre nom" : "Your last name"}
-                value={formData.nom}
-                onChange={(e) => setFormData({ ...formData, nom: e.target.value })}
-              />
+              <label className="text-xs font-semibold mb-1 block" style={{ color: "#1A1A2E" }}>{lang === "fr" ? "Nom" : "Last name"}</label>
+              <input className="w-full border rounded-xl px-4 py-3 text-sm text-gray-900 bg-white focus:outline-none" style={{ borderColor: "#E8E8F0" }} placeholder={lang === "fr" ? "Votre nom" : "Your last name"} value={formData.nom} onChange={(e) => setFormData({ ...formData, nom: e.target.value })}/>
             </div>
             <div>
-              <label className="text-xs font-semibold mb-1 block" style={{ color: "#1A1A2E" }}>
-                {lang === "fr" ? "Adresse email" : "Email address"}
-              </label>
-              <input
-                className="w-full border rounded-xl px-4 py-3 text-sm text-gray-900 bg-white focus:outline-none"
-                style={{ borderColor: "#E8E8F0" }}
-                placeholder={lang === "fr" ? "votre@email.com" : "your@email.com"}
-                type="email"
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              />
+              <label className="text-xs font-semibold mb-1 block" style={{ color: "#1A1A2E" }}>{lang === "fr" ? "Adresse email" : "Email address"}</label>
+              <input className="w-full border rounded-xl px-4 py-3 text-sm text-gray-900 bg-white focus:outline-none" style={{ borderColor: "#E8E8F0" }} placeholder={lang === "fr" ? "votre@email.com" : "your@email.com"} type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })}/>
             </div>
-            {formError && (
-              <p className="text-xs text-center" style={{ color: "#FF7043" }}>{formError}</p>
-            )}
-            <button
-              onClick={handleFormSubmit}
-              className="w-full py-4 rounded-2xl text-sm font-bold text-white mt-2"
-              style={{ background: "#FF7043" }}
-            >
+            {formError && <p className="text-xs text-center" style={{ color: "#FF7043" }}>{formError}</p>}
+            <button onClick={handleFormSubmit} className="w-full py-4 rounded-2xl text-sm font-bold text-white mt-2" style={{ background: "#FF7043" }}>
               {lang === "fr" ? "Commencer mon entretien YELMA →" : "Start my YELMA interview →"}
             </button>
-            <button
-              onClick={() => setLang(null)}
-              className="text-xs text-center"
-              style={{ color: "#888", background: "none", border: "none", cursor: "pointer" }}
-            >
+            <button onClick={() => setLang(null)} className="text-xs text-center" style={{ color: "#888", background: "none", border: "none", cursor: "pointer" }}>
               {lang === "fr" ? "← Retour" : "← Back"}
             </button>
           </div>
@@ -358,17 +428,8 @@ prenom: userInfo?.prenom,
         <div ref={messagesEndRef} />
       </div>
       <div className="bg-white px-4 py-3 border-t border-gray-100 flex gap-2 flex-shrink-0">
-        <input
-          className="flex-1 border rounded-xl px-4 py-3 text-sm text-gray-900 bg-white focus:outline-none"
-          style={{ borderColor: "#E8E8F0" }}
-          placeholder={t.placeholder}
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && sendMessage()}
-        />
-        <button onClick={sendMessage} disabled={loading} className="text-white px-5 py-3 rounded-xl text-sm font-bold disabled:opacity-50" style={{ background: "#FF7043" }}>
-          {t.send}
-        </button>
+        <input className="flex-1 border rounded-xl px-4 py-3 text-sm text-gray-900 bg-white focus:outline-none" style={{ borderColor: "#E8E8F0" }} placeholder={t.placeholder} value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === "Enter" && sendMessage()}/>
+        <button onClick={sendMessage} disabled={loading} className="text-white px-5 py-3 rounded-xl text-sm font-bold disabled:opacity-50" style={{ background: "#FF7043" }}>{t.send}</button>
       </div>
     </div>
   );
