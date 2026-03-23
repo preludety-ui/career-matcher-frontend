@@ -18,7 +18,13 @@ type Message = {
     gps_an4?: { titre: string; salaire: number; action: string };
     gps_an5?: { titre: string; salaire: number; action: string };
     competences?: string[];
-   certifications?: string[];
+   certifications?: { nom: string; organisme: string }[];
+    formations?: { nom: string; plateforme: string; duree: string }[];
+    opportunites?: { titre: string; salaire: number; description: string }[];
+    force1_desc?: string;
+    force2_desc?: string;
+    force3_desc?: string;
+    message_final?: string;
   };
 };
 
