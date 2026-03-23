@@ -1,15 +1,31 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 export default function Success() {
   const router = useRouter();
+  const [countdown, setCountdown] = useState(5);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCountdown(prev => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          router.push("/?lang=fr&free=true");
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [router]);
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-6" style={{ background: "#FAFBFF" }}>
       <div className="w-full max-w-md text-center">
 
-        {/* Icône succès animée */}
+        {/* Icône succès */}
         <div className="flex justify-center mb-6">
           <div className="w-20 h-20 rounded-full flex items-center justify-center" style={{ background: "#D6FFE8" }}>
             <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
@@ -33,29 +49,30 @@ export default function Success() {
           <div className="text-sm mt-4 mb-2" style={{ color: "#444", lineHeight: 1.6 }}>
             Votre abonnement est actif. Vous avez maintenant accès à toutes les fonctionnalités YELMA — GPS de carrière complet, entretiens illimités et suivi de progression.
           </div>
-          <div className="text-xs" style={{ color: "#888", fontStyle: "italic" }}>
-            Your subscription is now active. Full GPS career, unlimited interviews and progress tracking are unlocked.
+          <div className="text-xs mt-4 p-3 rounded-xl" style={{ background: "#F0FFF4", color: "#085041" }}>
+            Redirection automatique dans <strong>{countdown}</strong> seconde{countdown > 1 ? "s" : ""}...
           </div>
         </div>
 
-        {/* Bouton retour */}
+        {/* Boutons */}
         <button
-          onClick={() => router.push("/")}
-          className="w-full py-4 rounded-2xl text-sm font-bold text-white mb-4"
+          onClick={() => router.push("/?lang=fr&free=true")}
+          className="w-full py-4 rounded-2xl text-sm font-bold text-white mb-3"
           style={{ background: "#FF7043" }}
         >
-          Commencer mon entretien YELMA →
+          Commencer mon entretien YELMA maintenant →
         </button>
 
         <button
-          onClick={() => router.push("/pricing")}
-          className="text-xs"
-          style={{ color: "#888", background: "none", border: "none", cursor: "pointer" }}
+          onClick={() => router.push("/?lang=en&free=true")}
+          className="w-full py-4 rounded-2xl text-sm font-bold mb-3"
+          style={{ background: "white", color: "#1A1A2E", border: "2px solid #E8E8F0" }}
         >
-          Voir mon abonnement
+          Start my YELMA interview now →
         </button>
 
       </div>
     </div>
   );
 }
+
