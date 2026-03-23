@@ -121,6 +121,9 @@ export default function Home() {
           })),
           lang,
           email: userInfo?.email,
+nom: userInfo?.nom,
+prenom: userInfo?.prenom,
+
         }),
       });
       const data = await res.json();

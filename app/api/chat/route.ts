@@ -68,8 +68,7 @@ CERTIFICATIONS RECOMMANDEES
 
 [Message final tres encourageant et personnalise de 3-4 phrases]
 
-
-VILLE:IMPORTANT - DONNEES TECHNIQUES (OBLIGATOIRE - ne pas omettre) :
+IMPORTANT - DONNEES TECHNIQUES (OBLIGATOIRE - ne pas omettre) :
 ---YELMA_DATA---
 NIVEAU: [UNIVERSITAIRE ou TECHNIQUE ou AUTODIDACTE ou JUNIOR]
 VILLE: [ville detectee ou Montreal par defaut]
@@ -121,7 +120,8 @@ function extractData(text: string) {
 
 export async function POST(req: NextRequest) {
   try {
-    const { history, lang, email } = await req.json();
+    const body = await req.json();
+    const { history, lang, email, nom, prenom } = body;
 
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
@@ -142,30 +142,29 @@ export async function POST(req: NextRequest) {
 
     const reply = data.choices[0].message.content;
 
-    // Sauvegarder dans Supabase si rapport final détecté
-console.log("REPLY CONTAINS DATA TAG:", reply.includes("---YELMA_DATA---"));
-console.log("EMAIL:", email);
-if (reply.includes("---YELMA_DATA---") && email) {
-  console.log("SAVING TO SUPABASE...");
-  const rapportData = extractData(reply);
-  console.log("RAPPORT DATA:", JSON.stringify(rapportData));
-  if (rapportData) {
-    const { error } = await supabaseAdmin
-      .from("candidats")
-      .upsert({
-        email,
-        langue: lang || "fr",
-        ...rapportData,
-        nb_entretiens: 1,
-        dernier_entretien: new Date().toISOString(),
-      }, { onConflict: "email" });
-    if (error) console.error("SUPABASE ERROR:", error);
-    else console.log("SAVED SUCCESSFULLY!");
-  }
-}
+    console.log("REPLY CONTAINS DATA TAG:", reply.includes("---YELMA_DATA---"));
+    console.log("EMAIL:", email);
 
+    if (reply.includes("---YELMA_DATA---") && email) {
+      console.log("SAVING TO SUPABASE...");
+      const rapportData = extractData(reply);
+      if (rapportData) {
+        const { error } = await supabaseAdmin
+          .from("candidats")
+          .upsert({
+            email,
+            nom,
+            prenom,
+            langue: lang || "fr",
+            ...rapportData,
+            nb_entretiens: 1,
+            dernier_entretien: new Date().toISOString(),
+          }, { onConflict: "email" });
+        if (error) console.error("SUPABASE ERROR:", error);
+        else console.log("SAVED SUCCESSFULLY!");
+      }
+    }
 
-    // Nettoyer les balises de données
     const cleanReply = reply
       .replace(/---YELMA_DATA---[\s\S]*?---END_DATA---/g, "")
       .trim();
