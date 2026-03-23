@@ -66,6 +66,16 @@ const content = {
 
 export default function Home() {
   const [lang, setLang] = useState<"fr" | "en" | null>(null);
+  
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const l = params.get("lang") as "fr" | "en" | null;
+    const free = params.get("free");
+    if (l && free) {
+      setLang(l);
+      setMessages([{ role: "bot", text: content[l].welcome }]);
+    }
+  }, []);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -76,8 +86,7 @@ export default function Home() {
   }, [messages]);
 
   const selectLang = (l: "fr" | "en") => {
-    setLang(l);
-    setMessages([{ role: "bot", text: content[l].welcome }]);
+    window.location.href = `/pricing?lang=${l}`;
   };
 
   const sendMessage = async () => {

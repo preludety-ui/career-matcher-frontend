@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 export default function Pricing() {
   const [loading, setLoading] = useState<string | null>(null);
   const router = useRouter();
+  const searchParams = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
+  const lang = searchParams?.get("lang") || "fr";
 
   const handleSubscribe = async (plan: "monthly" | "annual") => {
     setLoading(plan);
@@ -56,7 +58,7 @@ export default function Pricing() {
                 </div>
               ))}
             </div>
-            <button onClick={() => router.push("/")} className="w-full py-2.5 rounded-xl text-xs font-semibold" style={{ background: "#F1EFE8", color: "#5F5E5A" }}>
+            <button onClick={() => router.push(`/?lang=${lang}&free=true`)} className="w-full py-2.5 rounded-xl text-xs font-semibold" style={{ background: "#F1EFE8", color: "#5F5E5A" }}>
               Commencer gratuitement
             </button>
           </div>
