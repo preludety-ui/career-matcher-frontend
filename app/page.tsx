@@ -14,7 +14,7 @@ const content = {
     placeholder: "Écrivez votre réponse...",
     send: "Envoyer",
     thinking: "En train d'analyser...",
-    welcome: "Bonjour ! Je suis votre assistant YELMA. Mon rôle est de vous aider à découvrir vos points forts et à trouver les opportunités qui vous correspondent le mieux. Pour commencer, pouvez-vous me parler un peu de vous et de votre situation actuelle ?",
+    welcome: "Bonjour ! Je suis YELMA, ton assistant carrière. Je suis là pour t'aider à découvrir ce qui te rend unique et à trouver ta voie au Canada. Pour commencer, peux-tu me parler un peu de toi et de ta situation actuelle ?",
     niche: "La plateforme carrière pour les jeunes que le marché du travail oublie trop souvent",
     nicheEN: "The career platform for young talent the job market keeps overlooking",
     slogan1: "Tu ne sais pas où tu excelles ?",
@@ -66,16 +66,9 @@ const content = {
 
 export default function Home() {
   const [lang, setLang] = useState<"fr" | "en" | null>(null);
-  
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const l = params.get("lang") as "fr" | "en" | null;
-    const free = params.get("free");
-    if (l && free) {
-      setLang(l);
-      setMessages([{ role: "bot", text: content[l].welcome }]);
-    }
-  }, []);
+  const [userInfo, setUserInfo] = useState<{ nom: string; prenom: string; email: string } | null>(null);
+  const [formData, setFormData] = useState({ nom: "", prenom: "", email: "" });
+  const [formError, setFormError] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -85,8 +78,30 @@ export default function Home() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const l = params.get("lang") as "fr" | "en" | null;
+    const free = params.get("free");
+    if (l && free) {
+      setLang(l);
+    }
+  }, []);
+
   const selectLang = (l: "fr" | "en") => {
     window.location.href = `/pricing?lang=${l}`;
+  };
+
+  const handleFormSubmit = () => {
+    if (!formData.nom.trim() || !formData.prenom.trim() || !formData.email.trim()) {
+      setFormError(lang === "fr" ? "Veuillez remplir tous les champs" : "Please fill in all fields");
+      return;
+    }
+    if (!formData.email.includes("@")) {
+      setFormError(lang === "fr" ? "Email invalide" : "Invalid email");
+      return;
+    }
+    setUserInfo(formData);
+    setMessages([{ role: "bot", text: content[lang!].welcome }]);
   };
 
   const sendMessage = async () => {
@@ -105,6 +120,7 @@ export default function Home() {
             content: m.text,
           })),
           lang,
+          email: userInfo?.email,
         }),
       });
       const data = await res.json();
@@ -121,29 +137,21 @@ export default function Home() {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center px-4 py-6" style={{ background: "#FAFBFF" }}>
         <div className="w-full max-w-sm" style={{ textAlign: "center" }}>
-
-          {/* Icône animée */}
           <div style={{ display: "flex", justifyContent: "center", alignItems: "flex-end", gap: "3px", height: "20px", margin: "0 auto 8px" }}>
             {[7, 13, 20, 13, 7].map((h, i) => (
               <div key={i} style={{ width: "4px", borderRadius: "3px", background: "#FF7043", height: `${h}px`, animation: `wave 1.1s ease-in-out infinite`, animationDelay: `${i * 0.15}s` }}/>
             ))}
           </div>
-
-          {/* Logo + niche */}
           <h1 style={{ fontSize: "32px", fontWeight: 800, color: "#1A1A2E", letterSpacing: "-1px", margin: "0 0 4px" }}>YELMA</h1>
           <div style={{ width: "28px", height: "2px", background: "#FF7043", borderRadius: "4px", margin: "0 auto 6px" }}/>
           <div style={{ display: "inline-block", background: "#FFE0D6", borderRadius: "20px", padding: "3px 12px", marginBottom: "6px" }}>
             <span style={{ fontSize: "9px", color: "#993C1D", fontWeight: 600 }}>{t.niche}</span>
           </div>
           <div style={{ fontSize: "8px", color: "#aaa", fontStyle: "italic", marginBottom: "8px" }}>{t.nicheEN}</div>
-
-          {/* Slogan */}
           <p style={{ fontSize: "11px", color: "#2D2D44", fontWeight: 500, lineHeight: 1.6, margin: "0 0 2px" }}>
             {t.slogan1} <span style={{ color: "#FF7043", fontWeight: 700 }}>{t.slogan2}</span>
           </p>
           <p style={{ fontSize: "9px", color: "#aaa", fontStyle: "italic", margin: "0 0 10px" }}>{t.sloganEN}</p>
-
-          {/* Stats marché */}
           <div style={{ background: "#1A1A2E", borderRadius: "10px", padding: "8px 12px", display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
             <div style={{ fontSize: "8px", color: "#FF7043", fontWeight: 600 }}>{t.market}</div>
             <div style={{ display: "flex", gap: "12px" }}>
@@ -156,8 +164,6 @@ export default function Home() {
               <button onClick={() => document.getElementById("yelma-popup")!.style.display = "flex"} style={{ background: "#FF7043", border: "none", color: "white", fontSize: "8px", cursor: "pointer", fontWeight: 600, padding: "4px 8px", borderRadius: "6px" }}>{t.seeMore}</button>
             </div>
           </div>
-
-          {/* 3 cartes */}
           <div style={{ display: "flex", gap: "6px", marginBottom: "8px" }}>
             {[
               { bg: "#FFE0D6", stroke: "#FF7043", title: t.card1title, sub: t.card1sub, titleEN: t.card1EN, subEN: t.card1subEN },
@@ -177,8 +183,6 @@ export default function Home() {
               </div>
             ))}
           </div>
-
-          {/* YELMA c'est pour toi si */}
           <div style={{ background: "white", borderRadius: "10px", padding: "10px 12px", border: "0.5px solid var(--color-border-tertiary)", marginBottom: "8px" }}>
             <div style={{ display: "flex", gap: "8px", alignItems: "flex-start" }}>
               <div style={{ background: "#FFE0D6", borderRadius: "8px", padding: "5px 7px", flexShrink: 0, textAlign: "center" }}>
@@ -199,17 +203,15 @@ export default function Home() {
               </div>
             </div>
           </div>
-
-          {/* Boutons langue */}
           <p style={{ fontSize: "10px", color: "#888", margin: "0 0 8px" }}>{t.chooseLang}</p>
           <div style={{ display: "flex", gap: "8px" }}>
             <button onClick={() => selectLang("fr")} style={{ flex: 1, background: "#1A1A2E", color: "white", border: "none", padding: "13px", borderRadius: "12px", fontSize: "14px", fontWeight: 700, cursor: "pointer" }}>Français</button>
             <button onClick={() => selectLang("en")} style={{ flex: 1, background: "white", color: "#1A1A2E", border: "2px solid #E8E8F0", padding: "13px", borderRadius: "12px", fontSize: "14px", fontWeight: 700, cursor: "pointer" }}>English</button>
           </div>
-
         </div>
 
-        {/* POPUP */}
+        <a href="/pricing" style={{ position: "fixed", bottom: "20px", right: "20px", background: "#FF7043", color: "white", borderRadius: "20px", padding: "8px 16px", fontSize: "11px", fontWeight: 600, textDecoration: "none", zIndex: 100 }}>✦ Commencer — 4.99$/mois</a>
+
         <div id="yelma-popup" style={{ display: "none", position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.5)", zIndex: 999, alignItems: "center", justifyContent: "center" }} onClick={(e) => { if (e.target === e.currentTarget) (e.currentTarget as HTMLElement).style.display = "none"; }}>
           <div style={{ background: "white", borderRadius: "16px", padding: "18px", width: "92%", maxWidth: "380px", maxHeight: "85vh", overflowY: "auto" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
@@ -239,8 +241,6 @@ export default function Home() {
             </div>
           </div>
         </div>
-
-        <a href="/pricing" style={{ position: "fixed", bottom: "20px", right: "20px", background: "#FF7043", color: "white", borderRadius: "20px", padding: "8px 16px", fontSize: "11px", fontWeight: 600, textDecoration: "none", zIndex: 100 }}>✦ Commencer — 4.99$/mois</a>
         <style>{`
           @keyframes wave { 0%,100%{transform:scaleY(1)} 50%{transform:scaleY(1.8)} }
           @keyframes pulse1 { 0%,100%{transform:scale(1)} 50%{transform:scale(1.3)} }
@@ -250,6 +250,83 @@ export default function Home() {
   }
 
   const t = content[lang];
+
+  // Formulaire nom, prénom, email
+  if (!userInfo) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center px-6" style={{ background: "#FAFBFF" }}>
+        <div className="w-full max-w-sm">
+          <div className="text-center mb-8">
+            <h1 className="font-black text-3xl mb-2" style={{ color: "#1A1A2E", letterSpacing: "-1px" }}>YELMA</h1>
+            <div style={{ width: "28px", height: "2px", background: "#FF7043", borderRadius: "4px", margin: "0 auto 12px" }}/>
+            <p className="text-sm font-medium" style={{ color: "#1A1A2E" }}>
+              {lang === "fr" ? "Avant de commencer, présentez-vous !" : "Before we start, tell us about you!"}
+            </p>
+            <p className="text-xs mt-1" style={{ color: "#888" }}>
+              {lang === "fr" ? "Vos informations restent confidentielles" : "Your information stays private"}
+            </p>
+          </div>
+          <div className="flex flex-col gap-4">
+            <div>
+              <label className="text-xs font-semibold mb-1 block" style={{ color: "#1A1A2E" }}>
+                {lang === "fr" ? "Prénom" : "First name"}
+              </label>
+              <input
+                className="w-full border rounded-xl px-4 py-3 text-sm text-gray-900 bg-white focus:outline-none"
+                style={{ borderColor: "#E8E8F0" }}
+                placeholder={lang === "fr" ? "Votre prénom" : "Your first name"}
+                value={formData.prenom}
+                onChange={(e) => setFormData({ ...formData, prenom: e.target.value })}
+              />
+            </div>
+            <div>
+              <label className="text-xs font-semibold mb-1 block" style={{ color: "#1A1A2E" }}>
+                {lang === "fr" ? "Nom" : "Last name"}
+              </label>
+              <input
+                className="w-full border rounded-xl px-4 py-3 text-sm text-gray-900 bg-white focus:outline-none"
+                style={{ borderColor: "#E8E8F0" }}
+                placeholder={lang === "fr" ? "Votre nom" : "Your last name"}
+                value={formData.nom}
+                onChange={(e) => setFormData({ ...formData, nom: e.target.value })}
+              />
+            </div>
+            <div>
+              <label className="text-xs font-semibold mb-1 block" style={{ color: "#1A1A2E" }}>
+                {lang === "fr" ? "Adresse email" : "Email address"}
+              </label>
+              <input
+                className="w-full border rounded-xl px-4 py-3 text-sm text-gray-900 bg-white focus:outline-none"
+                style={{ borderColor: "#E8E8F0" }}
+                placeholder={lang === "fr" ? "votre@email.com" : "your@email.com"}
+                type="email"
+                value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+              />
+            </div>
+            {formError && (
+              <p className="text-xs text-center" style={{ color: "#FF7043" }}>{formError}</p>
+            )}
+            <button
+              onClick={handleFormSubmit}
+              className="w-full py-4 rounded-2xl text-sm font-bold text-white mt-2"
+              style={{ background: "#FF7043" }}
+            >
+              {lang === "fr" ? "Commencer mon entretien YELMA →" : "Start my YELMA interview →"}
+            </button>
+            <button
+              onClick={() => setLang(null)}
+              className="text-xs text-center"
+              style={{ color: "#888", background: "none", border: "none", cursor: "pointer" }}
+            >
+              {lang === "fr" ? "← Retour" : "← Back"}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col bg-gray-50" style={{ height: "100dvh" }}>
       <div className="text-white px-6 py-4 flex-shrink-0 flex justify-between items-center" style={{ background: "#1A1A2E" }}>
@@ -257,9 +334,11 @@ export default function Home() {
           <h1 className="text-lg font-black" style={{ letterSpacing: "-1px" }}>YELMA</h1>
           <p className="text-xs" style={{ color: "#FF7043" }}>{t.tagline}</p>
         </div>
-        <button onClick={() => setLang(null)} className="text-xs" style={{ color: "#aaa" }}>{t.btnLang}</button>
+        <div className="flex items-center gap-3">
+          <span className="text-xs" style={{ color: "#aaa" }}>{userInfo.prenom}</span>
+          <button onClick={() => { setLang(null); setUserInfo(null); setMessages([]); }} className="text-xs" style={{ color: "#aaa" }}>{t.btnLang}</button>
+        </div>
       </div>
-
       <div className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-3">
         {messages.map((m, i) => (
           <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
@@ -275,7 +354,6 @@ export default function Home() {
         )}
         <div ref={messagesEndRef} />
       </div>
-
       <div className="bg-white px-4 py-3 border-t border-gray-100 flex gap-2 flex-shrink-0">
         <input
           className="flex-1 border rounded-xl px-4 py-3 text-sm text-gray-900 bg-white focus:outline-none"
