@@ -167,22 +167,23 @@ export async function POST(req: NextRequest) {
     }
 
     // Nettoyer les balises du rapport avant d'envoyer au candidat
+    const // Nettoyer seulement les balises techniques, garder le contenu visible
     const cleanReply = reply
       .replace("===RAPPORT_YELMA_START===", "")
       .replace("===RAPPORT_YELMA_END===", "")
-      .replace(/NIVEAU_EDUCATION:.*\n/g, "")
-      .replace(/VILLE:.*\n/g, "")
-      .replace(/PAYS:.*\n/g, "")
-      .replace(/SALAIRE_ACTUEL:.*\n/g, "")
-      .replace(/TITRE_ACTUEL:.*\n/g, "")
-      .replace(/FORCE\d:.*\n/g, "")
-      .replace(/FORCE\d_DESC:.*\n/g, "")
-      .replace(/GPS_AN\d_TITRE:.*\n/g, "")
-      .replace(/GPS_AN\d_SALAIRE:.*\n/g, "")
-      .replace(/GPS_AN\d_ACTION:.*\n/g, "")
-      .replace(/COMPETENCES:.*\n/g, "")
-      .replace(/CERTIFICATIONS:.*\n/g, "")
-      .replace(/FORMATIONS:.*\n/g, "")
+      .replace(/^NIVEAU_EDUCATION:.*$/gm, "")
+      .replace(/^VILLE:.*$/gm, "")
+      .replace(/^PAYS:.*$/gm, "")
+      .replace(/^SALAIRE_ACTUEL:.*$/gm, "")
+      .replace(/^TITRE_ACTUEL:.*$/gm, "")
+      .replace(/^FORCE\d:.*$/gm, "")
+      .replace(/^FORCE\d_DESC:.*$/gm, "")
+      .replace(/^GPS_AN\d_TITRE:.*$/gm, "")
+      .replace(/^GPS_AN\d_SALAIRE:.*$/gm, "")
+      .replace(/^GPS_AN\d_ACTION:.*$/gm, "")
+      .replace(/^COMPETENCES:.*$/gm, "")
+      .replace(/^CERTIFICATIONS:.*$/gm, "")
+      .replace(/^FORMATIONS:.*$/gm, "")
       .trim();
 
     return NextResponse.json({ reply: cleanReply });
