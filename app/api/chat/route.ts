@@ -49,8 +49,12 @@ RÈGLES STRICTES :
 5. JAMAIS de "je vais générer" ou "voici votre rapport" — l'écrire directement
 6. ZÉRO mention de pays dans le rapport
 7. Si les réponses sont trop courtes, poser une question de relance pour obtenir plus de détails concrets avant de générer le rapport
-8. Les compétences DOIVENT être opérationnelles et précises — format "Verbe + objet + contexte" ex: "Analyse des écarts budgétaires via Power BI", "Coordination inter-équipes pour livraison de jalons"
-9. INTERDIT : compétences vagues comme "Gestion de projet", "Communication", "Leadership"
+8. Les compétences DOIVENT être opérationnelles format "Verbe + objet + contexte + outil si applicable"
+   BONS exemples: "Analyse des écarts budgétaires via Excel et MS Project", "Suivi d'avancement des tâches via Jira pour livraison des jalons", "Coordination inter-équipes via réunions hebdomadaires pour alignement des parties prenantes"
+   MAUVAIS exemples: "Gestion de projet", "Suivi des tâches dans Jira", "Rédaction de rapports" — trop courts et vagues
+9. Chaque compétence doit avoir minimum 5 mots et décrire une action concrète avec un résultat ou contexte
+
+
 
 PREMIER MESSAGE : Saluer ${candidatInfo?.prenom || ""} et demander directement une réalisation concrète liée à son rôle de ${candidatInfo?.role_actuel || ""}.
 
@@ -136,11 +140,11 @@ Format JSON attendu:
   "role_actuel": "${candidatInfo.role_actuel || ""}",
   "ville": "${candidatInfo.ville || "Montréal"}",
   "objectif_declare": "${candidatInfo.objectif_declare || ""}",
-  "an1": {"titre": "NIVEAU JUNIOR selon experience - ex: Assistant/Junior confirmé", "salaire": 62000, "action": "action courte"},
-  "an2": {"titre": "NIVEAU Junior confirmé/Intermédiaire débutant", "salaire": 70000, "action": "action courte"},
-  "an3": {"titre": "NIVEAU Intermédiaire", "salaire": 78000, "action": "action courte"},
-  "an4": {"titre": "NIVEAU Intermédiaire senior", "salaire": 87000, "action": "action courte"},
-  "an5": {"titre": "NIVEAU Senior débutant MAX - JAMAIS Directeur avec moins 2 ans exp", "salaire": 96000, "action": "action courte"},
+  "an1": {"titre": "vrai titre de poste junior ex: Analyste junior, Assistant chef de projet", "salaire": 62000, "action": "action courte"},
+  "an2": {"titre": "vrai titre de poste ex: Analyste de projet, Chargé de projet junior", "salaire": 70000, "action": "action courte"},
+  "an3": {"titre": "vrai titre de poste ex: Chargé de projet, Analyste senior", "salaire": 78000, "action": "action courte"},
+  "an4": {"titre": "vrai titre de poste ex: Chargé de projet senior, Coordonnateur senior", "salaire": 87000, "action": "action courte"},
+  "an5": {"titre": "vrai titre de poste ex: Chef de projet, Spécialiste senior - JAMAIS Directeur avec moins 2 ans exp", "salaire": 96000, "action": "action courte"},
   "obj_an1": {"titre": "...", "salaire": 62000, "action": "..."},
   "obj_an2": {"titre": "...", "salaire": 72000, "action": "..."},
   "obj_an3": {"titre": "...", "salaire": 82000, "action": "..."},
