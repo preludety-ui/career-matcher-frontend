@@ -134,7 +134,7 @@ export function parseRapport(text: string): RapportData | null {
   }));
 
   const parseGPSLines = (section: string): GPS[] => {
-    const matches = [...section.matchAll(/Annee?\s*\d\s*[:\-]\s*\*?\*?([^—\n\*]+?)\*?\*?\s*[—-]\s*(\d+)\$[^\n]*\n?[^\n]*Action\s*:?\s*([^\n\.]+)/gi)];
+    const matches = [...section.matchAll(/Annee?\s*\d\s*[:\-]\s*\*?\*?([^—\n\*]+?)\*?\*?\s*[—-]\s*([\d,\s]+)\$[^\n]*Action\s*:?\s*([^\n\.]+)/gi)];
     return matches.map(m => ({
       titre: m[1]?.replace(/\*\*/g, "").trim() || "",
       salaire: parseInt(m[2]?.replace(/[^\d]/g, "") || "0"),
