@@ -301,7 +301,9 @@ export default function Home() {
           </div>
         </div>
 
-        <a href="/dashboard" style={{ position: "fixed", bottom: "20px", left: "20px", background: "#1A1A2E", color: "white", borderRadius: "20px", padding: "8px 16px", fontSize: "11px", fontWeight: 600, textDecoration: "none", zIndex: 100 }}>👔 Espace recruteur</a>
+        <a href="/partenaires" style={{ position: "fixed", bottom: "60px", left: "20px", background: "#0EA5E9", color: "white", borderRadius: "20px", padding: "8px 16px", fontSize: "11px", fontWeight: 600, textDecoration: "none", zIndex: 100 }}>🤝 Espace partenaire</a>
+
+<a href="/dashboard" style={{ position: "fixed", bottom: "20px", left: "20px", background: "#1A1A2E", color: "white", borderRadius: "20px", padding: "8px 16px", fontSize: "11px", fontWeight: 600, textDecoration: "none", zIndex: 100 }}>👔 Espace recruteur</a>
 
 <a href="/pricing" style={{ position: "fixed", bottom: "20px", right: "20px"
 
