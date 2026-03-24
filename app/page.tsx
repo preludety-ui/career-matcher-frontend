@@ -158,7 +158,7 @@ export default function Home() {
     window.location.href = `/pricing?lang=${l}`;
   };
 
-  const handleFormSubmit = () => {
+  const handleFormSubmit = async () => {
     if (!formData.nom.trim() || !formData.prenom.trim() || !formData.email.trim()) {
       setFormError(lang === "fr" ? "Veuillez remplir tous les champs" : "Please fill in all fields");
       return;
@@ -167,8 +167,17 @@ export default function Home() {
       setFormError(lang === "fr" ? "Email invalide" : "Invalid email");
       return;
     }
-    setUserInfo({ ...formData, plan: "gratuit" });
-    setMessages([{ role: "bot", text: content[lang!].welcome }]);
+    // Vérifier le plan dans Supabase
+try {
+  const res = await fetch(`/api/candidats?email=${formData.email}`);
+  const data = await res.json();
+  const plan = data?.data?.plan || "gratuit";
+  setUserInfo({ ...formData, plan });
+} catch {
+  setUserInfo({ ...formData, plan: "gratuit" });
+}
+setMessages([{ role: "bot", text: content[lang!].welcome }]);
+
   };
 
   const sendMessage = async () => {
