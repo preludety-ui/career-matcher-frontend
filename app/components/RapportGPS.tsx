@@ -12,7 +12,6 @@ type Opportunite = {
   titre: string;
   salaire: number;
   description: string;
-  lien?: string;
 };
 
 type Formation = {
@@ -31,7 +30,9 @@ type RapportData = {
   force1?: string; force1_desc?: string;
   force2?: string; force2_desc?: string;
   force3?: string; force3_desc?: string;
-  salaire_actuel?: number;
+  salaire_min?: number;
+  salaire_max?: number;
+  role_actuel?: string;
   ville?: string;
   opportunites?: Opportunite[];
   gps_an1?: GPS; gps_an2?: GPS; gps_an3?: GPS; gps_an4?: GPS; gps_an5?: GPS;
@@ -64,9 +65,11 @@ export function parseRapport(text: string): RapportData | null {
     const parseGPS = (val: string | null | undefined): GPS | undefined => {
       if (!val) return undefined;
       const parts = val.split("|");
+      const salaire = parseInt(parts[1]?.replace(/[^\d]/g, "") || "0");
+      if (!salaire) return undefined;
       return {
         titre: parts[0]?.trim() || "",
-        salaire: parseInt(parts[1]?.replace(/[^\d]/g, "") || "0"),
+        salaire,
         action: parts[2]?.trim() || "",
       };
     };
@@ -103,7 +106,9 @@ export function parseRapport(text: string): RapportData | null {
 
     return {
       force1: get("FORCE1"), force2: get("FORCE2"), force3: get("FORCE3"),
-      salaire_actuel: parseInt(get("SALAIRE") || "0"),
+      salaire_min: parseInt(get("SALAIRE_MIN") || "0"),
+      salaire_max: parseInt(get("SALAIRE_MAX") || "0"),
+      role_actuel: get("ROLE"),
       ville: get("VILLE") || "Canada",
       gps_an1: parseGPS(get("AN1")),
       gps_an2: parseGPS(get("AN2")),
@@ -129,12 +134,12 @@ export function parseRapport(text: string): RapportData | null {
   }));
 
   const parseGPSLines = (section: string): GPS[] => {
-    const matches = [...section.matchAll(/Annee?\s*\d\s*[:\-]\s*\*?\*?([^—\n\*]+?)\*?\*?\s*[—-]\s*([\d\s,]+)\$[^\n]*\n?[^\n]*Action\s*:?\s*([^\n\.]+)/gi)];
+    const matches = [...section.matchAll(/Annee?\s*\d\s*[:\-]\s*\*?\*?([^—\n\*]+?)\*?\*?\s*[—-]\s*(\d+)\$[^\n]*\n?[^\n]*Action\s*:?\s*([^\n\.]+)/gi)];
     return matches.map(m => ({
       titre: m[1]?.replace(/\*\*/g, "").trim() || "",
-      salaire: parseInt(m[2]?.replace(/[\s,]/g, "") || "0"),
+      salaire: parseInt(m[2]?.replace(/[^\d]/g, "") || "0"),
       action: m[3]?.trim() || "",
-    }));
+    })).filter(g => g.salaire > 0);
   };
 
   const yelmaSection = text.match(/TRAJECTOIRE YELMA[\s\S]+?(?=TRAJECTOIRE OBJECTIF|ANALYSE|FORMATIONS|$)/i)?.[0] || "";
@@ -142,14 +147,14 @@ export function parseRapport(text: string): RapportData | null {
   const yelmaGPS = parseGPSLines(yelmaSection || text);
   const objGPS = parseGPSLines(objSection);
 
-  const oppMatches = [...text.matchAll(/\d+\.\s+\*\*([^*]+)\*\*\s*[—-]\s*([\d\s,]+)\$[^\n]*\n([^\n]+)/gi)];
+  const oppMatches = [...text.matchAll(/\d+\.\s+\*\*([^*]+)\*\*\s*[—-]\s*(\d+)\$[^\n]*\n([^\n]+)/gi)];
   const opportunites: Opportunite[] = oppMatches.slice(0, 3).map(m => ({
     titre: m[1]?.trim() || "",
-    salaire: parseInt(m[2]?.replace(/[\s,]/g, "") || "0"),
+    salaire: parseInt(m[2]?.replace(/[^\d]/g, "") || "0"),
     description: m[3]?.trim() || "",
-  }));
+  })).filter(o => o.salaire > 0);
 
-  const formMatches = [...text.matchAll(/\d+\.\s+\*\*([^*]+)\*\*\s*[—-]\s*Type:\s*([^—\n]+)\s*[—-]\s*([^\s—\-]+)\s*[—-]\s*([^\n]+)/gi)];
+  const formMatches = [...text.matchAll(/\d+\.\s+\*\*([^*]+)\*\*\s*[—-]\s*Type:\s*([^—\n]+?)\s*[—-]\s*([^\s—\-]+)\s*[—-]\s*([^\n]+)/gi)];
   const formations: Formation[] = formMatches.map(m => ({
     nom: m[1]?.trim() || "",
     type: m[2]?.trim() || "Formation",
@@ -163,20 +168,19 @@ export function parseRapport(text: string): RapportData | null {
   const msgMatch = text.match(/---\n\n([\s\S]+?)$/);
   const message_final = msgMatch?.[1]?.replace(/\*\*/g, "").trim();
 
-  const salaireActuel = yelmaGPS[0] ? Math.round(yelmaGPS[0].salaire * 0.85) : 0;
-
   if (forces.length === 0 && yelmaGPS.length === 0) return null;
 
   return {
     force1: forces[0]?.nom, force1_desc: forces[0]?.desc,
     force2: forces[1]?.nom, force2_desc: forces[1]?.desc,
     force3: forces[2]?.nom, force3_desc: forces[2]?.desc,
-    salaire_actuel: salaireActuel,
+    salaire_min: yelmaGPS[0] ? Math.round(yelmaGPS[0].salaire * 0.85) : 40000,
+    salaire_max: yelmaGPS[0]?.salaire || 60000,
     opportunites,
-    gps_an1: yelmaGPS[0], gps_an2: yelmaGPS[1], gps_an3: yelmaGPS[2],
-    gps_an4: yelmaGPS[3], gps_an5: yelmaGPS[4],
-    obj_an1: objGPS[0], obj_an2: objGPS[1], obj_an3: objGPS[2],
-    obj_an4: objGPS[3], obj_an5: objGPS[4],
+    gps_an1: yelmaGPS[0], gps_an2: yelmaGPS[1],
+    gps_an3: yelmaGPS[2], gps_an4: yelmaGPS[3], gps_an5: yelmaGPS[4],
+    obj_an1: objGPS[0], obj_an2: objGPS[1],
+    obj_an3: objGPS[2], obj_an4: objGPS[3], obj_an5: objGPS[4],
     formations,
     analyse_comparative,
     message_final,
@@ -187,7 +191,7 @@ function ensureCroissant(salaires: number[]): number[] {
   return salaires.map((val, i) => {
     if (i === 0) return val || 40000;
     const prev = salaires[i - 1];
-    if (!val || val <= prev) return Math.round(prev * 1.1);
+    if (!val || val <= prev) return Math.round(prev * 1.12);
     return val;
   });
 }
@@ -202,19 +206,21 @@ function getTypeIcon(type: string): string {
 }
 
 export default function RapportGPS({
-  data, plan, ville
+  data, plan, ville, roleActuel
 }: {
   data: RapportData;
   plan: string;
   ville?: string;
+  roleActuel?: string;
 }) {
   const chartRef = useRef<HTMLCanvasElement>(null);
   const [openJalon, setOpenJalon] = useState<number | null>(null);
 
-  // Logique plan effectif
   const isPropulse = plan === "propulse";
   const isDecouverte = !isPropulse;
-  const hasObjectif = !!(data.obj_an1 || data.obj_an2);
+  const hasObjectif = !!(data.obj_an1?.salaire && data.obj_an1.salaire > 0);
+  const salaireMin = data.salaire_min || 40000;
+  const salaireMax = data.salaire_max || 60000;
 
   useEffect(() => {
     if (!chartRef.current) return;
@@ -225,7 +231,7 @@ export default function RapportGPS({
       if (existing) existing.destroy();
 
       const rawYelma = [
-        data.salaire_actuel || 40000,
+        salaireMin,
         data.gps_an1?.salaire || 0,
         data.gps_an2?.salaire || 0,
         data.gps_an3?.salaire || 0,
@@ -234,7 +240,6 @@ export default function RapportGPS({
       ];
 
       const yelma = ensureCroissant(rawYelma);
-
       const datasets: object[] = [
         {
           label: "Trajectoire YELMA",
@@ -251,7 +256,7 @@ export default function RapportGPS({
 
       if (hasObjectif && isPropulse) {
         const rawObj = [
-          data.salaire_actuel || 40000,
+          salaireMin,
           data.obj_an1?.salaire || 0,
           data.obj_an2?.salaire || 0,
           data.obj_an3?.salaire || 0,
@@ -306,7 +311,7 @@ export default function RapportGPS({
       });
     };
     loadChart();
-  }, [data, hasObjectif, isPropulse]);
+  }, [data, hasObjectif, isPropulse, salaireMin]);
 
   const jalons = [
     { an: 1, gps: data.gps_an1 },
@@ -319,12 +324,13 @@ export default function RapportGPS({
     year: "numeric", month: "long", day: "numeric"
   });
 
-  // Opportunités visibles selon plan
+  const villeAffichee = ville || data.ville || "Canada";
+  const roleAffiche = roleActuel || data.role_actuel || "";
+
   const opportunitesVisibles = isDecouverte
     ? (data.opportunites || []).slice(0, 1)
     : (data.opportunites || []);
 
-  // Formations visibles selon plan
   const formationsVisibles = isPropulse ? (data.formations || []) : [];
   const certificationsVisibles = isPropulse ? (data.certifications || []) : [];
 
@@ -335,14 +341,14 @@ export default function RapportGPS({
       <div style={{ background: "#1A1A2E", borderRadius: "12px", padding: "12px 16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div>
           <div style={{ fontSize: "13px", fontWeight: 700, color: "white" }}>Ton rapport YELMA 🎯</div>
-          <div style={{ fontSize: "9px", color: "#FF7043", marginTop: "2px" }}>{today} · {ville || data.ville || "Canada"}</div>
+          <div style={{ fontSize: "9px", color: "#FF7043", marginTop: "2px" }}>{today} · {villeAffichee}</div>
         </div>
         <div style={{ background: isPropulse ? "#FF7043" : "#555", borderRadius: "20px", padding: "3px 10px", fontSize: "10px", color: "white", fontWeight: 600 }}>
           {isPropulse ? "PROPULSE" : "DÉCOUVERTE"}
         </div>
       </div>
 
-      {/* 3 Forces — toujours visibles */}
+      {/* 3 Forces */}
       {(data.force1 || data.force2 || data.force3) && (
         <div style={{ background: "white", borderRadius: "12px", padding: "14px", border: "0.5px solid #E8E8F0" }}>
           <div style={{ fontSize: "10px", fontWeight: 700, color: "#888", letterSpacing: ".5px", marginBottom: "10px" }}>🎯 TES 3 COMPÉTENCES CLÉS</div>
@@ -365,7 +371,7 @@ export default function RapportGPS({
       {opportunitesVisibles.length > 0 && (
         <div style={{ background: "white", borderRadius: "12px", padding: "14px", border: "0.5px solid #E8E8F0" }}>
           <div style={{ fontSize: "10px", fontWeight: 700, color: "#888", letterSpacing: ".5px", marginBottom: "10px" }}>
-            💼 OPPORTUNITÉS COMPATIBLES {isDecouverte && <span style={{ color: "#FF7043" }}>(1 sur 3)</span>}
+            💼 OPPORTUNITÉS COMPATIBLES {isDecouverte && <span style={{ color: "#FF7043", fontWeight: 400 }}>(1 sur 3)</span>}
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
             {opportunitesVisibles.map((o, i) => (
@@ -376,28 +382,41 @@ export default function RapportGPS({
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: "8px", flexShrink: 0, marginLeft: "8px" }}>
                   <div style={{ fontSize: "13px", fontWeight: 700, color: "#FF7043" }}>{o.salaire?.toLocaleString()} $</div>
-                  <a href="https://www.linkedin.com/jobs" target="_blank" rel="noopener noreferrer" style={{ background: "#1A1A2E", color: "white", borderRadius: "20px", padding: "3px 8px", fontSize: "9px", textDecoration: "none", fontWeight: 600 }}>Offres →</a>
+                  <a href={`https://www.linkedin.com/jobs/search/?keywords=${encodeURIComponent(o.titre)}`} target="_blank" rel="noopener noreferrer" style={{ background: "#1A1A2E", color: "white", borderRadius: "20px", padding: "3px 8px", fontSize: "9px", textDecoration: "none", fontWeight: 600 }}>Offres →</a>
                 </div>
               </div>
             ))}
             {isDecouverte && (
-              <div style={{ padding: "10px 12px", background: "#F1EFE8", borderRadius: "10px", textAlign: "center" }}>
-                <span style={{ fontSize: "10px", color: "#888" }}>🔒 2 autres opportunités disponibles avec Propulse</span>
+              <div style={{ padding: "8px 12px", background: "#F1EFE8", borderRadius: "10px", textAlign: "center", fontSize: "10px", color: "#888" }}>
+                🔒 2 autres opportunités disponibles avec Propulse
               </div>
             )}
           </div>
         </div>
       )}
 
-      {/* Valeur actuelle + Graphique */}
+      {/* Fourchette salariale + Graphique */}
       <div style={{ background: "white", borderRadius: "12px", padding: "14px", border: "0.5px solid #E8E8F0" }}>
-        <div style={{ background: "#FFF8F6", borderRadius: "10px", padding: "10px 12px", marginBottom: "12px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <div>
-            <div style={{ fontSize: "9px", color: "#888" }}>Ta valeur actuelle sur le marché</div>
-            <div style={{ fontSize: "9px", color: "#888" }}>{ville || data.ville || "Canada"} · selon ton profil</div>
+        <div style={{ background: "#FFF8F6", borderRadius: "10px", padding: "10px 12px", marginBottom: "12px" }}>
+          <div style={{ fontSize: "9px", color: "#888", marginBottom: "4px" }}>
+            💰 Ta valeur sur le marché · {roleAffiche && `${roleAffiche} · `}{villeAffichee}
           </div>
-          <div style={{ fontSize: "22px", fontWeight: 700, color: "#FF7043" }}>
-            {(data.salaire_actuel || 0).toLocaleString()} $
+          <div style={{ display: "flex", alignItems: "baseline", gap: "6px" }}>
+            <div style={{ fontSize: "20px", fontWeight: 700, color: "#FF7043" }}>
+              {salaireMin > 0 ? salaireMin.toLocaleString() : "—"} $
+            </div>
+            {salaireMax > salaireMin && (
+              <>
+                <div style={{ fontSize: "14px", color: "#888" }}>—</div>
+                <div style={{ fontSize: "20px", fontWeight: 700, color: "#10B981" }}>
+                  {salaireMax.toLocaleString()} $
+                </div>
+              </>
+            )}
+            <div style={{ fontSize: "10px", color: "#888" }}>CAD/an</div>
+          </div>
+          <div style={{ fontSize: "9px", color: "#aaa", marginTop: "3px" }}>
+            Basé sur les données du marché canadien en temps réel
           </div>
         </div>
 
@@ -448,7 +467,7 @@ export default function RapportGPS({
         <div style={{ fontSize: "10px", fontWeight: 700, color: "#888", letterSpacing: ".5px", marginBottom: "10px" }}>🗺️ GPS DE CARRIÈRE — 5 ANS</div>
         <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
           {jalons.map(({ an, gps }) => {
-            if (!gps) return null;
+            if (!gps || !gps.salaire) return null;
             const isLocked = an > 1 && isDecouverte;
             const isOpen = openJalon === an;
 
@@ -483,8 +502,7 @@ export default function RapportGPS({
             );
           })}
 
-          {/* An 5 */}
-          {data.gps_an5 && (
+          {data.gps_an5 && data.gps_an5.salaire > 0 && (
             <div style={{ background: "#E1F5EE", borderRadius: "10px", padding: "10px 12px", border: "1.5px solid #9FE1CB" }}>
               <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
                 <div style={{ background: "#085041", color: "#E1F5EE", borderRadius: "50%", width: "26px", height: "26px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "10px", fontWeight: 700, flexShrink: 0 }}>5</div>
@@ -513,7 +531,7 @@ export default function RapportGPS({
                   <div style={{ fontSize: "11px", fontWeight: 500, color: "#1A1A2E" }}>{f.nom}</div>
                   <div style={{ fontSize: "10px", color: "#888" }}>{f.plateforme} · {f.duree}</div>
                 </div>
-                <a href="/partenaires/offres" style={{ background: "#D6F0FF", color: "#0C447C", borderRadius: "20px", padding: "3px 8px", fontSize: "9px", textDecoration: "none", flexShrink: 0, marginLeft: "8px", fontWeight: 600 }}>Détail →</a>
+                <a href="/partenaires" style={{ background: "#D6F0FF", color: "#0C447C", borderRadius: "20px", padding: "3px 8px", fontSize: "9px", textDecoration: "none", flexShrink: 0, marginLeft: "8px", fontWeight: 600 }}>Détail →</a>
               </div>
             ))}
           </div>
@@ -529,7 +547,7 @@ export default function RapportGPS({
               <div key={i} style={{ flex: 1, minWidth: "120px", background: "#FFF8F6", borderRadius: "8px", padding: "8px 10px", borderLeft: "3px solid #FF7043" }}>
                 <div style={{ fontSize: "11px", fontWeight: 600, color: "#FF7043" }}>{c.nom}</div>
                 <div style={{ fontSize: "9px", color: "#888", marginBottom: "4px" }}>{c.organisme}</div>
-                <a href="/partenaires/offres" style={{ fontSize: "9px", color: "#FF7043", textDecoration: "none", fontWeight: 600 }}>Détail →</a>
+                <a href="/partenaires" style={{ fontSize: "9px", color: "#FF7043", textDecoration: "none", fontWeight: 600 }}>Détail →</a>
               </div>
             ))}
           </div>
@@ -540,7 +558,7 @@ export default function RapportGPS({
       {isDecouverte && (
         <div style={{ background: "#FFE0D6", borderRadius: "12px", padding: "12px 14px", textAlign: "center" }}>
           <div style={{ fontSize: "12px", color: "#993C1D", fontWeight: 600, marginBottom: "4px" }}>🔒 Débloquez votre GPS complet avec YELMA Propulse</div>
-          <div style={{ fontSize: "10px", color: "#993C1D", marginBottom: "8px" }}>An 2 à 5 détaillés · 3 opportunités · Formations · Certifications · Double courbe GPS</div>
+          <div style={{ fontSize: "10px", color: "#993C1D", marginBottom: "8px" }}>An 2 à 5 · 3 opportunités · Formations · Certifications · Double courbe GPS</div>
           <a href="/pricing" style={{ display: "inline-block", background: "#FF7043", color: "white", borderRadius: "20px", padding: "6px 16px", fontSize: "11px", fontWeight: 600, textDecoration: "none" }}>S&apos;abonner — 4.99$/mois →</a>
         </div>
       )}
