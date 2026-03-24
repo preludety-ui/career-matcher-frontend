@@ -174,9 +174,15 @@ try {
   const plan = data?.data?.plan || "gratuit";
   setUserInfo({ ...formData, plan });
 } catch {
-  setUserInfo({ ...formData, plan: "gratuit" });
-}
-setMessages([{ role: "bot", text: content[lang!].welcome }]);
+  try {
+      const res = await fetch(`/api/plan?email=${formData.email}`);
+      const data = await res.json();
+      const plan = data?.plan_effectif || "propulse";
+      setUserInfo({ ...formData, plan });
+    } catch {
+      setUserInfo({ ...formData, plan: "propulse" });
+    }
+    setMessages([{ role: "bot", text: content[lang!].welcome }]);
 
   };
 
@@ -474,4 +480,5 @@ setMessages([{ role: "bot", text: content[lang!].welcome }]);
       </div>
     </div>
   );
+}
 }
