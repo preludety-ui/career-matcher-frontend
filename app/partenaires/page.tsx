@@ -10,6 +10,7 @@ type Offre = {
   prix: number;
   description: string;
   lien: string;
+  duree: string;
   nb_clics: number;
   nb_conversions: number;
 };
@@ -134,6 +135,7 @@ export default function PartenaireDashboard() {
     { id: "overview", label: "Vue d'ensemble" },
     { id: "contrat", label: "Mon contrat" },
     { id: "offres", label: "Mes offres" },
+    { id: "catalogue", label: "Catalogue public" },
     { id: "stats", label: "Statistiques" },
   ];
 
@@ -303,6 +305,81 @@ export default function PartenaireDashboard() {
                 </div>
               )}
             </div>
+          </div>
+        )}
+        {/* Catalogue public — Cluster 2 */}
+        {activeTab === "catalogue" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+            <div style={{ background: "#FFF8F6", borderRadius: "12px", padding: "12px 16px", border: "1.5px solid #FFE0D6" }}>
+              <div style={{ fontSize: "11px", fontWeight: 700, color: "#FF7043", marginBottom: "4px" }}>📢 Cluster public — visible par les candidats</div>
+              <div style={{ fontSize: "10px", color: "#888" }}>Ces offres apparaissent dans les rapports YELMA avec un lien "Détail →" qui mène ici.</div>
+            </div>
+
+            {partenaire.offres && partenaire.offres.length > 0 ? (
+              partenaire.offres.map((offre, i) => (
+                <div key={i} style={{ background: "white", borderRadius: "12px", padding: "16px", border: "0.5px solid #E8E8F0" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "10px" }}>
+                    <div>
+                      <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "4px" }}>
+                        <span style={{ fontSize: "14px" }}>
+                          {offre.type?.toLowerCase().includes("certif") ? "🏆" :
+                           offre.type?.toLowerCase().includes("mentor") ? "🤝" :
+                           offre.type?.toLowerCase().includes("événement") || offre.type?.toLowerCase().includes("evenement") ? "🎤" :
+                           offre.type?.toLowerCase().includes("diplôme") || offre.type?.toLowerCase().includes("diplome") ? "🎓" : "📚"}
+                        </span>
+                        <span style={{ fontSize: "9px", background: "#FFE0D6", color: "#993C1D", borderRadius: "20px", padding: "2px 8px", fontWeight: 600 }}>{offre.type || "Formation"}</span>
+                      </div>
+                      <div style={{ fontSize: "14px", fontWeight: 700, color: "#1A1A2E" }}>{offre.nom}</div>
+                    </div>
+                    <div style={{ fontSize: "16px", fontWeight: 700, color: "#FF7043" }}>{offre.prix} $</div>
+                  </div>
+
+                  <div style={{ fontSize: "11px", color: "#555", lineHeight: 1.6, marginBottom: "10px" }}>
+                    {offre.description || "Description non disponible."}
+                  </div>
+
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginBottom: "10px" }}>
+                    {[
+                      ["📅 Durée", offre.duree || "—"],
+                      ["🏢 Organisme", partenaire.nom],
+                      ["💰 Prix", `${offre.prix} $ CAD`],
+                      ["🔗 Site web", partenaire.site_web || "—"],
+                    ].map(([label, value], j) => (
+                      <div key={j} style={{ background: "#FAFBFF", borderRadius: "8px", padding: "8px 10px" }}>
+                        <div style={{ fontSize: "9px", color: "#888" }}>{label}</div>
+                        <div style={{ fontSize: "11px", fontWeight: 500, color: "#1A1A2E" }}>{value}</div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div style={{ display: "flex", gap: "8px" }}>
+                     {partenaire.site_web && (
+                      <a
+                        href={partenaire.site_web}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{ flex: 1, background: "#FF7043", color: "white", borderRadius: "10px", padding: "10px", fontSize: "12px", fontWeight: 600, textDecoration: "none", textAlign: "center" }}
+                      >
+                        S&apos;inscrire →
+                      </a>
+                    )}
+                    
+                       href={`mailto:${partenaire.email}`}
+                      <a
+                      style={{ flex: 1, background: "#F1EFE8", color: "#1A1A2E", borderRadius: "10px", padding: "10px", fontSize: "12px", fontWeight: 600, textDecoration: "none", textAlign: "center" }}
+                    >
+                      Contacter →
+                    </a>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div style={{ background: "white", borderRadius: "12px", padding: "30px", textAlign: "center", border: "0.5px solid #E8E8F0" }}>
+                <div style={{ fontSize: "24px", marginBottom: "8px" }}>📭</div>
+                <div style={{ fontSize: "12px", color: "#888", marginBottom: "8px" }}>Aucune offre dans le catalogue pour le moment.</div>
+                <a href={`mailto:partenaires@yelma.ca`} style={{ fontSize: "11px", color: "#FF7043", fontWeight: 600 }}>Contactez-nous pour ajouter vos offres →</a>
+              </div>
+            )}
           </div>
         )}
 

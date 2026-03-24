@@ -30,9 +30,9 @@ const rapportDemo = {
   obj_an5: { titre: "Directeur de portefeuille projets", salaire: 120000, action: "OBJECTIF DÉCLARÉ !" },
   analyse_comparative: "Ta trajectoire naturelle te mène vers un rôle financier stratégique à 130K$, tandis que ton objectif déclaré de gestion de programme atteint 120K$. Les deux sont complémentaires — ta force en analyse financière reste un atout majeur dans les deux cas.",
   formations: [
-    { nom: "Gestion de projet avancée", plateforme: "Coursera", duree: "3 mois" },
-    { nom: "Analyse financière", plateforme: "Udemy", duree: "2 mois" },
-    { nom: "Leadership et management", plateforme: "LinkedIn Learning", duree: "1 mois" },
+    { nom: "Gestion de projet avancée", type: "Certification", plateforme: "Coursera", duree: "3 mois" },
+    { nom: "Analyse financière", type: "Formation", plateforme: "Udemy", duree: "2 mois" },
+    { nom: "Leadership et management", type: "Mentorat", plateforme: "LinkedIn Learning", duree: "1 mois" },
   ],
   certifications: [
     { nom: "PMP", organisme: "Project Management Institute" },

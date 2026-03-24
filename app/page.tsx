@@ -19,7 +19,7 @@ type Message = {
     gps_an3?: { titre: string; salaire: number; action: string };
     gps_an4?: { titre: string; salaire: number; action: string };
     gps_an5?: { titre: string; salaire: number; action: string };
-    formations?: { nom: string; plateforme: string; duree: string }[];
+    formations?: { nom: string; type: string; plateforme: string; duree: string }[];
     certifications?: { nom: string; organisme: string }[];
     message_final?: string;
   };
@@ -541,9 +541,10 @@ return (
         {messages.map((m, i) => (
           <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
             <div className={`max-w-[80%] px-4 py-3 rounded-2xl text-sm leading-relaxed ${m.role === "user" ? "text-white rounded-br-sm" : "bg-white text-gray-800 rounded-bl-sm shadow-sm"}`} style={m.role === "user" ? { background: "#1A1A2E" } : {}}>
-              {m.text.split("\n").map((line, j) => (<span key={j}>{line}<br /></span>))}
-              {m.rapport && (
+              {m.rapport ? (
                 <RapportGPSComponent data={m.rapport} plan={userInfo?.plan || "propulse"} />
+              ) : (
+                m.text.split("\n").map((line, j) => (<span key={j}>{line}<br /></span>))
               )}
             </div>
           </div>
