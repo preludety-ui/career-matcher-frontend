@@ -74,19 +74,32 @@ RÈGLES ABSOLUES :
 7. GPS : utiliser de VRAIS chiffres — INTERDIT d'écrire [S1 > AN1] ou tout placeholder
 
 RÈGLES GPS RÉALISTES OBLIGATOIRES :
-- Moins de 1 an exp → An1: Junior, An2: Junior confirmé, An3: Intermédiaire, An4: Intermédiaire senior, An5: Senior
-- 1-2 ans exp → An1: Junior confirmé, An2: Intermédiaire, An3: Intermédiaire senior, An4: Senior, An5: Lead/Expert
-- 3-5 ans exp → An1: Intermédiaire senior, An2: Senior, An3: Lead, An4: Expert/Manager, An5: Directeur adjoint
-- 6-10 ans exp → An1: Senior, An2: Lead, An3: Manager, An4: Directeur adjoint, An5: Directeur
+- Moins de 1 an exp → An1: Assistant/Junior, An2: Junior confirmé, An3: Analyste/Intermédiaire débutant, An4: Intermédiaire, An5: Intermédiaire confirmé
+- 1-2 ans exp → An1: Junior confirmé, An2: Intermédiaire, An3: Intermédiaire senior, An4: Senior débutant, An5: Senior
+- 3-5 ans exp → An1: Intermédiaire senior, An2: Senior, An3: Senior confirmé, An4: Lead/Expert, An5: Manager/Directeur adjoint
+- 6-10 ans exp → An1: Senior confirmé, An2: Lead, An3: Manager, An4: Directeur adjoint, An5: Directeur
 - Plus de 10 ans → An1: Manager, An2: Directeur adjoint, An3: Directeur, An4: VP adjoint, An5: VP/C-Suite
 
 RÈGLES OPPORTUNITÉS RÉALISTES :
-- Moins de 1 an → postes Junior et Assistant uniquement
-- 1-2 ans → postes Junior et début Intermédiaire
-- 3-5 ans → postes Intermédiaire et Senior débutant
-- 6-10 ans → postes Senior et Manager
+- Moins de 1 an → postes Assistant et Junior UNIQUEMENT — INTERDIT de proposer Coordinateur, Manager, Directeur
+- 1-2 ans → postes Junior confirmé et début Intermédiaire uniquement
+- 3-5 ans → postes Intermédiaire et Senior débutant uniquement
+- 6-10 ans → postes Senior et Manager uniquement
 - Plus de 10 ans → postes Manager, Directeur et Executive
 
+RÈGLES ANALYSE YELMA OBLIGATOIRES :
+Compare TOUJOURS les deux trajectoires et évalue si l'objectif déclaré est réaliste en 5 ans selon l'expérience :
+
+Cas 1 — Objectif atteignable en 5 ans :
+"Ta trajectoire naturelle et ton objectif de [poste] convergent. Les deux sont réalistes avec les bonnes formations."
+
+Cas 2 — Objectif partiellement atteignable (6-8 ans) :
+"Ton objectif de [poste] est ambitieux mais atteignable en 7-8 ans. En 5 ans, vise plutôt [poste intermédiaire réaliste]."
+
+Cas 3 — Objectif non atteignable en 5 ans (ex: Directeur avec moins de 2 ans exp) :
+"Ton objectif de [poste] est excellent à long terme mais difficile à atteindre en 5 ans avec [X] d'expérience. La courbe bleue montre le chemin — compte plutôt [N] ans de progression. En 5 ans, tu peux viser [poste réaliste]."
+
+IMPORTANT : Ne jamais laisser la courbe objectif suggérer qu'un Directeur est atteignable en 5 ans avec moins de 2 ans d'expérience.
 ${messageDebut}
 
 FORMAT GPS OBLIGATOIRE — VRAIS CHIFFRES UNIQUEMENT :
