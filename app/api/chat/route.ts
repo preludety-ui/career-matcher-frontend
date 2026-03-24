@@ -131,13 +131,13 @@ TES 3 COMPÉTENCES CLÉS
 OPPORTUNITÉS QUI TE CORRESPONDENT
 
 1. **[Titre poste]** — [Salaire réel]$ CAD/an
-[Description courte - 1 phrase]
+[Description - max 8 mots]
 
-2. **[Titre poste]** — [Salaire réel]$ CAD/an
-[Description courte - 1 phrase]
+2. **[Titre poste]** — [Salaire]$ CAD/an
+[Description - max 8 mots]
 
-3. **[Titre poste]** — [Salaire réel]$ CAD/an
-[Description courte - 1 phrase]
+3. **[Titre poste]** — [Salaire]$ CAD/an
+[Description - max 8 mots]
 
 TRAJECTOIRE YELMA (selon tes forces révélées)
 
@@ -162,9 +162,8 @@ ANALYSE YELMA
 
 FORMATIONS RECOMMANDÉES
 
-1. **[Nom]** — Type: [Certification/Formation/Mentorat/Événement/Diplôme] — [Plateforme] — [Durée]
-2. **[Nom]** — Type: [Certification/Formation/Mentorat/Événement/Diplôme] — [Plateforme] — [Durée]
-3. **[Nom]** — Type: [Certification/Formation/Mentorat/Événement/Diplôme] — [Plateforme] — [Durée]
+1. **[Nom]** — Type: [type] — [Plateforme] — [Durée]
+2. **[Nom]** — Type: [type] — [Plateforme] — [Durée]
 
 CERTIFICATIONS RECOMMANDÉES
 
@@ -306,7 +305,7 @@ export async function POST(req: NextRequest) {
         model: "gpt-4o-mini",
         messages: [{ role: "system", content: systemPrompt }, ...history],
         temperature: 0.7,
-        max_tokens: 3500,
+        max_tokens: 4000,
       }),
     });
 
