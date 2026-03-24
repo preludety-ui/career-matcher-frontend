@@ -34,6 +34,8 @@ type RapportData = {
   ville?: string;
   opportunites?: Opportunite[];
   gps_an1?: GPS; gps_an2?: GPS; gps_an3?: GPS; gps_an4?: GPS; gps_an5?: GPS;
+  obj_an1?: GPS; obj_an2?: GPS; obj_an3?: GPS; obj_an4?: GPS; obj_an5?: GPS;
+  analyse_comparative?: string;
   formations?: Formation[];
   certifications?: Certification[];
   message_final?: string;
@@ -41,14 +43,15 @@ type RapportData = {
 
 export function parseRapport(text: string): RapportData | null {
   const isRapport =
+    text.includes("TES 3 COMPÉTENCES") ||
     text.includes("TES 3 FORCES") ||
     text.includes("GPS DE CARRIERE") ||
+    text.includes("TRAJECTOIRE YELMA") ||
     text.includes("FORCE1:") ||
     text.includes("AN1:");
 
   if (!isRapport) return null;
 
-  // Parser depuis balises techniques
   const hasData = text.includes("---YELMA_DATA---");
 
   if (hasData) {
@@ -61,33 +64,43 @@ export function parseRapport(text: string): RapportData | null {
       const parts = val.split("|");
       return { titre: parts[0]?.trim() || "", salaire: parseInt(parts[1] || "0"), action: parts[2]?.trim() || "" };
     };
+
     return {
       force1: get("FORCE1"), force2: get("FORCE2"), force3: get("FORCE3"),
       salaire_actuel: parseInt(get("SALAIRE") || "0"),
-      titre_actuel: get("TITRE") || "",
       ville: get("VILLE") || "Canada",
       gps_an1: parseGPS(get("AN1")),
       gps_an2: parseGPS(get("AN2")),
       gps_an3: parseGPS(get("AN3")),
       gps_an4: parseGPS(get("AN4")),
       gps_an5: parseGPS(get("AN5")),
+      obj_an1: parseGPS(get("OBJ_AN1")),
+      obj_an2: parseGPS(get("OBJ_AN2")),
+      obj_an3: parseGPS(get("OBJ_AN3")),
+      obj_an4: parseGPS(get("OBJ_AN4")),
+      obj_an5: parseGPS(get("OBJ_AN5")),
+      analyse_comparative: get("ANALYSE"),
     };
   }
 
   // Parser depuis texte visible
-  // Forces avec descriptions
   const forceBlocks = [...text.matchAll(/\d+\.\s+\*\*(.+?)\*\*\n(.+?)(?=\n\d+\.|\n\n|$)/g)];
   const forces = forceBlocks.slice(0, 3).map(m => ({ nom: m[1]?.trim(), desc: m[2]?.replace(/\*\*/g, "").trim() }));
 
-  // GPS
-  const gpsMatches = [...text.matchAll(/Annee?\s*(\d)\s*[:\-]\s*\*?\*?([^—\n\*]+?)\*?\*?\s*[—-]\s*([\d\s,]+)\$[^\n]*\n?[^\n]*Action\s*:?\s*([^\n\.]+)/gi)];
-  const gpsList: GPS[] = gpsMatches.map(m => ({
-    titre: m[2]?.replace(/\*\*/g, "").trim() || "",
-    salaire: parseInt(m[3]?.replace(/[\s,]/g, "") || "0"),
-    action: m[4]?.trim() || "",
-  }));
+  const parseGPSLines = (section: string): GPS[] => {
+    const matches = [...section.matchAll(/Annee?\s*\d\s*[:\-]\s*\*?\*?([^—\n\*]+?)\*?\*?\s*[—-]\s*([\d\s,]+)\$[^\n]*\n?[^\n]*Action\s*:?\s*([^\n\.]+)/gi)];
+    return matches.map(m => ({
+      titre: m[1]?.replace(/\*\*/g, "").trim() || "",
+      salaire: parseInt(m[2]?.replace(/[\s,]/g, "") || "0"),
+      action: m[3]?.trim() || "",
+    }));
+  };
 
-  // Opportunités
+  const yelmaSection = text.match(/TRAJECTOIRE YELMA[\s\S]+?(?=TRAJECTOIRE OBJECTIF|ANALYSE YELMA|FORMATIONS|$)/i)?.[0] || "";
+  const objSection = text.match(/TRAJECTOIRE OBJECTIF[\s\S]+?(?=ANALYSE YELMA|FORMATIONS|$)/i)?.[0] || "";
+  const yelmaGPS = parseGPSLines(yelmaSection || text);
+  const objGPS = parseGPSLines(objSection);
+
   const oppMatches = [...text.matchAll(/\d+\.\s+\*\*([^*]+)\*\*\s*[—-]\s*([\d\s,]+)\$[^\n]*\n([^\n]+)/gi)];
   const opportunites: Opportunite[] = oppMatches.slice(0, 3).map(m => ({
     titre: m[1]?.trim() || "",
@@ -95,7 +108,6 @@ export function parseRapport(text: string): RapportData | null {
     description: m[3]?.trim() || "",
   }));
 
-  // Formations
   const formMatches = [...text.matchAll(/\d+\.\s+\*\*([^*]+)\*\*\s+sur\s+([^\s—\-]+)\s*[—-]\s*([^\n]+)/gi)];
   const formations: Formation[] = formMatches.map(m => ({
     nom: m[1]?.trim() || "",
@@ -103,7 +115,6 @@ export function parseRapport(text: string): RapportData | null {
     duree: m[3]?.trim() || "",
   }));
 
-  // Certifications
   const certSection = text.match(/CERTIFICATIONS?[^\n]*\n([\s\S]+?)(?:\n\n|---|\n[A-Z]{4}|$)/i)?.[1] || "";
   const certMatches = [...certSection.matchAll(/\d+\.\s+\*\*([^*]+)\*\*\s*[—-]\s*([^\n]+)/gi)];
   const certifications: Certification[] = certMatches.map(m => ({
@@ -111,14 +122,15 @@ export function parseRapport(text: string): RapportData | null {
     organisme: m[2]?.trim() || "",
   }));
 
-  // Message final
+  const analyseMatch = text.match(/ANALYSE YELMA\n([^\n]+)/i);
+  const analyse_comparative = analyseMatch?.[1]?.trim();
+
   const msgMatch = text.match(/---\n\n([\s\S]+?)$/);
   const message_final = msgMatch?.[1]?.replace(/\*\*/g, "").trim();
 
-  // Salaire actuel estimé
-  const salaireActuel = gpsList[0] ? Math.round(gpsList[0].salaire * 0.85) : 0;
+  const salaireActuel = yelmaGPS[0] ? Math.round(yelmaGPS[0].salaire * 0.85) : 0;
 
-  if (forces.length === 0 && gpsList.length === 0) return null;
+  if (forces.length === 0 && yelmaGPS.length === 0) return null;
 
   return {
     force1: forces[0]?.nom, force1_desc: forces[0]?.desc,
@@ -126,21 +138,29 @@ export function parseRapport(text: string): RapportData | null {
     force3: forces[2]?.nom, force3_desc: forces[2]?.desc,
     salaire_actuel: salaireActuel,
     opportunites,
-    gps_an1: gpsList[0],
-    gps_an2: gpsList[1],
-    gps_an3: gpsList[2],
-    gps_an4: gpsList[3],
-    gps_an5: gpsList[4],
+    gps_an1: yelmaGPS[0], gps_an2: yelmaGPS[1], gps_an3: yelmaGPS[2], gps_an4: yelmaGPS[3], gps_an5: yelmaGPS[4],
+    obj_an1: objGPS[0], obj_an2: objGPS[1], obj_an3: objGPS[2], obj_an4: objGPS[3], obj_an5: objGPS[4],
     formations,
     certifications,
+    analyse_comparative,
     message_final,
   };
+}
+
+function ensureCroissant(salaires: number[]): number[] {
+  return salaires.map((val, i) => {
+    if (i === 0) return val;
+    const prev = salaires[i - 1];
+    if (val === 0 || val <= prev) return Math.round(prev * 1.1);
+    return val;
+  });
 }
 
 export default function RapportGPS({ data, plan, ville }: { data: RapportData; plan: string; ville?: string }) {
   const chartRef = useRef<HTMLCanvasElement>(null);
   const [openJalon, setOpenJalon] = useState<number | null>(null);
   const isPropulse = plan === "propulse";
+  const hasObjectif = !!(data.obj_an1 || data.obj_an2);
 
   useEffect(() => {
     if (!chartRef.current) return;
@@ -150,8 +170,7 @@ export default function RapportGPS({ data, plan, ville }: { data: RapportData; p
       const existing = Chart.getChart(chartRef.current!);
       if (existing) existing.destroy();
 
-      // Construire les salaires en s'assurant que la courbe monte toujours
-      const rawSalaires = [
+      const rawYelma = [
         data.salaire_actuel || 0,
         data.gps_an1?.salaire || 0,
         data.gps_an2?.salaire || 0,
@@ -160,41 +179,58 @@ export default function RapportGPS({ data, plan, ville }: { data: RapportData; p
         data.gps_an5?.salaire || 0,
       ];
 
-      // Corriger la courbe pour qu'elle monte toujours
-      const salaires = rawSalaires.map((val, i) => {
-        if (i === 0) return val;
-        const prev = rawSalaires[i - 1];
-        // Si An5 est 0 ou inférieur au précédent, estimer une progression de 10%
-        if (val === 0 || val < prev) {
-          return Math.round(prev * 1.1);
-        }
-        return val;
-      });
+      const rawObj = [
+        data.salaire_actuel || 0,
+        data.obj_an1?.salaire || 0,
+        data.obj_an2?.salaire || 0,
+        data.obj_an3?.salaire || 0,
+        data.obj_an4?.salaire || 0,
+        data.obj_an5?.salaire || 0,
+      ];
 
-      const labels = ["Auj.", "An 1", "An 2", "An 3", "An 4", "An 5"].slice(0, salaires.length);
-      const pointColors = salaires.map((_, i) =>
-        i === salaires.length - 1 ? "#10B981" : i <= 1 ? "#FF7043" : "#aaa"
-      );
+      const yelma = ensureCroissant(rawYelma);
+      const obj = ensureCroissant(rawObj);
+
+      const labels = ["Auj.", "An 1", "An 2", "An 3", "An 4", "An 5"];
+      const datasets = [
+        {
+          label: "Trajectoire YELMA",
+          data: yelma,
+          borderColor: "#FF7043",
+          backgroundColor: "rgba(255,112,67,0.06)",
+          borderWidth: 2.5,
+          pointBackgroundColor: yelma.map((_, i) => i === yelma.length - 1 ? "#10B981" : "#FF7043"),
+          pointRadius: 4,
+          fill: true,
+          tension: 0.4,
+        },
+      ];
+
+      if (hasObjectif) {
+        datasets.push({
+          label: "Objectif déclaré",
+          data: obj,
+          borderColor: "#0EA5E9",
+          backgroundColor: "rgba(14,165,233,0.04)",
+          borderWidth: 2,
+          borderDash: [6, 3],
+          pointBackgroundColor: obj.map(() => "#0EA5E9"),
+          pointRadius: 3,
+          fill: true,
+          tension: 0.4,
+        } as never);
+      }
 
       new Chart(chartRef.current!, {
         type: "line",
-        data: {
-          labels,
-          datasets: [{
-            data: salaires,
-            borderColor: "#FF7043",
-            backgroundColor: "rgba(255,112,67,0.08)",
-            borderWidth: 2,
-            pointBackgroundColor: pointColors,
-            pointRadius: 4,
-            fill: true,
-            tension: 0.4,
-          }],
-        },
+        data: { labels, datasets },
         options: {
           responsive: true,
           maintainAspectRatio: false,
-          plugins: { legend: { display: false } },
+          plugins: {
+            legend: { display: hasObjectif, position: "top", labels: { font: { size: 9 }, boxWidth: 20 } },
+            tooltip: { callbacks: { label: (ctx) => ctx.dataset.label + ": $" + (ctx.parsed.y ?? 0).toLocaleString() } }
+          },
           scales: {
             y: { min: 0, ticks: { callback: (v) => "$" + Math.round(Number(v) / 1000) + "k", font: { size: 9 } }, grid: { color: "rgba(0,0,0,0.04)" } },
             x: { ticks: { font: { size: 9 } }, grid: { display: false } },
@@ -203,13 +239,13 @@ export default function RapportGPS({ data, plan, ville }: { data: RapportData; p
       });
     };
     loadChart();
-  }, [data]);
+  }, [data, hasObjectif]);
 
   const jalons = [
-    { an: 1, gps: data.gps_an1 },
-    { an: 2, gps: data.gps_an2 },
-    { an: 3, gps: data.gps_an3 },
-    { an: 4, gps: data.gps_an4 },
+    { an: 1, gps: data.gps_an1, obj: data.obj_an1 },
+    { an: 2, gps: data.gps_an2, obj: data.obj_an2 },
+    { an: 3, gps: data.gps_an3, obj: data.obj_an3 },
+    { an: 4, gps: data.gps_an4, obj: data.obj_an4 },
   ];
 
   const today = new Date().toLocaleDateString("fr-CA", { year: "numeric", month: "long", day: "numeric" });
@@ -231,7 +267,7 @@ export default function RapportGPS({ data, plan, ville }: { data: RapportData; p
       {/* 3 Forces */}
       {(data.force1 || data.force2 || data.force3) && (
         <div style={{ background: "white", borderRadius: "12px", padding: "14px", border: "0.5px solid #E8E8F0" }}>
-          <div style={{ fontSize: "10px", fontWeight: 700, color: "#888", letterSpacing: ".5px", marginBottom: "10px" }}>🎯 TES 3 FORCES PRINCIPALES</div>
+          <div style={{ fontSize: "10px", fontWeight: 700, color: "#888", letterSpacing: ".5px", marginBottom: "10px" }}>🎯 TES 3 COMPÉTENCES CLÉS</div>
           <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
             {[
               { nom: data.force1, desc: data.force1_desc, color: "#FF7043", bg: "#FFF8F6" },
@@ -265,7 +301,7 @@ export default function RapportGPS({ data, plan, ville }: { data: RapportData; p
         </div>
       )}
 
-      {/* Valeur actuelle + Graphique */}
+      {/* Valeur actuelle + Double graphique */}
       <div style={{ background: "white", borderRadius: "12px", padding: "14px", border: "0.5px solid #E8E8F0" }}>
         <div style={{ background: "#FFF8F6", borderRadius: "10px", padding: "10px 12px", marginBottom: "12px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div>
@@ -276,16 +312,53 @@ export default function RapportGPS({ data, plan, ville }: { data: RapportData; p
             {(data.salaire_actuel || 0).toLocaleString()} $
           </div>
         </div>
-        <div style={{ position: "relative", width: "100%", height: "140px" }}>
+
+        {hasObjectif && (
+          <div style={{ display: "flex", gap: "8px", marginBottom: "10px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+              <div style={{ width: "20px", height: "3px", background: "#FF7043", borderRadius: "2px" }} />
+              <span style={{ fontSize: "9px", color: "#1A1A2E" }}>Trajectoire YELMA</span>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+              <div style={{ width: "20px", height: "2px", background: "#0EA5E9", borderRadius: "2px", borderTop: "2px dashed #0EA5E9" }} />
+              <span style={{ fontSize: "9px", color: "#1A1A2E" }}>Objectif déclaré</span>
+            </div>
+          </div>
+        )}
+
+        <div style={{ position: "relative", width: "100%", height: "160px" }}>
           <canvas ref={chartRef}></canvas>
         </div>
       </div>
+
+      {/* Analyse comparative */}
+      {hasObjectif && data.analyse_comparative && (
+        <div style={{ background: "#FFF8F6", borderLeft: "3px solid #FF7043", borderRadius: "0 10px 10px 0", padding: "10px 12px" }}>
+          <div style={{ fontSize: "9px", fontWeight: 700, color: "#FF7043", marginBottom: "4px" }}>💡 ANALYSE YELMA</div>
+          <div style={{ fontSize: "11px", color: "#1A1A2E", lineHeight: 1.6 }}>{data.analyse_comparative}</div>
+        </div>
+      )}
+
+      {/* Comparaison An 5 */}
+      {hasObjectif && data.gps_an5 && data.obj_an5 && (
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
+          <div style={{ background: "#FFF8F6", borderRadius: "10px", padding: "12px", textAlign: "center", border: "1.5px solid #FFE0D6" }}>
+            <div style={{ fontSize: "9px", color: "#888", marginBottom: "4px" }}>TRAJECTOIRE YELMA</div>
+            <div style={{ fontSize: "20px", fontWeight: 800, color: "#FF7043" }}>{Math.round((data.gps_an5.salaire || 0) / 1000)}K$</div>
+            <div style={{ fontSize: "10px", color: "#FF7043", marginTop: "2px" }}>{data.gps_an5.titre}</div>
+          </div>
+          <div style={{ background: "#F0F9FF", borderRadius: "10px", padding: "12px", textAlign: "center", border: "1.5px solid #D6F0FF" }}>
+            <div style={{ fontSize: "9px", color: "#888", marginBottom: "4px" }}>OBJECTIF DÉCLARÉ</div>
+            <div style={{ fontSize: "20px", fontWeight: 800, color: "#0EA5E9" }}>{Math.round((data.obj_an5.salaire || 0) / 1000)}K$</div>
+            <div style={{ fontSize: "10px", color: "#0EA5E9", marginTop: "2px" }}>{data.obj_an5.titre}</div>
+          </div>
+        </div>
+      )}
 
       {/* GPS Jalons */}
       <div style={{ background: "white", borderRadius: "12px", padding: "14px", border: "0.5px solid #E8E8F0" }}>
         <div style={{ fontSize: "10px", fontWeight: 700, color: "#888", letterSpacing: ".5px", marginBottom: "10px" }}>🗺️ GPS DE CARRIÈRE — 5 ANS</div>
         <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-
           {jalons.map(({ an, gps }) => {
             if (!gps) return null;
             const isLocked = an > 1 && !isPropulse;
@@ -322,19 +395,17 @@ export default function RapportGPS({ data, plan, ville }: { data: RapportData; p
             );
           })}
 
-          {/* An 5 */}
           {data.gps_an5 && (
             <div style={{ background: "#E1F5EE", borderRadius: "10px", padding: "10px 12px", border: "1.5px solid #9FE1CB" }}>
               <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
                 <div style={{ background: "#085041", color: "#E1F5EE", borderRadius: "50%", width: "26px", height: "26px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "10px", fontWeight: 700, flexShrink: 0 }}>5</div>
                 <div>
                   <div style={{ fontSize: "12px", fontWeight: 600, color: "#085041" }}>{data.gps_an5.titre}</div>
-                  <div style={{ fontSize: "11px", color: "#0F6E56", fontWeight: 600 }}>{data.gps_an5.salaire?.toLocaleString()} $ — OBJECTIF ATTEINT 🎯</div>
+                  <div style={{ fontSize: "11px", color: "#0F6E56", fontWeight: 600 }}>{data.gps_an5.salaire?.toLocaleString()} $ — POTENTIEL MAX 🎯</div>
                 </div>
               </div>
             </div>
           )}
-
         </div>
       </div>
 
@@ -351,7 +422,7 @@ export default function RapportGPS({ data, plan, ville }: { data: RapportData; p
                       <div style={{ fontSize: "11px", fontWeight: 500, color: "#1A1A2E" }}>{f.nom}</div>
                       <div style={{ fontSize: "10px", color: "#888" }}>{f.plateforme} · {f.duree}</div>
                     </div>
-                    <span style={{ background: "#D6F0FF", color: "#0C447C", borderRadius: "20px", padding: "2px 8px", fontSize: "9px", flexShrink: 0, marginLeft: "8px" }}>En ligne</span>
+                    <a href="/partenaires" style={{ background: "#D6F0FF", color: "#0C447C", borderRadius: "20px", padding: "2px 8px", fontSize: "9px", textDecoration: "none", flexShrink: 0, marginLeft: "8px" }}>Détail →</a>
                   </div>
                 ))}
               </div>
@@ -365,6 +436,7 @@ export default function RapportGPS({ data, plan, ville }: { data: RapportData; p
                   <div key={i} style={{ flex: 1, minWidth: "120px", background: "#FFF8F6", borderRadius: "8px", padding: "8px 10px", borderLeft: "3px solid #FF7043" }}>
                     <div style={{ fontSize: "11px", fontWeight: 600, color: "#FF7043" }}>{c.nom}</div>
                     <div style={{ fontSize: "9px", color: "#888" }}>{c.organisme}</div>
+                    <a href="/partenaires" style={{ fontSize: "9px", color: "#FF7043", textDecoration: "none" }}>Détail →</a>
                   </div>
                 ))}
               </div>
