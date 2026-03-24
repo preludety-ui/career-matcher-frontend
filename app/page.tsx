@@ -114,8 +114,18 @@ const content = {
 
 export default function Home() {
   const [lang, setLang] = useState<"fr" | "en" | null>(null);
-  const [userInfo, setUserInfo] = useState<{ nom: string; prenom: string; email: string; plan: string } | null>(null);
-  const [formData, setFormData] = useState({ nom: "", prenom: "", email: "" });
+  const [userInfo, setUserInfo] = useState<{
+    nom: string; prenom: string; email: string; plan: string;
+    diplome?: string; annee_diplome?: string; domaine_etudes?: string;
+    annee_experience?: string; annee_autre_experience?: string;
+    domaine_actuel?: string; statut_emploi?: string; objectif_declare?: string;
+  } | null>(null);
+  const [formData, setFormData] = useState({
+    nom: "", prenom: "", email: "",
+    diplome: "", annee_diplome: "", domaine_etudes: "",
+    annee_experience: "", annee_autre_experience: "",
+    domaine_actuel: "", statut_emploi: "", objectif_declare: ""
+  });
   const [formError, setFormError] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -193,6 +203,17 @@ export default function Home() {
           email: userInfo?.email,
           nom: userInfo?.nom,
           prenom: userInfo?.prenom,
+          candidatInfo: {
+            prenom: userInfo?.prenom,
+            diplome: userInfo?.diplome,
+            annee_diplome: userInfo?.annee_diplome,
+            domaine_etudes: userInfo?.domaine_etudes,
+            annee_experience: userInfo?.annee_experience,
+            annee_autre_experience: userInfo?.annee_autre_experience,
+            domaine_actuel: userInfo?.domaine_actuel,
+            statut_emploi: userInfo?.statut_emploi,
+            objectif_declare: userInfo?.objectif_declare,
+          },
         }),
       });
       const data = await res.json();
@@ -368,37 +389,132 @@ export default function Home() {
 
   const t = content[lang];
 
-  if (!userInfo) {
+ if (!userInfo) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center px-6" style={{ background: "#FAFBFF" }}>
+      <div className="min-h-screen flex flex-col items-center justify-center px-4 py-6" style={{ background: "#FAFBFF" }}>
         <div className="w-full max-w-sm">
-          <div className="text-center mb-8">
+          <div className="text-center mb-6">
             <h1 className="font-black text-3xl mb-2" style={{ color: "#1A1A2E", letterSpacing: "-1px" }}>YELMA</h1>
-            <div style={{ width: "28px", height: "2px", background: "#FF7043", borderRadius: "4px", margin: "0 auto 12px" }} />
-            <p className="text-sm font-medium" style={{ color: "#1A1A2E" }}>
-              {lang === "fr" ? "Avant de commencer, présentez-vous !" : "Before we start, tell us about you!"}
-            </p>
-            <p className="text-xs mt-1" style={{ color: "#888" }}>
-              {lang === "fr" ? "Vos informations restent confidentielles" : "Your information stays private"}
-            </p>
+            <div style={{ width: "28px", height: "2px", background: "#FF7043", borderRadius: "4px", margin: "0 auto 10px" }} />
+            <p className="text-sm font-medium" style={{ color: "#1A1A2E" }}>Avant de commencer, parlons de toi !</p>
+            <p className="text-xs mt-1" style={{ color: "#888" }}>Ces infos aident YELMA à mieux cibler tes forces</p>
           </div>
-          <div className="flex flex-col gap-4">
-            <div>
-              <label className="text-xs font-semibold mb-1 block" style={{ color: "#1A1A2E" }}>{lang === "fr" ? "Prénom" : "First name"}</label>
-              <input className="w-full border rounded-xl px-4 py-3 text-sm text-gray-900 bg-white focus:outline-none" style={{ borderColor: "#E8E8F0" }} placeholder={lang === "fr" ? "Votre prénom" : "Your first name"} value={formData.prenom} onChange={(e) => setFormData({ ...formData, prenom: e.target.value })} />
+
+          <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+
+            {/* Identité */}
+            <div style={{ background: "white", borderRadius: "12px", padding: "14px", border: "0.5px solid #E8E8F0" }}>
+              <div style={{ fontSize: "9px", fontWeight: 700, color: "#FF7043", letterSpacing: ".5px", marginBottom: "10px" }}>👤 IDENTITÉ</div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginBottom: "8px" }}>
+                <div>
+                  <label className="text-xs font-semibold mb-1 block" style={{ color: "#1A1A2E" }}>{lang === "fr" ? "Prénom" : "First name"}</label>
+                  <input className="w-full border rounded-xl px-3 py-2 text-sm focus:outline-none" style={{ borderColor: "#E8E8F0" }} placeholder={lang === "fr" ? "Votre prénom" : "First name"} value={formData.prenom} onChange={(e) => setFormData({ ...formData, prenom: e.target.value })} />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold mb-1 block" style={{ color: "#1A1A2E" }}>{lang === "fr" ? "Nom" : "Last name"}</label>
+                  <input className="w-full border rounded-xl px-3 py-2 text-sm focus:outline-none" style={{ borderColor: "#E8E8F0" }} placeholder={lang === "fr" ? "Votre nom" : "Last name"} value={formData.nom} onChange={(e) => setFormData({ ...formData, nom: e.target.value })} />
+                </div>
+              </div>
+              <div>
+                <label className="text-xs font-semibold mb-1 block" style={{ color: "#1A1A2E" }}>{lang === "fr" ? "Adresse email" : "Email"}</label>
+                <input className="w-full border rounded-xl px-3 py-2 text-sm focus:outline-none" style={{ borderColor: "#E8E8F0" }} placeholder="votre@email.com" type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} />
+              </div>
             </div>
-            <div>
-              <label className="text-xs font-semibold mb-1 block" style={{ color: "#1A1A2E" }}>{lang === "fr" ? "Nom" : "Last name"}</label>
-              <input className="w-full border rounded-xl px-4 py-3 text-sm text-gray-900 bg-white focus:outline-none" style={{ borderColor: "#E8E8F0" }} placeholder={lang === "fr" ? "Votre nom" : "Your last name"} value={formData.nom} onChange={(e) => setFormData({ ...formData, nom: e.target.value })} />
+
+            {/* Formation */}
+            <div style={{ background: "white", borderRadius: "12px", padding: "14px", border: "0.5px solid #E8E8F0" }}>
+              <div style={{ fontSize: "9px", fontWeight: 700, color: "#0EA5E9", letterSpacing: ".5px", marginBottom: "10px" }}>🎓 FORMATION</div>
+              <div style={{ marginBottom: "8px" }}>
+                <label className="text-xs font-semibold mb-1 block" style={{ color: "#1A1A2E" }}>{lang === "fr" ? "Diplôme le plus élevé" : "Highest degree"}</label>
+                <select className="w-full border rounded-xl px-3 py-2 text-sm focus:outline-none bg-white" style={{ borderColor: "#E8E8F0" }} value={formData.diplome} onChange={(e) => setFormData({ ...formData, diplome: e.target.value })}>
+                  <option value="">{lang === "fr" ? "Sélectionnez" : "Select"}</option>
+                  <option>Doctorat (PhD)</option>
+                  <option>Maîtrise / MBA</option>
+                  <option>Baccalauréat</option>
+                  <option>DEC / Cégep</option>
+                  <option>DEP / Formation technique</option>
+                  <option>Diplôme secondaire</option>
+                  <option>Autodidacte / Sans diplôme</option>
+                </select>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
+                <div>
+                  <label className="text-xs font-semibold mb-1 block" style={{ color: "#1A1A2E" }}>{lang === "fr" ? "Domaine d'études" : "Field of study"}</label>
+                  <input className="w-full border rounded-xl px-3 py-2 text-sm focus:outline-none" style={{ borderColor: "#E8E8F0" }} placeholder="ex: Finance, Informatique" value={formData.domaine_etudes} onChange={(e) => setFormData({ ...formData, domaine_etudes: e.target.value })} />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold mb-1 block" style={{ color: "#1A1A2E" }}>{lang === "fr" ? "Année d'obtention" : "Graduation year"}</label>
+                  <select className="w-full border rounded-xl px-3 py-2 text-sm focus:outline-none bg-white" style={{ borderColor: "#E8E8F0" }} value={formData.annee_diplome} onChange={(e) => setFormData({ ...formData, annee_diplome: e.target.value })}>
+                    <option value="">{lang === "fr" ? "Année" : "Year"}</option>
+                    <option>En cours</option>
+                    {[2025,2024,2023,2022,2021,2020,2019,2018,2017,2016,2015].map(y => <option key={y}>{y}</option>)}
+                    <option>Avant 2015</option>
+                  </select>
+                </div>
+              </div>
             </div>
-            <div>
-              <label className="text-xs font-semibold mb-1 block" style={{ color: "#1A1A2E" }}>{lang === "fr" ? "Adresse email" : "Email address"}</label>
-              <input className="w-full border rounded-xl px-4 py-3 text-sm text-gray-900 bg-white focus:outline-none" style={{ borderColor: "#E8E8F0" }} placeholder={lang === "fr" ? "votre@email.com" : "your@email.com"} type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} />
+
+            {/* Expérience */}
+            <div style={{ background: "white", borderRadius: "12px", padding: "14px", border: "0.5px solid #E8E8F0" }}>
+              <div style={{ fontSize: "9px", fontWeight: 700, color: "#10B981", letterSpacing: ".5px", marginBottom: "10px" }}>💼 EXPÉRIENCE</div>
+              <div style={{ marginBottom: "8px" }}>
+                <label className="text-xs font-semibold mb-1 block" style={{ color: "#1A1A2E" }}>{lang === "fr" ? "Années d'expérience professionnelle" : "Years of work experience"}</label>
+                <select className="w-full border rounded-xl px-3 py-2 text-sm focus:outline-none bg-white" style={{ borderColor: "#E8E8F0" }} value={formData.annee_experience} onChange={(e) => setFormData({ ...formData, annee_experience: e.target.value })}>
+                  <option value="">{lang === "fr" ? "Sélectionnez" : "Select"}</option>
+                  <option>Aucune</option>
+                  <option>Moins de 1 an</option>
+                  <option>1 à 2 ans</option>
+                  <option>3 à 5 ans</option>
+                  <option>6 à 10 ans</option>
+                  <option>Plus de 10 ans</option>
+                </select>
+              </div>
+              <div style={{ marginBottom: "8px" }}>
+                <label className="text-xs font-semibold mb-1 block" style={{ color: "#1A1A2E" }}>{lang === "fr" ? "Autres expériences (stage, bénévolat, job)" : "Other experience (internship, volunteer)"}</label>
+                <select className="w-full border rounded-xl px-3 py-2 text-sm focus:outline-none bg-white" style={{ borderColor: "#E8E8F0" }} value={formData.annee_autre_experience} onChange={(e) => setFormData({ ...formData, annee_autre_experience: e.target.value })}>
+                  <option value="">{lang === "fr" ? "Sélectionnez" : "Select"}</option>
+                  <option>Aucune</option>
+                  <option>Moins de 6 mois</option>
+                  <option>6 mois à 1 an</option>
+                  <option>1 à 2 ans</option>
+                  <option>Plus de 2 ans</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-xs font-semibold mb-1 block" style={{ color: "#1A1A2E" }}>{lang === "fr" ? "Domaine actuel / dernier emploi" : "Current / last field"}</label>
+                <input className="w-full border rounded-xl px-3 py-2 text-sm focus:outline-none" style={{ borderColor: "#E8E8F0" }} placeholder="ex: Finance, Gestion de projet" value={formData.domaine_actuel} onChange={(e) => setFormData({ ...formData, domaine_actuel: e.target.value })} />
+              </div>
             </div>
+
+            {/* Objectif */}
+            <div style={{ background: "white", borderRadius: "12px", padding: "14px", border: "0.5px solid #E8E8F0" }}>
+              <div style={{ fontSize: "9px", fontWeight: 700, color: "#993C1D", letterSpacing: ".5px", marginBottom: "10px" }}>🎯 OBJECTIF</div>
+              <div style={{ marginBottom: "8px" }}>
+                <label className="text-xs font-semibold mb-1 block" style={{ color: "#1A1A2E" }}>{lang === "fr" ? "Statut actuel" : "Current status"}</label>
+                <select className="w-full border rounded-xl px-3 py-2 text-sm focus:outline-none bg-white" style={{ borderColor: "#E8E8F0" }} value={formData.statut_emploi} onChange={(e) => setFormData({ ...formData, statut_emploi: e.target.value })}>
+                  <option value="">{lang === "fr" ? "Sélectionnez" : "Select"}</option>
+                  <option>En recherche d&apos;emploi active</option>
+                  <option>En emploi - cherche à évoluer</option>
+                  <option>Étudiant(e)</option>
+                  <option>En reconversion professionnelle</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-xs font-semibold mb-1 block" style={{ color: "#1A1A2E" }}>{lang === "fr" ? "Objectif de carrière (optionnel)" : "Career goal (optional)"}</label>
+                <input className="w-full border rounded-xl px-3 py-2 text-sm focus:outline-none" style={{ borderColor: "#E8E8F0" }} placeholder={lang === "fr" ? "ex: Devenir directeur de projet..." : "ex: Become a project manager..."} value={formData.objectif_declare} onChange={(e) => setFormData({ ...formData, objectif_declare: e.target.value })} />
+              </div>
+            </div>
+
             {formError && <p className="text-xs text-center" style={{ color: "#FF7043" }}>{formError}</p>}
-            <button onClick={handleFormSubmit} className="w-full py-4 rounded-2xl text-sm font-bold text-white mt-2" style={{ background: "#FF7043" }}>
+
+            <button onClick={handleFormSubmit} className="w-full py-4 rounded-2xl text-sm font-bold text-white" style={{ background: "#FF7043" }}>
               {lang === "fr" ? "Commencer mon entretien YELMA →" : "Start my YELMA interview →"}
             </button>
+
+            <div style={{ textAlign: "center", fontSize: "10px", color: "#888" }}>
+              🔒 {lang === "fr" ? "Vos informations sont confidentielles et sécurisées" : "Your information is private and secure"}
+            </div>
+
             <button onClick={() => setLang(null)} className="text-xs text-center" style={{ color: "#888", background: "none", border: "none", cursor: "pointer" }}>
               {lang === "fr" ? "← Retour" : "← Back"}
             </button>
@@ -407,9 +523,10 @@ export default function Home() {
       </div>
     );
   }
-
-  return (
-    <div className="flex flex-col bg-gray-50" style={{ height: "100dvh" }}>
+  
+return (
+    <div className="flex flex-col bg-gray-50"
+ style={{ height: "100dvh" }}>
       <div className="text-white px-6 py-4 flex-shrink-0 flex justify-between items-center" style={{ background: "#1A1A2E" }}>
         <div>
           <h1 className="text-lg font-black" style={{ letterSpacing: "-1px" }}>YELMA</h1>
