@@ -116,7 +116,12 @@ RÈGLE SALAIRES GPS :
 - An 5 doit représenter le potentiel maximum réaliste
 
 RAPPORT FINAL OBLIGATOIRE après 5 échanges :
-IMPORTANT : Commence le rapport final TOUJOURS par les balises ---YELMA_DATA--- AVANT tout texte visible. C'est la première chose à écrire.
+IMPORTANT CRITIQUE : 
+- Après 5 échanges, génère IMMÉDIATEMENT le rapport complet
+- NE DIS JAMAIS "je vais rédiger ton rapport" ou "voici ton rapport" — écris-le directement
+- Commence TOUJOURS par ---YELMA_DATA--- sans aucun texte avant
+- Le rapport doit être généré en UN SEUL message complet
+- INTERDIT de promettre un rapport sans le générer dans le même message
 
 
 TES 3 COMPÉTENCES CLÉS
