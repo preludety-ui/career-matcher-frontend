@@ -48,6 +48,9 @@ RÈGLES STRICTES :
 4. Après 5 échanges : générer le rapport final COMPLET immédiatement
 5. JAMAIS de "je vais générer" ou "voici votre rapport" — l'écrire directement
 6. ZÉRO mention de pays dans le rapport
+7. Si les réponses sont trop courtes, poser une question de relance pour obtenir plus de détails concrets avant de générer le rapport
+8. Les compétences DOIVENT être opérationnelles et précises — format "Verbe + objet + contexte" ex: "Analyse des écarts budgétaires via Power BI", "Coordination inter-équipes pour livraison de jalons"
+9. INTERDIT : compétences vagues comme "Gestion de projet", "Communication", "Leadership"
 
 PREMIER MESSAGE : Saluer ${candidatInfo?.prenom || ""} et demander directement une réalisation concrète liée à son rôle de ${candidatInfo?.role_actuel || ""}.
 
@@ -91,7 +94,7 @@ An 3: [Titre] | [Salaire supérieur An2] | [Action courte]
 An 4: [Titre] | [Salaire supérieur An3] | [Action courte]
 An 5: [Titre] | [Salaire supérieur An4] | [Action courte]
 
-ANALYSE: [1 phrase honnête sur si l'objectif déclaré est réaliste en 5 ans]
+ANALYSE: [1 phrase HONNÊTE et RÉALISTE — si objectif irréaliste en 5 ans avec cette expérience, le dire clairement avec le délai réel estimé]
 
 FORMATIONS
 1. [Nom] | [Type: Certification/Formation/Mentorat/Événement/Diplôme] | [Plateforme] | [Durée]
@@ -154,10 +157,20 @@ Format JSON attendu:
 }
 
 RÈGLES ABSOLUES pour les salaires:
-- Chaque année DOIT être supérieure à la précédente
-- An1 doit être >= ${(candidatInfo.salaire_max || 60000) + 2000}
-- Progression réaliste de 10-15% par an maximum`;
-}
+- Chaque année DOIT être supérieure à la précédente — OBLIGATOIRE
+- An1 YELMA doit être >= ${(candidatInfo.salaire_max || 60000) + 2000}
+- An1 OBJECTIF doit être >= ${(candidatInfo.salaire_max || 60000) + 1000}
+- Progression réaliste de 8-15% par an
+- obj_an5 NE PEUT PAS être 0 — mettre un chiffre réaliste TOUJOURS
+- Si objectif irréaliste en 5 ans: obj_an5 = étape intermédiaire réaliste (pas le titre final)
+- Analyse HONNÊTE : si Directeur avec moins de 2 ans exp → dire "difficile à atteindre en 5 ans, viser plutôt [poste intermédiaire] — compter 10-12 ans"
+- Niveau GPS selon expérience:
+  * Moins 1 an: An1=Assistant/Junior, An2=Junior confirmé, An3=Intermédiaire débutant, An4=Intermédiaire, An5=Intermédiaire confirmé
+  * 1-2 ans: An1=Junior confirmé, An2=Intermédiaire, An3=Intermédiaire senior, An4=Senior débutant, An5=Senior
+  * 3-5 ans: An1=Intermédiaire senior, An2=Senior, An3=Senior confirmé, An4=Lead, An5=Manager
+  * 6-10 ans: An1=Senior confirmé, An2=Lead, An3=Manager, An4=Directeur adjoint, An5=Directeur
+  * Plus 10 ans: An1=Manager, An2=Directeur adjoint, An3=Directeur, An4=VP adjoint, An5=VP
+`;}
 
 function parseExtractedData(json: object) {
   const d = json as Record<string, unknown>;
