@@ -306,7 +306,7 @@ export async function POST(req: NextRequest) {
         model: "gpt-4o-mini",
         messages: [{ role: "system", content: systemPrompt }, ...history],
         temperature: 0.7,
-        max_tokens: 2500,
+        max_tokens: 3500,
       }),
     });
 
