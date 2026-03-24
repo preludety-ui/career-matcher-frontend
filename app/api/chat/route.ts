@@ -116,6 +116,8 @@ RÈGLE SALAIRES GPS :
 - An 5 doit représenter le potentiel maximum réaliste
 
 RAPPORT FINAL OBLIGATOIRE après 5 échanges :
+IMPORTANT : Commence le rapport final TOUJOURS par les balises ---YELMA_DATA--- AVANT tout texte visible. C'est la première chose à écrire.
+
 
 TES 3 COMPÉTENCES CLÉS
 
@@ -332,7 +334,7 @@ export async function POST(req: NextRequest) {
         Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
       },
       body: JSON.stringify({
-        model: "gpt-4o-mini",
+        model: "gpt-4o",
         messages: [{ role: "system", content: systemPrompt }, ...history],
         temperature: 0.7,
         max_tokens: 4000,
