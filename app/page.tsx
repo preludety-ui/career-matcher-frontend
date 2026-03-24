@@ -274,7 +274,7 @@ export default function Home() {
 
       const data = await res.json();
       const { parseRapport } = await import("./components/RapportGPS");
-      const rapport = parseRapport(data.reply);
+      const rapport = data.rapportData || parseRapport(data.reply);
       const botMessage: Message = {
         role: "bot",
         text: data.reply,
