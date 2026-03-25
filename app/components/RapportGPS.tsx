@@ -38,6 +38,8 @@ type RapportData = {
   scenario_objectif?: number;
   message_objectif?: string;
   delai_objectif?: string;
+  axe1?: string; axe1_desc?: string;
+  axe2?: string; axe2_desc?: string;
   analyse_comparative?: string;
   opportunites?: Opportunite[];
   gps_an1?: GPS; gps_an2?: GPS; gps_an3?: GPS; gps_an4?: GPS; gps_an5?: GPS;
@@ -273,6 +275,23 @@ export default function RapportGPS({
               <div key={i} style={{ background: f.bg, borderRadius: "10px", padding: "10px 12px", borderLeft: `3px solid ${f.color}` }}>
                 <div style={{ fontSize: "12px", fontWeight: 600, color: f.color, marginBottom: "3px" }}>{f.nom}</div>
                 {f.desc && <div style={{ fontSize: "11px", color: "#555", lineHeight: 1.5 }}>{f.desc}</div>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      {/* Axes de développement */}
+      {isPropulse && (data.axe1 || data.axe2) && (
+        <div style={{ background: "white", borderRadius: "12px", padding: "14px", border: "0.5px solid #E8E8F0" }}>
+          <div style={{ fontSize: "10px", fontWeight: 700, color: "#888", letterSpacing: ".5px", marginBottom: "10px" }}>📈 TES 2 AXES DE DÉVELOPPEMENT</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+            {[
+              { axe: data.axe1, desc: data.axe1_desc },
+              { axe: data.axe2, desc: data.axe2_desc },
+            ].filter(a => a.axe).map((a, i) => (
+              <div key={i} style={{ background: "#F8F6FF", borderRadius: "10px", padding: "10px 12px", borderLeft: "3px solid #8B5CF6" }}>
+                <div style={{ fontSize: "12px", fontWeight: 600, color: "#8B5CF6", marginBottom: "3px" }}>🔹 {a.axe}</div>
+                {a.desc && <div style={{ fontSize: "11px", color: "#555", lineHeight: 1.5 }}>{a.desc}</div>}
               </div>
             ))}
           </div>
