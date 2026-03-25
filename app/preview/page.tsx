@@ -3,46 +3,57 @@
 import { useState } from "react";
 import RapportGPS from "../components/RapportGPS";
 
-const rapportDemo = {
-  force1: "Analyse et modélisation de données financières",
-  force1_desc: "Capacité à utiliser Power BI et Excel pour analyser des budgets et modéliser des scénarios financiers.",
-  force2: "Gestion de portefeuille de projets complexes",
-  force2_desc: "Aptitude à coordonner plusieurs projets simultanément tout en informant les parties prenantes.",
-  force3: "Rédaction de rapports d'analyse institutionnelle",
-  force3_desc: "Compétence dans la présentation d'informations complexes sous forme de tableaux de bord clairs.",
-  salaire_actuel: 75000,
-  titre_actuel: "Contrôleur de projet",
+const rapportDecouverte = {
+  force1: "Analyse budgétaire",
+  force1_desc: "Capacité à évaluer les écarts entre coûts réels et prévisionnels pour soutenir la prise de décision.",
+  force2: "Suivi d'avancement des tâches",
+  force2_desc: "Aptitude à contrôler le statut des livrables et à alerter proactivement sur les retards potentiels.",
+  force3: "Coordination des équipes",
+  force3_desc: "Compétence à aligner les parties prenantes sur les objectifs et les risques du projet.",
+  salaire_min: 45000,
+  salaire_max: 55000,
+  role_actuel: "Assistant contrôleur de projet",
   ville: "Montréal",
+  objectif_carriere: "Directeur de projet",
+  scenario_objectif: 3,
+  message_objectif: "Ton objectif de Directeur est excellent à long terme. Avec cette progression, tu l'atteindras vers 2036-2038. En 5 ans, tu peux viser Contrôleur de projet confirmé.",
+  delai_objectif: "10-12 ans",
+  analyse_comparative: "Ton objectif de Directeur est réaliste à long terme — compte 10-12 ans avec cette progression.",
   opportunites: [
-    { titre: "Responsable de portefeuille", salaire: 85000, description: "Ta vision globale correspond parfaitement à ce rôle stratégique." },
-    { titre: "Contrôleur financier senior", salaire: 95000, description: "Analyses financières approfondies en phase avec la gestion de projets." },
-    { titre: "Directeur de projet", salaire: 110000, description: "Ton leadership et ton analyse te permettront d'exceller dans ce rôle." },
+    { titre: "Assistant de projet", salaire: 48000, description: "Suivi des tâches et budgets." },
+    { titre: "Analyste de projet junior", salaire: 52000, description: "Analyse des données de projet." },
+    { titre: "Contrôleur junior", salaire: 56000, description: "Contrôle budgétaire et reporting." },
   ],
-  gps_an1: { titre: "Analyste de portefeuille senior", salaire: 80000, action: "Développer des compétences en gestion de portefeuille" },
-  gps_an2: { titre: "Responsable de portefeuille", salaire: 90000, action: "Obtenir la certification PMP avancée" },
-  gps_an3: { titre: "Contrôleur financier", salaire: 100000, action: "Réseauter avec des professionnels du secteur" },
-  gps_an4: { titre: "Directeur de projet", salaire: 115000, action: "Développer des compétences en leadership" },
-  gps_an5: { titre: "Directeur de portefeuille", salaire: 130000, action: "POTENTIEL MAX !" },
-  obj_an1: { titre: "Contrôleur de projet senior", salaire: 80000, action: "Consolider les compétences en contrôle de projets" },
-  obj_an2: { titre: "Gestionnaire de programme", salaire: 88000, action: "Obtenir certification en gestion de programme" },
-  obj_an3: { titre: "Directeur de programme", salaire: 98000, action: "Développer expertise en gouvernance de projets" },
-  obj_an4: { titre: "VP Gestion de projets", salaire: 110000, action: "Renforcer le réseau professionnel" },
-  obj_an5: { titre: "Directeur de portefeuille projets", salaire: 120000, action: "OBJECTIF DÉCLARÉ !" },
-  analyse_comparative: "Ta trajectoire naturelle te mène vers un rôle financier stratégique à 130K$, tandis que ton objectif déclaré de gestion de programme atteint 120K$. Les deux sont complémentaires — ta force en analyse financière reste un atout majeur dans les deux cas.",
+  gps_an1: { titre: "Assistant contrôleur confirmé", salaire: 52000, action: "Renforcer les compétences en analyse budgétaire" },
+  gps_an2: { titre: "Contrôleur de projet junior", salaire: 58000, action: "Obtenir certification CAPM" },
+  gps_an3: { titre: "Contrôleur de projet", salaire: 64000, action: "Gérer des projets de façon autonome" },
+  gps_an4: { titre: "Contrôleur de projet senior", salaire: 71000, action: "Superviser une équipe junior" },
+  gps_an5: { titre: "Contrôleur de projet confirmé", salaire: 78000, action: "POTENTIEL MAX 5 ANS !" },
   formations: [
-    { nom: "Gestion de projet avancée", type: "Certification", plateforme: "Coursera", duree: "3 mois" },
-    { nom: "Analyse financière", type: "Formation", plateforme: "Udemy", duree: "2 mois" },
-    { nom: "Leadership et management", type: "Mentorat", plateforme: "LinkedIn Learning", duree: "1 mois" },
+    { nom: "MS Project avancé", type: "Renforcement", plateforme: "Udemy", duree: "2 mois" },
+    { nom: "Analyse financière de projet", type: "Gap marché", plateforme: "Coursera", duree: "3 mois" },
+    { nom: "CAPM — Certified Associate PM", type: "Prochain poste", plateforme: "PMI", duree: "4 mois" },
+    { nom: "PMP — Project Management Professional", type: "Objectif long terme", plateforme: "PMI", duree: "6 mois" },
   ],
   certifications: [
-    { nom: "PMP", organisme: "Project Management Institute" },
-    { nom: "CMA", organisme: "CPA Canada" },
+    { nom: "CAPM", organisme: "Project Management Institute" },
+    { nom: "Scrum Master", organisme: "Scrum Alliance" },
   ],
-  message_final: "Tu as un profil exceptionnel avec des compétences très recherchées. Reste concentré sur tes objectifs et continue à développer ton expertise !",
+  message_final: "Tu as toutes les compétences pour progresser rapidement. Continue à te former et à prendre des initiatives — tu es sur la bonne voie !",
+};
+
+const rapportPropulse = {
+  ...rapportDecouverte,
+  scenario_objectif: 2,
+  message_objectif: "Ton objectif de Chef de projet senior est atteignable en 6-8 ans. En 5 ans, tu peux viser Contrôleur de projet confirmé — excellent tremplin !",
+  delai_objectif: "6-8 ans",
+  objectif_carriere: "Chef de projet senior",
 };
 
 export default function Preview() {
-  const [plan, setPlan] = useState<"gratuit" | "propulse">("gratuit");
+  const [plan, setPlan] = useState<"decouverte" | "propulse">("decouverte");
+
+  const rapportActuel = plan === "propulse" ? rapportPropulse : rapportDecouverte;
 
   return (
     <div style={{ background: "#FAFBFF", minHeight: "100vh", padding: "20px" }}>
@@ -58,12 +69,12 @@ export default function Preview() {
         </div>
 
         {/* Toggle plan */}
-        <div style={{ background: "white", borderRadius: "12px", padding: "12px", marginBottom: "16px", border: "0.5px solid #E8E8F0", display: "flex", gap: "8px" }}>
+        <div style={{ background: "white", borderRadius: "12px", padding: "12px", marginBottom: "12px", border: "0.5px solid #E8E8F0", display: "flex", gap: "8px" }}>
           <button
-            onClick={() => setPlan("gratuit")}
-            style={{ flex: 1, padding: "10px", borderRadius: "10px", border: "none", cursor: "pointer", background: plan === "gratuit" ? "#1A1A2E" : "#F1EFE8", color: plan === "gratuit" ? "white" : "#888", fontSize: "13px", fontWeight: 700 }}
+            onClick={() => setPlan("decouverte")}
+            style={{ flex: 1, padding: "10px", borderRadius: "10px", border: "none", cursor: "pointer", background: plan === "decouverte" ? "#1A1A2E" : "#F1EFE8", color: plan === "decouverte" ? "white" : "#888", fontSize: "13px", fontWeight: 700 }}
           >
-            Plan Gratuit
+            Plan Découverte
           </button>
           <button
             onClick={() => setPlan("propulse")}
@@ -76,12 +87,19 @@ export default function Preview() {
         {/* Badge plan actif */}
         <div style={{ textAlign: "center", marginBottom: "12px" }}>
           <span style={{ background: plan === "propulse" ? "#FFE0D6" : "#F1EFE8", color: plan === "propulse" ? "#993C1D" : "#888", borderRadius: "20px", padding: "4px 14px", fontSize: "11px", fontWeight: 600 }}>
-            {plan === "propulse" ? "✅ Tout visible — rien de flouté" : "🔒 An 2-4 floutés — formations cachées"}
+            {plan === "propulse"
+              ? "✅ Tout visible — formations, certifications, objectif"
+              : "🔒 An 2-5 floutés — 1 opportunité — formations cachées"}
           </span>
         </div>
 
         {/* Rapport */}
-        <RapportGPS data={rapportDemo} plan={plan} ville="Montréal" />
+        <RapportGPS
+          data={rapportActuel}
+          plan={plan === "propulse" ? "propulse" : "decouverte"}
+          ville="Montréal"
+          roleActuel="Assistant contrôleur de projet"
+        />
 
       </div>
     </div>

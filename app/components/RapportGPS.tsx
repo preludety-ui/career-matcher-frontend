@@ -34,10 +34,13 @@ type RapportData = {
   salaire_max?: number;
   role_actuel?: string;
   ville?: string;
+  objectif_carriere?: string;
+  scenario_objectif?: number;
+  message_objectif?: string;
+  delai_objectif?: string;
+  analyse_comparative?: string;
   opportunites?: Opportunite[];
   gps_an1?: GPS; gps_an2?: GPS; gps_an3?: GPS; gps_an4?: GPS; gps_an5?: GPS;
-  obj_an1?: GPS; obj_an2?: GPS; obj_an3?: GPS; obj_an4?: GPS; obj_an5?: GPS;
-  analyse_comparative?: string;
   formations?: Formation[];
   certifications?: Certification[];
   message_final?: string;
@@ -46,87 +49,13 @@ type RapportData = {
 export function parseRapport(text: string): RapportData | null {
   const isRapport =
     text.includes("TES 3 COMPÉTENCES") ||
-    text.includes("TES 3 FORCES") ||
-    text.includes("TRAJECTOIRE YELMA") ||
-    text.includes("FORCE1:") ||
-    text.includes("AN1:");
+    text.includes("COMPÉTENCES CLÉS") ||
+    text.includes("GPS DE CARRIÈRE") ||
+    text.includes("An 1:");
 
   if (!isRapport) return null;
 
-  const hasData = text.includes("---YELMA_DATA---");
-
-  if (hasData) {
-    const start = text.indexOf("---YELMA_DATA---");
-    const end = text.indexOf("---END_DATA---");
-    const data = end > start ? text.substring(start + 16, end) : text.substring(start + 16);
-
-    const get = (key: string) => data.match(new RegExp(`${key}:\\s*(.+)`))?.[1]?.trim();
-
-    const parseGPS = (val: string | null | undefined): GPS | undefined => {
-      if (!val) return undefined;
-      const parts = val.split("|");
-      const salaire = parseInt(parts[1]?.replace(/[^\d]/g, "") || "0");
-      if (!salaire) return undefined;
-      return {
-        titre: parts[0]?.trim() || "",
-        salaire,
-        action: parts[2]?.trim() || "",
-      };
-    };
-
-    const parseFormation = (key: string): Formation | undefined => {
-      const val = get(key);
-      if (!val) return undefined;
-      const parts = val.split("|");
-      return {
-        nom: parts[0]?.trim() || "",
-        type: parts[1]?.trim() || "Formation",
-        plateforme: parts[2]?.trim() || "",
-        duree: parts[3]?.trim() || "",
-      };
-    };
-
-    const parseCertification = (key: string): Certification | undefined => {
-      const val = get(key);
-      if (!val) return undefined;
-      const parts = val.split("|");
-      return { nom: parts[0]?.trim() || "", organisme: parts[1]?.trim() || "" };
-    };
-
-    const formations = [
-      parseFormation("FORMATION1"),
-      parseFormation("FORMATION2"),
-      parseFormation("FORMATION3"),
-    ].filter(Boolean) as Formation[];
-
-    const certifications = [
-      parseCertification("CERTIFICATION1"),
-      parseCertification("CERTIFICATION2"),
-    ].filter(Boolean) as Certification[];
-
-    return {
-      force1: get("FORCE1"), force2: get("FORCE2"), force3: get("FORCE3"),
-      salaire_min: parseInt(get("SALAIRE_MIN") || "0"),
-      salaire_max: parseInt(get("SALAIRE_MAX") || "0"),
-      role_actuel: get("ROLE"),
-      ville: get("VILLE") || "Canada",
-      gps_an1: parseGPS(get("AN1")),
-      gps_an2: parseGPS(get("AN2")),
-      gps_an3: parseGPS(get("AN3")),
-      gps_an4: parseGPS(get("AN4")),
-      gps_an5: parseGPS(get("AN5")),
-      obj_an1: parseGPS(get("OBJ_AN1")),
-      obj_an2: parseGPS(get("OBJ_AN2")),
-      obj_an3: parseGPS(get("OBJ_AN3")),
-      obj_an4: parseGPS(get("OBJ_AN4")),
-      obj_an5: parseGPS(get("OBJ_AN5")),
-      analyse_comparative: get("ANALYSE"),
-      formations,
-      certifications,
-    };
-  }
-
-  // Fallback — parser depuis texte visible
+  // Parser depuis texte visible
   const forceBlocks = [...text.matchAll(/\d+\.\s+\*\*(.+?)\*\*\n(.+?)(?=\n\d+\.|\n\n|$)/g)];
   const forces = forceBlocks.slice(0, 3).map(m => ({
     nom: m[1]?.trim(),
@@ -134,7 +63,7 @@ export function parseRapport(text: string): RapportData | null {
   }));
 
   const parseGPSLines = (section: string): GPS[] => {
-    const matches = [...section.matchAll(/Annee?\s*\d\s*[:\-]\s*\*?\*?([^—\n\*]+?)\*?\*?\s*[—-]\s*([\d,\s]+)\$[^\n]*Action\s*:?\s*([^\n\.]+)/gi)];
+    const matches = [...section.matchAll(/An\s*\d\s*[:\|]\s*\*?\*?([^|\n\*]+?)\*?\*?\s*[\|]\s*([\d,\s]+)\s*[\|]\s*([^\n]+)/gi)];
     return matches.map(m => ({
       titre: m[1]?.replace(/\*\*/g, "").trim() || "",
       salaire: parseInt(m[2]?.replace(/[^\d]/g, "") || "0"),
@@ -142,19 +71,17 @@ export function parseRapport(text: string): RapportData | null {
     })).filter(g => g.salaire > 0);
   };
 
-  const yelmaSection = text.match(/TRAJECTOIRE YELMA[\s\S]+?(?=TRAJECTOIRE OBJECTIF|ANALYSE|FORMATIONS|$)/i)?.[0] || "";
-  const objSection = text.match(/TRAJECTOIRE OBJECTIF[\s\S]+?(?=ANALYSE|FORMATIONS|$)/i)?.[0] || "";
-  const yelmaGPS = parseGPSLines(yelmaSection || text);
-  const objGPS = parseGPSLines(objSection);
+  const gpsSection = text.match(/GPS DE CARRIÈRE[\s\S]+?(?=OBJECTIF:|FORMATIONS|CERTIFICATIONS|$)/i)?.[0] || "";
+  const yelmaGPS = parseGPSLines(gpsSection || text);
 
-  const oppMatches = [...text.matchAll(/\d+\.\s+\*\*([^*]+)\*\*\s*[—-]\s*(\d+)\$[^\n]*\n([^\n]+)/gi)];
+  const oppMatches = [...text.matchAll(/\d+\.\s+\*\*([^*]+)\*\*\s*[—-]\s*([\d,\s]+)\$[^\n]*\n([^\n]+)/gi)];
   const opportunites: Opportunite[] = oppMatches.slice(0, 3).map(m => ({
     titre: m[1]?.trim() || "",
     salaire: parseInt(m[2]?.replace(/[^\d]/g, "") || "0"),
     description: m[3]?.trim() || "",
   })).filter(o => o.salaire > 0);
 
-  const formMatches = [...text.matchAll(/\d+\.\s+\*\*([^*]+)\*\*\s*[—-]\s*Type:\s*([^—\n]+?)\s*[—-]\s*([^\s—\-]+)\s*[—-]\s*([^\n]+)/gi)];
+  const formMatches = [...text.matchAll(/\d+\.\s+([^\|]+)\|\s*([^\|]+)\|\s*([^\|]+)\|\s*([^\n]+)/gi)];
   const formations: Formation[] = formMatches.map(m => ({
     nom: m[1]?.trim() || "",
     type: m[2]?.trim() || "Formation",
@@ -162,11 +89,16 @@ export function parseRapport(text: string): RapportData | null {
     duree: m[4]?.trim() || "",
   }));
 
-  const analyseMatch = text.match(/ANALYSE YELMA\n([^\n]+)/i);
-  const analyse_comparative = analyseMatch?.[1]?.trim();
+  const certMatches = [...text.matchAll(/CERTIFICATIONS[\s\S]*?\n\d+\.\s+([^\|]+)\|\s*([^\n]+)/gi)];
+  const certifications: Certification[] = certMatches.map(m => ({
+    nom: m[1]?.trim() || "",
+    organisme: m[2]?.trim() || "",
+  }));
 
-  const msgMatch = text.match(/---\n\n([\s\S]+?)$/);
-  const message_final = msgMatch?.[1]?.replace(/\*\*/g, "").trim();
+  const objectifMatch = text.match(/OBJECTIF:\s*([^\n]+)/i);
+  const scenarioMatch = text.match(/SCENARIO:\s*(\d)/i);
+  const messageMatch = text.match(/MESSAGE_OBJECTIF:\s*([^\n]+)/i);
+  const delaiMatch = text.match(/DELAI_OBJECTIF:\s*([^\n]+)/i);
 
   if (forces.length === 0 && yelmaGPS.length === 0) return null;
 
@@ -176,14 +108,15 @@ export function parseRapport(text: string): RapportData | null {
     force3: forces[2]?.nom, force3_desc: forces[2]?.desc,
     salaire_min: yelmaGPS[0] ? Math.round(yelmaGPS[0].salaire * 0.85) : 40000,
     salaire_max: yelmaGPS[0]?.salaire || 60000,
+    objectif_carriere: objectifMatch?.[1]?.trim(),
+    scenario_objectif: parseInt(scenarioMatch?.[1] || "3"),
+    message_objectif: messageMatch?.[1]?.trim(),
+    delai_objectif: delaiMatch?.[1]?.trim(),
     opportunites,
     gps_an1: yelmaGPS[0], gps_an2: yelmaGPS[1],
     gps_an3: yelmaGPS[2], gps_an4: yelmaGPS[3], gps_an5: yelmaGPS[4],
-    obj_an1: objGPS[0], obj_an2: objGPS[1],
-    obj_an3: objGPS[2], obj_an4: objGPS[3], obj_an5: objGPS[4],
     formations,
-    analyse_comparative,
-    message_final,
+    certifications,
   };
 }
 
@@ -191,18 +124,27 @@ function ensureCroissant(salaires: number[]): number[] {
   return salaires.map((val, i) => {
     if (i === 0) return val || 40000;
     const prev = salaires[i - 1];
-    if (!val || val <= prev) return Math.round(prev * 1.12);
+    if (!val || val <= prev) return Math.round(prev * 1.1);
     return val;
   });
 }
 
 function getTypeIcon(type: string): string {
   const t = type?.toLowerCase() || "";
-  if (t.includes("certif")) return "🏆";
+  if (t.includes("certif") || t.includes("objectif")) return "🎯";
   if (t.includes("mentor")) return "🤝";
+  if (t.includes("gap") || t.includes("marché")) return "🔍";
+  if (t.includes("renforcement") || t.includes("renfo")) return "💪";
+  if (t.includes("prochain") || t.includes("poste")) return "📈";
   if (t.includes("événement") || t.includes("evenement")) return "🎤";
-  if (t.includes("diplôme") || t.includes("diplome") || t.includes("bac") || t.includes("maît")) return "🎓";
+  if (t.includes("diplôme") || t.includes("diplome")) return "🎓";
   return "📚";
+}
+
+function getScenarioBadge(scenario: number, objectif: string, delai: string) {
+  if (scenario === 1) return { bg: "#D6FFE8", color: "#085041", icon: "✅", label: `Atteignable en 5 ans` };
+  if (scenario === 2) return { bg: "#FFF8E1", color: "#7A5F00", icon: "⏳", label: `Atteignable en ${delai || "6-8 ans"}` };
+  return { bg: "#E8F4FF", color: "#0C447C", icon: "🚀", label: `Objectif long terme — ${delai || "10+ ans"}` };
 }
 
 export default function RapportGPS({
@@ -218,9 +160,10 @@ export default function RapportGPS({
 
   const isPropulse = plan === "propulse";
   const isDecouverte = !isPropulse;
-  const hasObjectif = !!(data.obj_an1?.salaire && data.obj_an1.salaire > 0);
   const salaireMin = data.salaire_min || 40000;
   const salaireMax = data.salaire_max || 60000;
+  const scenario = data.scenario_objectif || 3;
+  const scenarioBadge = getScenarioBadge(scenario, data.objectif_carriere || "", data.delai_objectif || "");
 
   useEffect(() => {
     if (!chartRef.current) return;
@@ -240,62 +183,31 @@ export default function RapportGPS({
       ];
 
       const yelma = ensureCroissant(rawYelma);
-      const datasets: object[] = [
-        {
-          label: "Trajectoire YELMA",
-          data: yelma,
-          borderColor: "#FF7043",
-          backgroundColor: "rgba(255,112,67,0.06)",
-          borderWidth: 2.5,
-          pointBackgroundColor: yelma.map((_, i) => i === yelma.length - 1 ? "#10B981" : "#FF7043"),
-          pointRadius: 4,
-          fill: true,
-          tension: 0.4,
-        },
-      ];
-
-      if (hasObjectif && isPropulse) {
-        const rawObj = [
-          salaireMin,
-          data.obj_an1?.salaire || 0,
-          data.obj_an2?.salaire || 0,
-          data.obj_an3?.salaire || 0,
-          data.obj_an4?.salaire || 0,
-          data.obj_an5?.salaire || 0,
-        ];
-        const obj = ensureCroissant(rawObj);
-        datasets.push({
-          label: "Objectif déclaré",
-          data: obj,
-          borderColor: "#0EA5E9",
-          backgroundColor: "rgba(14,165,233,0.04)",
-          borderWidth: 2,
-          borderDash: [6, 3],
-          pointBackgroundColor: obj.map(() => "#0EA5E9"),
-          pointRadius: 3,
-          fill: true,
-          tension: 0.4,
-        });
-      }
 
       new Chart(chartRef.current!, {
         type: "line",
         data: {
           labels: ["Auj.", "An 1", "An 2", "An 3", "An 4", "An 5"],
-          datasets: datasets as never[],
+          datasets: [{
+            label: "Trajectoire YELMA",
+            data: yelma,
+            borderColor: "#FF7043",
+            backgroundColor: "rgba(255,112,67,0.08)",
+            borderWidth: 2.5,
+            pointBackgroundColor: yelma.map((_, i) => i === yelma.length - 1 ? "#10B981" : "#FF7043"),
+            pointRadius: 4,
+            fill: true,
+            tension: 0.4,
+          }],
         },
         options: {
           responsive: true,
           maintainAspectRatio: false,
           plugins: {
-            legend: {
-              display: hasObjectif && isPropulse,
-              position: "top",
-              labels: { font: { size: 9 }, boxWidth: 20 }
-            },
+            legend: { display: false },
             tooltip: {
               callbacks: {
-                label: (ctx) => ctx.dataset.label + ": $" + ((ctx.parsed.y ?? 0)).toLocaleString()
+                label: (ctx) => "$" + ((ctx.parsed.y ?? 0)).toLocaleString()
               }
             }
           },
@@ -311,7 +223,7 @@ export default function RapportGPS({
       });
     };
     loadChart();
-  }, [data, hasObjectif, isPropulse, salaireMin]);
+  }, [data, salaireMin]);
 
   const jalons = [
     { an: 1, gps: data.gps_an1 },
@@ -382,7 +294,7 @@ export default function RapportGPS({
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: "8px", flexShrink: 0, marginLeft: "8px" }}>
                   <div style={{ fontSize: "13px", fontWeight: 700, color: "#FF7043" }}>{o.salaire?.toLocaleString()} $</div>
-                  <a href={`https://www.linkedin.com/jobs/search/?keywords=${encodeURIComponent(o.titre)}`} target="_blank" rel="noopener noreferrer" style={{ background: "#1A1A2E", color: "white", borderRadius: "20px", padding: "3px 8px", fontSize: "9px", textDecoration: "none", fontWeight: 600 }}>Offres →</a>
+                  <a href={`https://www.linkedin.com/jobs/search/?keywords=${encodeURIComponent(o.titre)}&location=${encodeURIComponent(villeAffichee)}`} target="_blank" rel="noopener noreferrer" style={{ background: "#1A1A2E", color: "white", borderRadius: "20px", padding: "3px 8px", fontSize: "9px", textDecoration: "none", fontWeight: 600 }}>Offres →</a>
                 </div>
               </div>
             ))}
@@ -416,51 +328,14 @@ export default function RapportGPS({
             <div style={{ fontSize: "10px", color: "#888" }}>CAD/an</div>
           </div>
           <div style={{ fontSize: "9px", color: "#aaa", marginTop: "3px" }}>
-            Basé sur les données du marché canadien en temps réel
+            Basé sur les données du marché en temps réel
           </div>
         </div>
-
-        {hasObjectif && isPropulse && (
-          <div style={{ display: "flex", gap: "16px", marginBottom: "10px" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
-              <div style={{ width: "20px", height: "3px", background: "#FF7043", borderRadius: "2px" }} />
-              <span style={{ fontSize: "9px", color: "#1A1A2E" }}>Trajectoire YELMA</span>
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
-              <div style={{ width: "20px", height: "2px", background: "#0EA5E9", borderRadius: "2px" }} />
-              <span style={{ fontSize: "9px", color: "#1A1A2E" }}>Objectif déclaré</span>
-            </div>
-          </div>
-        )}
 
         <div style={{ position: "relative", width: "100%", height: "160px" }}>
           <canvas ref={chartRef}></canvas>
         </div>
       </div>
-
-      {/* Analyse comparative — Propulse seulement */}
-      {isPropulse && hasObjectif && data.analyse_comparative && (
-        <div style={{ background: "#FFF8F6", borderLeft: "3px solid #FF7043", borderRadius: "0 10px 10px 0", padding: "10px 12px" }}>
-          <div style={{ fontSize: "9px", fontWeight: 700, color: "#FF7043", marginBottom: "4px" }}>💡 ANALYSE YELMA</div>
-          <div style={{ fontSize: "11px", color: "#1A1A2E", lineHeight: 1.6 }}>{data.analyse_comparative}</div>
-        </div>
-      )}
-
-      {/* Comparaison An 5 — Propulse seulement */}
-      {isPropulse && hasObjectif && data.gps_an5 && data.obj_an5 && (
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
-          <div style={{ background: "#FFF8F6", borderRadius: "10px", padding: "12px", textAlign: "center", border: "1.5px solid #FFE0D6" }}>
-            <div style={{ fontSize: "9px", color: "#888", marginBottom: "4px" }}>TRAJECTOIRE YELMA</div>
-            <div style={{ fontSize: "20px", fontWeight: 800, color: "#FF7043" }}>{Math.round((data.gps_an5.salaire || 0) / 1000)}K$</div>
-            <div style={{ fontSize: "10px", color: "#FF7043", marginTop: "2px" }}>{data.gps_an5.titre}</div>
-          </div>
-          <div style={{ background: "#F0F9FF", borderRadius: "10px", padding: "12px", textAlign: "center", border: "1.5px solid #D6F0FF" }}>
-            <div style={{ fontSize: "9px", color: "#888", marginBottom: "4px" }}>OBJECTIF DÉCLARÉ</div>
-            <div style={{ fontSize: "20px", fontWeight: 800, color: "#0EA5E9" }}>{Math.round((data.obj_an5.salaire || 0) / 1000)}K$</div>
-            <div style={{ fontSize: "10px", color: "#0EA5E9", marginTop: "2px" }}>{data.obj_an5.titre}</div>
-          </div>
-        </div>
-      )}
 
       {/* GPS Jalons */}
       <div style={{ background: "white", borderRadius: "12px", padding: "14px", border: "0.5px solid #E8E8F0" }}>
@@ -487,7 +362,7 @@ export default function RapportGPS({
                       </div>
                       {gps.action && (
                         <div style={{ fontSize: "10px", color: "#888", marginTop: "4px", background: "white", padding: "4px 8px", borderRadius: "6px" }}>
-                          Action : {gps.action}
+                          {gps.action}
                         </div>
                       )}
                     </div>
@@ -502,6 +377,7 @@ export default function RapportGPS({
             );
           })}
 
+          {/* An 5 */}
           {data.gps_an5 && data.gps_an5.salaire > 0 && (
             <div style={{ background: "#E1F5EE", borderRadius: "10px", padding: "10px 12px", border: "1.5px solid #9FE1CB" }}>
               <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
@@ -515,6 +391,24 @@ export default function RapportGPS({
           )}
         </div>
       </div>
+
+      {/* Objectif déclaré — section dédiée */}
+      {data.objectif_carriere && (
+        <div style={{ background: "white", borderRadius: "12px", padding: "14px", border: "0.5px solid #E8E8F0" }}>
+          <div style={{ fontSize: "10px", fontWeight: 700, color: "#888", letterSpacing: ".5px", marginBottom: "10px" }}>🎯 TON OBJECTIF DE CARRIÈRE</div>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "8px" }}>
+            <div style={{ fontSize: "13px", fontWeight: 600, color: "#1A1A2E" }}>{data.objectif_carriere}</div>
+            <span style={{ background: scenarioBadge.bg, color: scenarioBadge.color, borderRadius: "20px", padding: "2px 10px", fontSize: "10px", fontWeight: 600, flexShrink: 0 }}>
+              {scenarioBadge.icon} {scenarioBadge.label}
+            </span>
+          </div>
+          {data.message_objectif && (
+            <div style={{ background: scenarioBadge.bg, borderRadius: "10px", padding: "10px 12px", fontSize: "11px", color: scenarioBadge.color, lineHeight: 1.6 }}>
+              {data.message_objectif}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Formations — Propulse seulement */}
       {isPropulse && formationsVisibles.length > 0 && (
@@ -558,7 +452,7 @@ export default function RapportGPS({
       {isDecouverte && (
         <div style={{ background: "#FFE0D6", borderRadius: "12px", padding: "12px 14px", textAlign: "center" }}>
           <div style={{ fontSize: "12px", color: "#993C1D", fontWeight: 600, marginBottom: "4px" }}>🔒 Débloquez votre GPS complet avec YELMA Propulse</div>
-          <div style={{ fontSize: "10px", color: "#993C1D", marginBottom: "8px" }}>An 2 à 5 · 3 opportunités · Formations · Certifications · Double courbe GPS</div>
+          <div style={{ fontSize: "10px", color: "#993C1D", marginBottom: "8px" }}>An 2 à 5 · 3 opportunités · Formations · Certifications · Objectif de carrière</div>
           <a href="/pricing" style={{ display: "inline-block", background: "#FF7043", color: "white", borderRadius: "20px", padding: "6px 16px", fontSize: "11px", fontWeight: 600, textDecoration: "none" }}>S&apos;abonner — 4.99$/mois →</a>
         </div>
       )}
