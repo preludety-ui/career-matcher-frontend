@@ -149,6 +149,25 @@ const cas9Profils = {
       "Ma plus grande crainte est d'être trop vieille pour apprendre la programmation",
     ],
   },
+ 
+  10: {
+    label: "Cas 10 — Senior 6-10 ans",
+    candidatInfo: {
+      prenom: "David", nom: "Test", email: "test.cas10@yelma.ca",
+      diplome: "Baccalauréat", annee_diplome: "2015", domaine_etudes: "Informatique",
+      annee_experience: "6 à 10 ans", annee_autre_experience: "1 à 2 ans",
+      role_actuel: "Développeur senior", domaine_actuel: "Technologie", ville: "Montréal",
+      statut_emploi: "En emploi - cherche à évoluer", objectif_declare: "Directeur technique",
+      salaire_min: 95000, salaire_max: 115000,
+    },
+    reponses: [
+      "J'ai architecturé et livré une plateforme cloud qui supporte 2 millions d'utilisateurs",
+      "Mon expertise la plus rare est l'architecture microservices et la scalabilité",
+      "Je veux évoluer vers un rôle de leadership technique — moins de code, plus de vision",
+      "Je ne veux plus faire du développement pur — je veux définir l'architecture globale",
+      "Dans 5 ans je me vois CTO ou Directeur technique d'une scale-up",
+    ],
+  },
   9: {
     label: "Cas 9 — Senior 10+ ans",
     candidatInfo: {
