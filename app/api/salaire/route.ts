@@ -12,7 +12,8 @@ function getSalaireRef(role: string, experience: string, ville: string) {
     : r.includes("manager") || r.includes("gestionnaire") ? 95000
     : r.includes("chef") || r.includes("responsable") || r.includes("lead") ? 85000
     : r.includes("senior") ? 80000
-    : r.includes("chargé de programme") ? 90000
+    r.includes("chargé de programme") || r.includes("charge de programme") ? 90000
+    : r.includes("chargé de projet") || r.includes("charge de projet") ? 75000
     : r.includes("chargé") || r.includes("coordinateur") ? 72000
     : r.includes("contrôleur") || r.includes("controleur") ? 72000
     : r.includes("analyste") ? 65000
