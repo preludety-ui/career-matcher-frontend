@@ -1,83 +1,107 @@
 import { NextRequest, NextResponse } from "next/server";
 
+function getSalaireRef(role: string, experience: string, ville: string) {
+  const r = role?.toLowerCase() || "";
+  const e = experience?.toLowerCase() || "";
+  const v = ville?.toLowerCase() || "";
+
+  // Base salariale selon rôle
+  const base =
+    r.includes("vp") || r.includes("vice-président") ? 130000
+    : r.includes("directeur") || r.includes("director") ? 110000
+    : r.includes("manager") || r.includes("gestionnaire") ? 95000
+    : r.includes("chef") || r.includes("responsable") || r.includes("lead") ? 85000
+    : r.includes("senior") ? 80000
+    : r.includes("chargé de programme") ? 90000
+    : r.includes("chargé") || r.includes("coordinateur") ? 72000
+    : r.includes("contrôleur") || r.includes("controleur") ? 72000
+    : r.includes("analyste") ? 65000
+    : r.includes("assistant") || r.includes("junior") ? 48000
+    : 58000;
+
+  // Multiplicateur selon expérience
+  const expMult =
+    e.includes("plus de 10") ? 1.35
+    : e.includes("6 à 10") ? 1.2
+    : e.includes("3 à 5") ? 1.1
+    : e.includes("1 à 2") ? 1.0
+    : 0.88;
+
+  // Multiplicateur selon ville
+  const villeMult =
+    v.includes("toronto") || v.includes("vancouver") ? 1.15
+    : v.includes("calgary") ? 1.1
+    : v.includes("ottawa") ? 1.05
+    : 1.0; // Montréal et autres
+
+  const salaire_median = Math.round(base * expMult * villeMult / 1000) * 1000;
+  const salaire_min = Math.round(salaire_median * 0.9 / 1000) * 1000;
+  const salaire_max = Math.round(salaire_median * 1.1 / 1000) * 1000;
+
+  return { salaire_min, salaire_max, salaire_median };
+}
+
 export async function POST(req: NextRequest) {
   try {
     const { role, experience, ville, diplome, competences } = await req.json();
 
-    const prompt = `Tu es un expert en rémunération sur le marché du travail canadien.
+    // Essayer d'abord l'API Anthropic
+    try {
+      const prompt = `Tu es un expert en rémunération au Canada. Donne la fourchette salariale pour ce profil au Canada en 2026.
+Rôle: ${role || "Non spécifié"}
+Expérience: ${experience || "Moins de 1 an"}
+Ville: ${ville || "Montréal"}
+Diplôme: ${diplome || "Non spécifié"}
+Compétences: ${competences || "Non spécifiées"}
 
-Calcule la fourchette salariale pour ce profil :
-- Rôle : ${role || "Non spécifié"}
-- Expérience : ${experience || "Moins de 1 an"}
-- Ville : ${ville || "Montréal"}
-- Diplôme : ${diplome || "Baccalauréat"}
-- Compétences : ${competences || "Non spécifiées"}
+Retourne UNIQUEMENT ce JSON sans aucun texte avant ou après, sans backticks:
+{"salaire_min":45000,"salaire_max":65000,"salaire_median":55000,"explication":"raison courte"}`;
 
-Recherche les salaires réels actuels sur le marché canadien pour ce profil.
-Tiens compte de :
-1. Le rôle exact et son niveau de séniorité
-2. Les années d'expérience
-3. La ville (Montréal, Toronto, Vancouver ont des salaires différents)
-4. Le diplôme
-5. Les compétences spécifiques (ex: Power BI, Python augmentent le salaire)
+      const response = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": process.env.ANTHROPIC_API_KEY!,
+          "anthropic-version": "2023-06-01",
+        },
+        body: JSON.stringify({
+          model: "claude-haiku-4-5-20251001",
+          max_tokens: 200,
+          messages: [{ role: "user", content: prompt }],
+        }),
+      });
 
-Règles importantes :
-- Si le candidat est au chômage, utilise son dernier rôle
-- Si étudiant sans expérience, base-toi sur le rôle junior du domaine
-- Si autodidacte, base-toi sur les compétences révélées
-
-Retourne UNIQUEMENT ce JSON sans backticks ni markdown :
-{
-  "salaire_min": 42000,
-  "salaire_max": 58000,
-  "salaire_median": 50000,
-  "explication": "Basé sur les données du marché canadien pour un Assistant contrôleur de projet junior à Montréal"
-}`;
-
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": process.env.ANTHROPIC_API_KEY!,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-5",
-        max_tokens: 500,
-        tools: [{ type: "web_search_20250305", name: "web_search" }],
-        messages: [{ role: "user", content: prompt }],
-      }),
-    });
-
-    const data = await response.json();
-
-    // Extraire le texte de la réponse
-    const textContent = data.content?.find((c: { type: string }) => c.type === "text");
-    if (!textContent) {
-      throw new Error("Pas de réponse texte");
+      if (response.ok) {
+        const data = await response.json();
+        const text = data.content?.find((c: { type: string }) => c.type === "text")?.text || "";
+        const jsonMatch = text.match(/\{[^}]+\}/);
+        if (jsonMatch) {
+          const parsed = JSON.parse(jsonMatch[0]);
+          if (parsed.salaire_min && parsed.salaire_max) {
+            console.log("Salaire from Anthropic:", parsed);
+            return NextResponse.json(parsed);
+          }
+        }
+      }
+    } catch (e) {
+      console.log("Anthropic salaire failed, using reference table:", e);
     }
 
-    // Parser le JSON
-    const jsonMatch = textContent.text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error("Pas de JSON valide");
-
-    const salaires = JSON.parse(jsonMatch[0]);
-
+    // Fallback — table de référence
+    const ref = getSalaireRef(role || "", experience || "", ville || "Montréal");
+    console.log("Salaire from reference table:", ref);
     return NextResponse.json({
-      salaire_min: salaires.salaire_min || 40000,
-      salaire_max: salaires.salaire_max || 60000,
-      salaire_median: salaires.salaire_median || 50000,
-      explication: salaires.explication || "Basé sur les données du marché canadien",
+      ...ref,
+      explication: "Estimation basée sur les données du marché canadien",
     });
 
   } catch (error) {
     console.error("Salaire API error:", error);
-    // Fallback avec données statiques
     return NextResponse.json({
-      salaire_min: 40000,
-      salaire_max: 60000,
-      salaire_median: 50000,
-      explication: "Estimation basée sur les données du marché canadien",
+      salaire_min: 45000,
+      salaire_max: 65000,
+      salaire_median: 55000,
+      explication: "Estimation par défaut",
     });
   }
 }
