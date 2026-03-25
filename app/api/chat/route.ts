@@ -68,7 +68,7 @@ function validateGPS(
     an2: { titre: getTitre(2, gpsData.an2?.titre || ""), salaire: s2, action: gpsData.an2?.action || "Développer l'expertise" },
     an3: { titre: getTitre(3, gpsData.an3?.titre || ""), salaire: s3, action: gpsData.an3?.action || "Prendre plus de responsabilités" },
     an4: { titre: getTitre(4, gpsData.an4?.titre || ""), salaire: s4, action: gpsData.an4?.action || "Viser un niveau supérieur" },
-    an5: { titre: getTitre(5, gpsData.an5?.titre || ""), salaire: s5, action: gpsData.an5?.action || "POTENTIEL MAX !" },
+    an5: { titre: getTitre(5, gpsData.an5?.titre || "") + (getTitre(5, gpsData.an5?.titre || "") === getTitre(4, gpsData.an4?.titre || "") ? " senior" : ""), salaire: s5, action: gpsData.an5?.action || "POTENTIEL MAX !" },
   };
 
   const obj = objectifDeclare?.toLowerCase() || "";
