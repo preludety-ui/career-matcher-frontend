@@ -49,14 +49,16 @@ function validateGPS(
 
   const getTitre = (an: number, titreGPT: string): string => {
     if (maxNiveaux === 1) {
-      if (an <= 2) return roleBase + " confirmé";
-      if (an <= 4) return roleBase + " senior";
-      return roleBase + " expert";
+       const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+    if (an <= 2) return cap(roleBase) + " confirmé";
+    if (an <= 4) return cap(roleBase) + " senior";
+    return cap(roleBase) + " expert";
     }
     if (maxNiveaux === 2) {
-      if (an <= 2) return roleBase + " confirmé";
-      if (an === 3) return roleBase + " senior";
-      return titreGPT || roleBase + " expert";
+      const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+      if (an <= 2) return cap(roleBase) + " confirmé";
+      if (an === 3) return cap(roleBase) + " senior";
+      return titreGPT || cap(roleBase) + " expert";
     }
     return titreGPT || roleBase;
   };
@@ -118,7 +120,7 @@ function validateGPS(
     }
   }
 
-  return { gps: validatedGPS, scenario, delai, message, salaireMax: s1 };
+ return { gps: validatedGPS, scenario, delai, message, salaireMax: Math.round(s1 * 1.15 / 1000) * 1000 };
 }
 
 function parseExtractedData(json: Record<string, unknown>, candidatInfo: {
