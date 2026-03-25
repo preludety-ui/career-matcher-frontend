@@ -221,15 +221,19 @@ JSON attendu:
 
 RÈGLES ABSOLUES :
 - force1/2/3 : compétences GÉNÉRIQUES et TRANSFÉRABLES — format court "Analyse budgétaire" pas "Analyse budgétaire via Excel"
+- salaire_min = salaire actuel estimé selon expérience et rôle
+- salaire_max = salaire An 1 du GPS (PAS An 5) — fourchette actuelle du marché
+- An1 = salaire_min × 1.036 (augmentation moyenne annuelle Québec 3.6%)
 - Salaires GPS : chaque année > précédente, progression 8-12% max
-- An1 >= ${(candidatInfo.salaire_max || 60000) + 2000}$
 - GPS maximum ${niveauInfo.maxNiveaux} niveau(x) en 5 ans depuis ${niveauInfo.niveauActuel}
-- Titres GPS : vrais titres de poste du marché canadien
+- Titres GPS : vrais titres de poste du marché canadien — JAMAIS de niveau irréaliste
+- Sigles professionnels : VP = Vice-Président, CFO = Chef des finances, CEO = Directeur général, CTO = Directeur technique, COO = Directeur des opérations — les comprendre et les utiliser correctement
+- objectif_final : si le candidat a mis un sigle (VP, CEO, CFO...) l'écrire en toutes lettres ex: "Vice-Président des opérations"
 - scenario_objectif : 1=atteignable 5ans, 2=atteignable 6-8ans, 3=long terme 10+ans
-- message_objectif : honnête et motivant selon scenario
+- message_objectif : honnête et motivant selon scenario avec année d'atteinte estimée
 - formations : exactement 4 formations avec les 4 types différents
 - certifications : exactement 2 certifications
-- TOUS les champs sont obligatoires — aucun null ou vide`;
+- TOUS les champs sont obligatoires — aucun null ou vide;
 }
 
 function parseExtractedData(json: Record<string, unknown>) {
