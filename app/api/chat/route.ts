@@ -208,7 +208,7 @@ function validateGPS(
     if (isVP || isCEO) { scenario = 2; delai = "6-8 ans"; message = "Ton objectif de " + objectifDeclare + " est atteignable en 6-8 ans avec les bonnes certifications !"; }
   }
 
-  return { gps: validatedGPS, scenario, delai, message, salaireMax: s1 };
+  return { gps: validatedGPS, scenario, delai, message, salaireMax: s1 * 1.15 };
 }
 
 // ============================================
@@ -517,6 +517,7 @@ REGLES:
 // ============================================
 function parseExtractedData(json: Record<string, unknown>, candidatInfo: {
   salaire_min?: number;
+  salaire_max?: number;
   annee_experience?: string;
   role_actuel?: string;
   objectif_declare?: string;
@@ -566,8 +567,8 @@ function parseExtractedData(json: Record<string, unknown>, candidatInfo: {
     force3: String(json.force3 || ""), force3_desc: String(json.force3_desc || ""),
     axe1: String(json.axe1 || ""), axe1_desc: String(json.axe1_desc || ""),
     axe2: String(json.axe2 || ""), axe2_desc: String(json.axe2_desc || ""),
-    salaire_min: salaireMin,
-    salaire_max: validated.salaireMax,
+    salaire_min: candidatInfo.salaire_min || salaireMin,
+    salaire_max: candidatInfo.salaire_max || validated.salaireMax,
     role_actuel: String(json.role_actuel || candidatInfo.role_actuel || ""),
     ville: String(json.ville || "Montréal"),
     objectif_carriere: objectifDeclare,
@@ -653,7 +654,14 @@ export async function POST(req: NextRequest) {
 
         if (jsonMatch) {
           const parsed = JSON.parse(jsonMatch[0]);
-          const rapportData = parseExtractedData(parsed, candidatInfo || {});
+          const rapportData = parseExtractedData(parsed, {
+          salaire_min: candidatInfo?.salaire_min,
+          salaire_max: candidatInfo?.salaire_max,
+          annee_experience: candidatInfo?.annee_experience,
+          role_actuel: candidatInfo?.role_actuel,
+          objectif_declare: candidatInfo?.objectif_declare,
+          statut_emploi: candidatInfo?.statut_emploi,
+         });
 
           console.log("SAVING TO SUPABASE...");
           const { error } = await supabaseAdmin
