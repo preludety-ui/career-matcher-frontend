@@ -10,22 +10,23 @@ type Message = {
     force1?: string; force1_desc?: string;
     force2?: string; force2_desc?: string;
     force3?: string; force3_desc?: string;
+    axe1?: string; axe1_desc?: string;
+    axe2?: string; axe2_desc?: string;
     salaire_min?: number;
     salaire_max?: number;
     role_actuel?: string;
     ville?: string;
+    objectif_carriere?: string;
+    scenario_objectif?: number;
+    message_objectif?: string;
+    delai_objectif?: string;
+    analyse_comparative?: string;
     opportunites?: { titre: string; salaire: number; description: string }[];
     gps_an1?: { titre: string; salaire: number; action: string };
     gps_an2?: { titre: string; salaire: number; action: string };
     gps_an3?: { titre: string; salaire: number; action: string };
     gps_an4?: { titre: string; salaire: number; action: string };
     gps_an5?: { titre: string; salaire: number; action: string };
-    obj_an1?: { titre: string; salaire: number; action: string };
-    obj_an2?: { titre: string; salaire: number; action: string };
-    obj_an3?: { titre: string; salaire: number; action: string };
-    obj_an4?: { titre: string; salaire: number; action: string };
-    obj_an5?: { titre: string; salaire: number; action: string };
-    analyse_comparative?: string;
     formations?: { nom: string; type: string; plateforme: string; duree: string }[];
     certifications?: { nom: string; organisme: string }[];
     message_final?: string;
@@ -139,6 +140,7 @@ export default function Home() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [rapportGenere, setRapportGenere] = useState(false);
   const [marketData, setMarketData] = useState<MarketData>(defaultMarket);
   const [marketLoading, setMarketLoading] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -187,12 +189,10 @@ export default function Home() {
     setFormError("");
 
     try {
-      // 1. Récupérer le plan effectif
       const planRes = await fetch(`/api/plan?email=${formData.email}`);
       const planData = await planRes.json();
       const plan = planData?.plan_effectif || "propulse";
 
-      // 2. Calculer la fourchette salariale
       let salaire_min = 40000;
       let salaire_max = 60000;
 
@@ -219,6 +219,7 @@ export default function Home() {
 
       setUserInfo({ ...formData, plan, salaire_min, salaire_max });
       setMessages([]);
+      setRapportGenere(false);
 
     } catch {
       setUserInfo({ ...formData, plan: "propulse", salaire_min: 40000, salaire_max: 60000 });
@@ -280,7 +281,12 @@ export default function Home() {
         text: data.reply,
         rapport: rapport || undefined,
       };
-      setMessages([...newMessages, botMessage]);
+      const updatedMessages = [...newMessages, botMessage];
+      setMessages(updatedMessages);
+
+      if (rapport) {
+        setRapportGenere(true);
+      }
 
     } catch {
       setMessages([...newMessages, {
@@ -292,7 +298,6 @@ export default function Home() {
     }
   };
 
-  // Déclencher le premier message du bot automatiquement
   useEffect(() => {
     if (userInfo && messages.length === 0 && !loading) {
       sendMessage("START");
@@ -470,8 +475,6 @@ export default function Home() {
           </div>
 
           <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-
-            {/* Identité */}
             <div style={{ background: "white", borderRadius: "12px", padding: "14px", border: "0.5px solid #E8E8F0" }}>
               <div style={{ fontSize: "9px", fontWeight: 700, color: "#FF7043", letterSpacing: ".5px", marginBottom: "10px" }}>👤 IDENTITÉ</div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginBottom: "8px" }}>
@@ -490,7 +493,6 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Formation */}
             <div style={{ background: "white", borderRadius: "12px", padding: "14px", border: "0.5px solid #E8E8F0" }}>
               <div style={{ fontSize: "9px", fontWeight: 700, color: "#0EA5E9", letterSpacing: ".5px", marginBottom: "10px" }}>🎓 FORMATION</div>
               <div style={{ marginBottom: "8px" }}>
@@ -523,7 +525,6 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Expérience */}
             <div style={{ background: "white", borderRadius: "12px", padding: "14px", border: "0.5px solid #E8E8F0" }}>
               <div style={{ fontSize: "9px", fontWeight: 700, color: "#10B981", letterSpacing: ".5px", marginBottom: "10px" }}>💼 EXPÉRIENCE</div>
               <div style={{ marginBottom: "8px" }}>
@@ -559,7 +560,6 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Objectif */}
             <div style={{ background: "white", borderRadius: "12px", padding: "14px", border: "0.5px solid #E8E8F0" }}>
               <div style={{ fontSize: "9px", fontWeight: 700, color: "#993C1D", letterSpacing: ".5px", marginBottom: "10px" }}>🎯 OBJECTIF</div>
               <div style={{ marginBottom: "8px" }}>
@@ -584,16 +584,8 @@ export default function Home() {
 
             {formError && <p className="text-xs text-center" style={{ color: "#FF7043" }}>{formError}</p>}
 
-            <button
-              onClick={handleFormSubmit}
-              disabled={formLoading}
-              className="w-full py-4 rounded-2xl text-sm font-bold text-white disabled:opacity-50"
-              style={{ background: "#FF7043" }}
-            >
-              {formLoading
-                ? (lang === "fr" ? "Calcul de votre profil..." : "Calculating your profile...")
-                : (lang === "fr" ? "Commencer mon entretien YELMA →" : "Start my YELMA interview →")
-              }
+            <button onClick={handleFormSubmit} disabled={formLoading} className="w-full py-4 rounded-2xl text-sm font-bold text-white disabled:opacity-50" style={{ background: "#FF7043" }}>
+              {formLoading ? (lang === "fr" ? "Calcul de votre profil..." : "Calculating your profile...") : (lang === "fr" ? "Commencer mon entretien YELMA →" : "Start my YELMA interview →")}
             </button>
 
             <div style={{ textAlign: "center", fontSize: "10px", color: "#888" }}>
@@ -618,9 +610,10 @@ export default function Home() {
         </div>
         <div className="flex items-center gap-3">
           <span className="text-xs" style={{ color: "#aaa" }}>{userInfo.prenom}</span>
-          <button onClick={() => { setLang(null); setUserInfo(null); setMessages([]); }} className="text-xs" style={{ color: "#aaa" }}>{t.btnLang}</button>
+          <button onClick={() => { setLang(null); setUserInfo(null); setMessages([]); setRapportGenere(false); }} className="text-xs" style={{ color: "#aaa" }}>{t.btnLang}</button>
         </div>
       </div>
+
       <div className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-3">
         {messages.map((m, i) => (
           <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
@@ -645,24 +638,41 @@ export default function Home() {
         )}
         <div ref={messagesEndRef} />
       </div>
-      <div className="bg-white px-4 py-3 border-t border-gray-100 flex gap-2 flex-shrink-0">
-        <input
-          className="flex-1 border rounded-xl px-4 py-3 text-sm text-gray-900 bg-white focus:outline-none"
-          style={{ borderColor: "#E8E8F0" }}
-          placeholder={t.placeholder}
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && sendMessage()}
-        />
-        <button
-          onClick={() => sendMessage()}
-          disabled={loading}
-          className="text-white px-5 py-3 rounded-xl text-sm font-bold disabled:opacity-50"
-          style={{ background: "#FF7043" }}
-        >
-          {t.send}
-        </button>
-      </div>
+
+      {!rapportGenere ? (
+        <div className="bg-white px-4 py-3 border-t border-gray-100 flex gap-2 flex-shrink-0">
+          <input
+            className="flex-1 border rounded-xl px-4 py-3 text-sm text-gray-900 bg-white focus:outline-none"
+            style={{ borderColor: "#E8E8F0" }}
+            placeholder={t.placeholder}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && sendMessage()}
+          />
+          <button
+            onClick={() => sendMessage()}
+            disabled={loading}
+            className="text-white px-5 py-3 rounded-xl text-sm font-bold disabled:opacity-50"
+            style={{ background: "#FF7043" }}
+          >
+            {t.send}
+          </button>
+        </div>
+      ) : (
+        <div className="bg-white px-4 py-3 border-t border-gray-100 flex-shrink-0">
+          <div style={{ display: "flex", gap: "8px" }}>
+            <a href="/mon-espace" style={{ flex: 1, background: "#1A1A2E", color: "white", borderRadius: "12px", padding: "12px", fontSize: "13px", fontWeight: 700, textDecoration: "none", textAlign: "center" }}>
+              📊 Accéder à mon espace →
+            </a>
+            <button
+              onClick={() => { setRapportGenere(false); setMessages([]); setUserInfo(null); }}
+              style={{ background: "#F1EFE8", color: "#888", border: "none", borderRadius: "12px", padding: "12px 16px", fontSize: "12px", fontWeight: 600, cursor: "pointer" }}
+            >
+              🔄 Refaire
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

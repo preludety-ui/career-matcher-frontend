@@ -14,6 +14,8 @@ function getSalaireRef(role: string, experience: string, ville: string) {
     : r.includes("senior") ? 80000
     : r.includes("chargé de programme") || r.includes("charge de programme") ? 90000
     : r.includes("chargé de projet") || r.includes("charge de projet") ? 75000
+    : r.includes("contrôleur de projet") || r.includes("controleur de projet") ? 85000
+    : r.includes("contrôleur") || r.includes("controleur") ? 80000
     : r.includes("chargé") || r.includes("coordinateur") ? 72000
     : r.includes("contrôleur") || r.includes("controleur") ? 72000
     : r.includes("analyste") ? 65000
@@ -22,7 +24,8 @@ function getSalaireRef(role: string, experience: string, ville: string) {
 
   // Multiplicateur selon expérience
   const expMult =
-    e.includes("plus de 10") ? 1.35
+    e.includes("plus de 10") ? 1.45
+    : e.includes("6 à 10") ? 1.25
     : e.includes("6 à 10") ? 1.2
     : e.includes("3 à 5") ? 1.1
     : e.includes("1 à 2") ? 1.0
