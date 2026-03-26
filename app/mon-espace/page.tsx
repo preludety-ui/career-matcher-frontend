@@ -93,12 +93,6 @@ export default function MonEspace() {
     try {
       const res = await fetch("/api/offres", {
         method: "POST",
-        const chargerOffres = async () => {
-    if (!candidat) return;
-    setOffresLoading(true);
-    try {
-      const res = await fetch("/api/offres", {
-        method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           role: candidat.role_actuel || "",
