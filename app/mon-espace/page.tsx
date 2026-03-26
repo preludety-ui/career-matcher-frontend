@@ -93,14 +93,20 @@ export default function MonEspace() {
     try {
       const res = await fetch("/api/offres", {
         method: "POST",
+        const chargerOffres = async () => {
+    if (!candidat) return;
+    setOffresLoading(true);
+    try {
+      const res = await fetch("/api/offres", {
+        method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          cas: 7, role: candidat.role_actuel, ville: candidat.ville,
-          experience: candidat.duree_experience, salaire_min: candidat.salaire_min,
-          salaire_max: candidat.salaire_max,
+          role: candidat.role_actuel || "",
+          ville: candidat.ville || "Montréal",
+          experience: candidat.duree_experience || "",
           competences: [candidat.force1, candidat.force2, candidat.force3].filter(Boolean),
-          objectif: candidat.objectif_carriere, statut: "en emploi",
-          domaine: candidat.role_actuel,
+          objectif: candidat.objectif_carriere || "",
+          domaine: candidat.role_actuel || "",
         }),
       });
       const data = await res.json();
@@ -566,7 +572,7 @@ export default function MonEspace() {
             <div style={{ background: "white", borderRadius: "12px", padding: "16px", border: "0.5px solid #E8E8F0" }}>
               <div style={{ fontSize: "10px", fontWeight: 700, color: "#888", marginBottom: "12px" }}>⚙️ ACTIONS</div>
               <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                <a href="/" style={{ display: "block", background: "#FF7043", color: "white", borderRadius: "10px", padding: "12px", fontSize: "13px", fontWeight: 700, textDecoration: "none", textAlign: "center" }}>🔄 Refaire mon entretien YELMA</a>
+                <a href={`/?lang=fr&free=1`} style={{ display: "block", background: "#FF7043", color: "white", borderRadius: "10px", padding: "12px", fontSize: "13px", fontWeight: 700, textDecoration: "none", textAlign: "center" }}>🔄 Refaire mon entretien YELMA</a>
                 {candidat.plan !== "propulse" && (
                   <a href="/pricing" style={{ display: "block", background: "#1A1A2E", color: "white", borderRadius: "10px", padding: "12px", fontSize: "13px", fontWeight: 700, textDecoration: "none", textAlign: "center" }}>⭐ Passer à Propulse — 4.99$/mois</a>
                 )}

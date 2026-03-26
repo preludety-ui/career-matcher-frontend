@@ -153,7 +153,7 @@ export default function Home() {
     const params = new URLSearchParams(window.location.search);
     const l = params.get("lang") as "fr" | "en" | null;
     const free = params.get("free");
-    if (l && free) setLang(l);
+    if (l) setLang(l);
   }, []);
 
   useEffect(() => {
