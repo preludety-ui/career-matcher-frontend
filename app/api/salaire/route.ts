@@ -274,7 +274,7 @@ function calculerFourchette(
 
   // Arrondir à 1000$
   return {
-    salaire_min: Math.round(salaire_min / 1000) * 1000,
+    salaire_min: Math.round(Math.max(salaire_min, salaire_max * 0.75) / 1000) * 1000,
     salaire_max: Math.round(salaire_max / 1000) * 1000,
     salaire_median: Math.round(salaire_median / 1000) * 1000,
   };
