@@ -313,7 +313,7 @@ export default function RapportGPS({
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: "8px", flexShrink: 0, marginLeft: "8px" }}>
                   <div style={{ fontSize: "13px", fontWeight: 700, color: "#FF7043" }}>{o.salaire?.toLocaleString()} $</div>
-                  <a href={`https://www.linkedin.com/jobs/search/?keywords=${encodeURIComponent(o.titre)}&location=${encodeURIComponent(villeAffichee)}`} target="_blank" rel="noopener noreferrer" style={{ background: "#1A1A2E", color: "white", borderRadius: "20px", padding: "3px 8px", fontSize: "9px", textDecoration: "none", fontWeight: 600 }}>Offres →</a>
+                  <a href="/mon-espace" style={{ background: "#1A1A2E", color: "white", borderRadius: "20px", padding: "3px 8px", fontSize: "9px", textDecoration: "none", fontWeight: 600 }}>💼 Voir mes offres →</a>
                 </div>
               </div>
             ))}
