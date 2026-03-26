@@ -207,6 +207,8 @@ export default function Home() {
               ville: formData.ville || "Montréal",
               diplome: formData.diplome,
               competences: formData.domaine_etudes,
+              domaine: formData.domaine_actuel,
+              secteur: formData.domaine_actuel,
             }),
           });
           const salaireData = await salaireRes.json();
