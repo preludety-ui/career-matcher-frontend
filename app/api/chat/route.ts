@@ -547,7 +547,7 @@ function parseExtractedData(json: Record<string, unknown>, candidatInfo: {
         return { nom: String(ct.nom || ""), organisme: String(ct.organisme || "") };
       }) : [];
 
-  const salaireMin = candidatInfo.salaire_min || 45000;
+  const salaireMin = candidatInfo.salaire_max || candidatInfo.salaire_min || 45000;
   const objectifDeclare = String(json.objectif_final || candidatInfo.objectif_declare || "");
   const isReconversion = candidatInfo.statut_emploi?.toLowerCase().includes("reconversion") || false;
 
