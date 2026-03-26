@@ -591,11 +591,11 @@ function parseExtractedData(json: Record<string, unknown>, candidatInfo: {
 // DÉTECTION RAPPORT FINAL
 // ============================================
 function isRapportFinal(text: string): boolean {
-  return (
-    (text.includes("TES 3 COMPÉTENCES") || text.includes("COMPÉTENCES CLÉS")) &&
-    (text.includes("GPS DE CARRIÈRE") || text.includes("An 1:")) &&
-    text.includes("FORMATIONS")
-  );
+  const hasCompetences = text.includes("COMPÉTENCES") || text.includes("compétences clés") || text.includes("COMPÉTENCES CLÉS");
+  const hasGPS = text.includes("GPS") || text.includes("An 1") || text.includes("AN 1");
+  const hasFormations = text.includes("FORMATION") || text.includes("formation");
+  const hasSalaire = text.includes("valeur sur le marché") || text.includes("salaire") || text.includes("SALAIRE") || text.includes("$");
+  return hasCompetences && hasGPS && (hasFormations || hasSalaire);
 }
 
 // ============================================
