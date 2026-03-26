@@ -5,7 +5,9 @@ import RapportGPS from "../components/RapportGPS";
 
 type Formation = { nom: string; type: string; plateforme: string; duree: string; prix?: string; lien?: string; note?: string };
 type Evenement = { nom: string; type: string; organisateur: string; date: string; lieu: string; prix: string; lien: string };
-type Offre = { titre: string; entreprise: string | null; salaire: number; lien: string; source: string; score: number; insights: string[]; gap: string | null };
+type Offre = { titre: string; entreprise: string | null; salaire: number; lien: string; source: string; score: number; insights: string[]; gap: string | null; date_publication: string };
+type Candidature = { id: number; offre_titre: string; offre_entreprise: string; offre_lien: string; offre_source: string; offre_salaire: number; date_candidature: string; statut: string };
+type Inscription = { id: number; formation_nom: string; formation_plateforme: string; formation_lien: string; formation_type: string; date_inscription: string; statut: string };
 
 type Candidat = {
   email: string; prenom: string; nom: string; plan: string; trial_end: string;
@@ -36,7 +38,6 @@ export default function MonEspace() {
   const [activeTab, setActiveTab] = useState("rapport");
   const [tokenLoading, setTokenLoading] = useState(false);
 
-  // Données chargées dynamiquement
   const [offres, setOffres] = useState<Offre[]>([]);
   const [offresLoading, setOffresLoading] = useState(false);
   const [formations, setFormations] = useState<{ renforcement: Formation[]; gap: Formation[]; prochain_poste: Formation[]; objectif_long_terme: Formation[] }>({ renforcement: [], gap: [], prochain_poste: [], objectif_long_terme: [] });
@@ -49,6 +50,12 @@ export default function MonEspace() {
   const [offreSelectionnee, setOffreSelectionnee] = useState<Offre | null>(null);
   const [cvCopied, setCvCopied] = useState(false);
   const [lettreCopied, setLettreCopied] = useState(false);
+
+  // Suivi candidatures
+  const [candidatures, setCandidatures] = useState<Candidature[]>([]);
+  const [inscriptions, setInscriptions] = useState<Inscription[]>([]);
+  const [postulLoading, setPostulLoading] = useState<string | null>(null);
+  const [inscritLoading, setInscritLoading] = useState<string | null>(null);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -65,6 +72,19 @@ export default function MonEspace() {
         .finally(() => setTokenLoading(false));
     }
   }, []);
+
+  // Charger candidatures et inscriptions
+  useEffect(() => {
+    if (candidat?.email) {
+      fetch(`/api/candidatures?email=${encodeURIComponent(candidat.email)}`)
+        .then(r => r.json())
+        .then(data => {
+          if (data.candidatures) setCandidatures(data.candidatures);
+          if (data.inscriptions) setInscriptions(data.inscriptions);
+        })
+        .catch(e => console.error("Candidatures load error:", e));
+    }
+  }, [candidat]);
 
   const sendMagicLink = async () => {
     if (!email.includes("@")) { setError("Email invalide"); return; }
@@ -135,11 +155,7 @@ export default function MonEspace() {
     if (!candidat) return;
     setCvLoading(true);
     try {
-      const res = await fetch("/api/cv", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: candidat.email }),
-      });
+      const res = await fetch("/api/cv", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: candidat.email }) });
       const data = await res.json();
       if (data.cv) setCv(data.cv);
     } catch (e) { console.error("CV error:", e); }
@@ -170,7 +186,45 @@ export default function MonEspace() {
     finally { setLettreLoading(false); }
   };
 
-  // Charger offres et formations automatiquement
+  const marquerPostule = async (offre: Offre) => {
+    if (!candidat) return;
+    setPostulLoading(offre.lien);
+    try {
+      await fetch("/api/candidatures", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "candidature",
+          email: candidat.email,
+          data: { titre: offre.titre, entreprise: offre.entreprise, lien: offre.lien, source: offre.source, salaire: offre.salaire },
+        }),
+      });
+      setCandidatures(prev => [...prev, { id: Date.now(), offre_titre: offre.titre, offre_entreprise: offre.entreprise || "", offre_lien: offre.lien, offre_source: offre.source, offre_salaire: offre.salaire, date_candidature: new Date().toISOString(), statut: "postulé" }]);
+    } catch (e) { console.error("Postul error:", e); }
+    finally { setPostulLoading(null); }
+  };
+
+  const marquerInscrit = async (formation: Formation) => {
+    if (!candidat) return;
+    setInscritLoading(formation.nom);
+    try {
+      await fetch("/api/candidatures", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "formation",
+          email: candidat.email,
+          data: { nom: formation.nom, plateforme: formation.plateforme, lien: formation.lien, type: formation.type },
+        }),
+      });
+      setInscriptions(prev => [...prev, { id: Date.now(), formation_nom: formation.nom, formation_plateforme: formation.plateforme, formation_lien: formation.lien || "", formation_type: formation.type, date_inscription: new Date().toISOString(), statut: "inscrit" }]);
+    } catch (e) { console.error("Inscrit error:", e); }
+    finally { setInscritLoading(null); }
+  };
+
+  const aPostule = (lien: string) => candidatures.some(c => c.offre_lien === lien);
+  const aInscrit = (nom: string) => inscriptions.some(i => i.formation_nom === nom);
+
   useEffect(() => {
     if (candidat && activeTab === "offres" && offres.length === 0) chargerOffres();
     if (candidat && (activeTab === "formations" || activeTab === "evenements") && formations.renforcement.length === 0) chargerFormations();
@@ -229,6 +283,7 @@ export default function MonEspace() {
     { id: "evenements", label: "🎤 Événements" },
     { id: "cv", label: "📄 CV" },
     { id: "lettre", label: "✉️ Lettre" },
+    { id: "candidatures", label: `📋 Suivi (${candidatures.length + inscriptions.length})` },
     { id: "profil", label: "👤 Profil" },
   ];
 
@@ -247,9 +302,12 @@ export default function MonEspace() {
     return "📚";
   };
 
+  // Filtrer offres et formations déjà postulées
+  const offresDisponibles = offres.filter(o => !aPostule(o.lien));
+  const formationsDisponibles = allFormations.filter(f => !aInscrit(f.nom));
+
   return (
     <div style={{ background: "#FAFBFF", minHeight: "100vh" }}>
-
       {/* Header */}
       <div style={{ background: "#1A1A2E", padding: "14px 20px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div>
@@ -267,7 +325,6 @@ export default function MonEspace() {
         </div>
       </div>
 
-      {/* Banner */}
       {!isPropulse && joursRestants === 0 && (
         <div style={{ background: "#FF7043", padding: "10px 20px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div style={{ fontSize: "12px", color: "white" }}>🔒 Votre essai est terminé</div>
@@ -295,7 +352,7 @@ export default function MonEspace() {
               <div style={{ background: "white", borderRadius: "12px", padding: "24px", textAlign: "center", border: "0.5px solid #E8E8F0" }}>
                 <div style={{ fontSize: "32px", marginBottom: "12px" }}>📊</div>
                 <div style={{ fontSize: "14px", fontWeight: 600, color: "#1A1A2E", marginBottom: "8px" }}>Aucun rapport disponible</div>
-                <a href="/" style={{ background: "#FF7043", color: "white", borderRadius: "20px", padding: "10px 20px", fontSize: "13px", fontWeight: 700, textDecoration: "none" }}>Commencer mon entretien →</a>
+                <a href="/?lang=fr&free=1" style={{ background: "#FF7043", color: "white", borderRadius: "20px", padding: "10px 20px", fontSize: "13px", fontWeight: 700, textDecoration: "none" }}>Commencer mon entretien →</a>
               </div>
             )}
           </div>
@@ -305,7 +362,10 @@ export default function MonEspace() {
         {activeTab === "offres" && (
           <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <div style={{ fontSize: "12px", color: "#888" }}>{offres.length > 0 ? `${offres.length} offres trouvées` : "Recherche en cours..."}</div>
+              <div style={{ fontSize: "12px", color: "#888" }}>
+                {offresDisponibles.length > 0 ? `${offresDisponibles.length} offres disponibles` : offresLoading ? "Recherche..." : "Aucune offre"}
+                {candidatures.length > 0 && <span style={{ marginLeft: "8px", color: "#10B981", fontWeight: 600 }}> · {candidatures.length} postulé(s)</span>}
+              </div>
               <button onClick={chargerOffres} disabled={offresLoading} style={{ background: "#FF7043", color: "white", border: "none", borderRadius: "20px", padding: "6px 14px", fontSize: "11px", fontWeight: 600, cursor: "pointer" }}>
                 {offresLoading ? "⏳ Recherche..." : "🔄 Actualiser"}
               </button>
@@ -315,16 +375,16 @@ export default function MonEspace() {
               <div style={{ background: "white", borderRadius: "12px", padding: "24px", textAlign: "center", border: "0.5px solid #E8E8F0" }}>
                 <div style={{ fontSize: "24px", marginBottom: "8px" }}>🔍</div>
                 <div style={{ fontSize: "13px", color: "#888" }}>YELMA cherche les meilleures offres pour vous...</div>
-                <div style={{ fontSize: "11px", color: "#aaa", marginTop: "4px" }}>LinkedIn · Indeed · Jobillico · Gouvernement · Sites entreprises</div>
               </div>
             )}
 
-            {!offresLoading && offres.map((o, i) => (
+            {!offresLoading && offresDisponibles.map((o, i) => (
               <div key={i} style={{ background: "white", borderRadius: "12px", padding: "14px", border: "0.5px solid #E8E8F0" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "8px" }}>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: "13px", fontWeight: 600, color: "#1A1A2E" }}>{o.titre}</div>
                     {o.entreprise && <div style={{ fontSize: "11px", color: "#888", marginTop: "2px" }}>{o.entreprise}</div>}
+                    {o.date_publication && <div style={{ fontSize: "10px", color: "#aaa", marginTop: "2px" }}>📅 {o.date_publication}</div>}
                   </div>
                   <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "4px", marginLeft: "8px" }}>
                     <span style={{ background: o.score >= 85 ? "#D6FFE8" : o.score >= 70 ? "#FFF8E1" : "#F1EFE8", color: o.score >= 85 ? "#085041" : o.score >= 70 ? "#7A5F00" : "#888", borderRadius: "20px", padding: "2px 8px", fontSize: "10px", fontWeight: 700 }}>
@@ -340,32 +400,33 @@ export default function MonEspace() {
                 )}
                 {o.gap && <div style={{ background: "#FFF8E1", borderRadius: "6px", padding: "4px 8px", fontSize: "10px", color: "#7A5F00", marginBottom: "6px" }}>⚠️ Gap : {o.gap}</div>}
                 <div style={{ display: "flex", gap: "6px", justifyContent: "flex-end" }}>
-                  <button onClick={() => { setOffreSelectionnee(o); genererLettre(o); }} style={{ background: "#F0F9FF", color: "#0C447C", border: "none", borderRadius: "20px", padding: "5px 10px", fontSize: "10px", fontWeight: 600, cursor: "pointer" }}>
-                    {lettreLoading && offreSelectionnee?.titre === o.titre ? "⏳..." : "✉️ Lettre"}
+                  <button onClick={() => { setOffreSelectionnee(o); genererLettre(o); }} style={{ background: "#F0F9FF", color: "#0C447C", border: "none", borderRadius: "20px", padding: "5px 10px", fontSize: "10px", fontWeight: 600, cursor: "pointer" }}>✉️ Lettre</button>
+                  <a href={o.lien} target="_blank" rel="noopener noreferrer" onClick={() => {
+                    setTimeout(() => {
+                      if (window.confirm("Avez-vous postulé pour cette offre ?")) marquerPostule(o);
+                    }, 2000);
+                  }} style={{ background: "#FF7043", color: "white", borderRadius: "20px", padding: "5px 12px", fontSize: "10px", fontWeight: 700, textDecoration: "none" }}>
+                    {postulLoading === o.lien ? "⏳..." : "Postuler →"}
+                  </a>
+                  <button onClick={() => marquerPostule(o)} style={{ background: "#D6FFE8", color: "#085041", border: "none", borderRadius: "20px", padding: "5px 10px", fontSize: "10px", fontWeight: 600, cursor: "pointer" }}>
+                    ✅ J'ai postulé
                   </button>
-                  <a href={o.lien} target="_blank" rel="noopener noreferrer" style={{ background: "#FF7043", color: "white", borderRadius: "20px", padding: "5px 12px", fontSize: "10px", fontWeight: 700, textDecoration: "none" }}>Voir →</a>
                 </div>
               </div>
             ))}
 
-            {/* Liens directs */}
-            {!offresLoading && (
+            {!offresLoading && candidatures.length > 0 && (
               <div style={{ background: "white", borderRadius: "12px", padding: "14px", border: "0.5px solid #E8E8F0" }}>
-                <div style={{ fontSize: "10px", fontWeight: 700, color: "#888", marginBottom: "8px" }}>🔗 RECHERCHER DIRECTEMENT</div>
-                <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                  {[
-                    { name: "LinkedIn Jobs", color: "#0077B5", url: `https://www.linkedin.com/jobs/search/?keywords=${encodeURIComponent(candidat.role_actuel || "")}&location=${encodeURIComponent(candidat.ville || "Montréal")}` },
-                    { name: "Indeed Canada", color: "#FF7043", url: `https://ca.indeed.com/jobs?q=${encodeURIComponent(candidat.role_actuel || "")}&l=${encodeURIComponent(candidat.ville || "Montréal")}` },
-                    { name: "Jobillico", color: "#1A1A2E", url: `https://www.jobillico.com/recherche-emploi?skeywords=${encodeURIComponent(candidat.role_actuel || "")}` },
-                    { name: "Emploi Québec", color: "#003DA5", url: "https://placement.emploiquebec.gouv.qc.ca/mbe/ut/rechroffr/affrechroffr.asp?CL=french" },
-                    { name: "Guichets Emploi Canada", color: "#D52B1E", url: "https://www.guichetsemploi.gc.ca/rechercheemploi/avis-important" },
-                  ].map((p, i) => (
-                    <a key={i} href={p.url} target="_blank" rel="noopener noreferrer" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 12px", background: "#FAFBFF", borderRadius: "8px", textDecoration: "none", border: "0.5px solid #E8E8F0" }}>
-                      <span style={{ fontSize: "12px", fontWeight: 600, color: p.color }}>{p.name}</span>
-                      <span style={{ fontSize: "10px", color: "#aaa" }}>→</span>
-                    </a>
-                  ))}
-                </div>
+                <div style={{ fontSize: "10px", fontWeight: 700, color: "#10B981", marginBottom: "8px" }}>✅ OFFRES OÙ VOUS AVEZ POSTULÉ</div>
+                {candidatures.map((c, i) => (
+                  <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: "0.5px solid #F1EFE8" }}>
+                    <div>
+                      <div style={{ fontSize: "12px", fontWeight: 600, color: "#1A1A2E" }}>{c.offre_titre}</div>
+                      <div style={{ fontSize: "10px", color: "#888" }}>{c.offre_entreprise} · {new Date(c.date_candidature).toLocaleDateString("fr-CA")}</div>
+                    </div>
+                    <span style={{ background: "#D6FFE8", color: "#085041", borderRadius: "20px", padding: "2px 8px", fontSize: "9px", fontWeight: 600 }}>✅ Postulé</span>
+                  </div>
+                ))}
               </div>
             )}
           </div>
@@ -375,7 +436,10 @@ export default function MonEspace() {
         {activeTab === "formations" && (
           <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <div style={{ fontSize: "12px", color: "#888" }}>{allFormations.length > 0 ? `${allFormations.length} formations trouvées` : "Chargement..."}</div>
+              <div style={{ fontSize: "12px", color: "#888" }}>
+                {formationsDisponibles.length > 0 ? `${formationsDisponibles.length} formations disponibles` : "Chargement..."}
+                {inscriptions.length > 0 && <span style={{ marginLeft: "8px", color: "#10B981", fontWeight: 600 }}> · {inscriptions.length} inscrit(s)</span>}
+              </div>
               <button onClick={chargerFormations} disabled={formationsLoading} style={{ background: "#FF7043", color: "white", border: "none", borderRadius: "20px", padding: "6px 14px", fontSize: "11px", fontWeight: 600, cursor: "pointer" }}>
                 {formationsLoading ? "⏳..." : "🔄 Actualiser"}
               </button>
@@ -390,7 +454,7 @@ export default function MonEspace() {
 
             {["Renforcement", "Gap marché", "Prochain poste", "Objectif long terme"].map(type => {
               const typeKey = type === "Renforcement" ? "renforcement" : type === "Gap marché" ? "gap" : type === "Prochain poste" ? "prochain_poste" : "objectif_long_terme";
-              const list = formations[typeKey as keyof typeof formations];
+              const list = formations[typeKey as keyof typeof formations].filter(f => !aInscrit(f.nom));
               if (list.length === 0 && !formationsLoading) return null;
               return (
                 <div key={type} style={{ background: "white", borderRadius: "12px", padding: "14px", border: "0.5px solid #E8E8F0" }}>
@@ -406,7 +470,18 @@ export default function MonEspace() {
                           </div>
                           <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "4px", marginLeft: "8px" }}>
                             {f.prix && <span style={{ fontSize: "10px", fontWeight: 600, color: f.prix === "Gratuit" ? "#10B981" : "#FF7043" }}>{f.prix}</span>}
-                            {f.lien && <a href={f.lien} target="_blank" rel="noopener noreferrer" style={{ background: "#D6F0FF", color: "#0C447C", borderRadius: "20px", padding: "3px 8px", fontSize: "9px", textDecoration: "none", fontWeight: 600 }}>S'inscrire →</a>}
+                            <div style={{ display: "flex", gap: "4px" }}>
+                              {f.lien && (
+                                <a href={f.lien} target="_blank" rel="noopener noreferrer" onClick={() => {
+                                  setTimeout(() => {
+                                    if (window.confirm("Êtes-vous inscrit à cette formation ?")) marquerInscrit(f);
+                                  }, 2000);
+                                }} style={{ background: "#D6F0FF", color: "#0C447C", borderRadius: "20px", padding: "3px 8px", fontSize: "9px", textDecoration: "none", fontWeight: 600 }}>S'inscrire →</a>
+                              )}
+                              <button onClick={() => marquerInscrit(f)} disabled={inscritLoading === f.nom} style={{ background: "#D6FFE8", color: "#085041", border: "none", borderRadius: "20px", padding: "3px 8px", fontSize: "9px", fontWeight: 600, cursor: "pointer" }}>
+                                ✅ Inscrit
+                              </button>
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -416,14 +491,16 @@ export default function MonEspace() {
               );
             })}
 
-            {/* Certifications */}
-            {candidat.certifications && candidat.certifications.length > 0 && (
+            {inscriptions.length > 0 && (
               <div style={{ background: "white", borderRadius: "12px", padding: "14px", border: "0.5px solid #E8E8F0" }}>
-                <div style={{ fontSize: "11px", fontWeight: 700, color: "#888", marginBottom: "8px" }}>🏆 CERTIFICATIONS RECOMMANDÉES</div>
-                {candidat.certifications.map((c, i) => (
-                  <div key={i} style={{ background: "#FFF8F6", borderRadius: "10px", padding: "10px 12px", borderLeft: "3px solid #FF7043", marginBottom: "6px" }}>
-                    <div style={{ fontSize: "12px", fontWeight: 600, color: "#FF7043" }}>{c.nom}</div>
-                    <div style={{ fontSize: "10px", color: "#888" }}>{c.organisme}</div>
+                <div style={{ fontSize: "10px", fontWeight: 700, color: "#10B981", marginBottom: "8px" }}>✅ FORMATIONS OÙ VOUS ÊTES INSCRIT</div>
+                {inscriptions.map((ins, i) => (
+                  <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: "0.5px solid #F1EFE8" }}>
+                    <div>
+                      <div style={{ fontSize: "12px", fontWeight: 600, color: "#1A1A2E" }}>{ins.formation_nom}</div>
+                      <div style={{ fontSize: "10px", color: "#888" }}>{ins.formation_plateforme} · {new Date(ins.date_inscription).toLocaleDateString("fr-CA")}</div>
+                    </div>
+                    <span style={{ background: "#D6FFE8", color: "#085041", borderRadius: "20px", padding: "2px 8px", fontSize: "9px", fontWeight: 600 }}>✅ Inscrit</span>
                   </div>
                 ))}
               </div>
@@ -440,36 +517,16 @@ export default function MonEspace() {
                 {formationsLoading ? "⏳..." : "🔄 Actualiser"}
               </button>
             </div>
-
-            {formationsLoading && (
-              <div style={{ background: "white", borderRadius: "12px", padding: "24px", textAlign: "center", border: "0.5px solid #E8E8F0" }}>
-                <div style={{ fontSize: "24px", marginBottom: "8px" }}>🎤</div>
-                <div style={{ fontSize: "13px", color: "#888" }}>YELMA cherche les événements et programmes de mentorat...</div>
-              </div>
-            )}
-
-            {!formationsLoading && evenements.length === 0 && (
-              <div style={{ background: "white", borderRadius: "12px", padding: "24px", textAlign: "center", border: "0.5px solid #E8E8F0" }}>
-                <div style={{ fontSize: "24px", marginBottom: "8px" }}>🎤</div>
-                <div style={{ fontSize: "13px", color: "#888", marginBottom: "8px" }}>Aucun événement trouvé</div>
-                <button onClick={chargerFormations} style={{ background: "#FF7043", color: "white", border: "none", borderRadius: "20px", padding: "8px 16px", fontSize: "12px", fontWeight: 600, cursor: "pointer" }}>Rechercher</button>
-              </div>
-            )}
-
             {evenements.map((e, i) => (
               <div key={i} style={{ background: "white", borderRadius: "12px", padding: "14px", border: "0.5px solid #E8E8F0" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "6px" }}>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "4px" }}>
-                      <span style={{ background: e.type === "Mentorat" ? "#D6FFE8" : e.type === "Conférence" ? "#FFE0D6" : "#F0F9FF", color: e.type === "Mentorat" ? "#085041" : e.type === "Conférence" ? "#993C1D" : "#0C447C", borderRadius: "20px", padding: "2px 8px", fontSize: "9px", fontWeight: 600 }}>{e.type}</span>
-                      {e.prix && <span style={{ fontSize: "9px", fontWeight: 600, color: e.prix === "Gratuit" ? "#10B981" : "#FF7043" }}>{e.prix}</span>}
-                    </div>
-                    <div style={{ fontSize: "13px", fontWeight: 600, color: "#1A1A2E", marginBottom: "2px" }}>{e.nom}</div>
-                    <div style={{ fontSize: "10px", color: "#888" }}>{e.organisateur}</div>
-                    <div style={{ fontSize: "10px", color: "#aaa", marginTop: "2px" }}>📅 {e.date} · 📍 {e.lieu}</div>
-                  </div>
+                <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "4px" }}>
+                  <span style={{ background: e.type === "Mentorat" ? "#D6FFE8" : "#FFE0D6", color: e.type === "Mentorat" ? "#085041" : "#993C1D", borderRadius: "20px", padding: "2px 8px", fontSize: "9px", fontWeight: 600 }}>{e.type}</span>
+                  {e.prix && <span style={{ fontSize: "9px", fontWeight: 600, color: e.prix === "Gratuit" ? "#10B981" : "#FF7043" }}>{e.prix}</span>}
                 </div>
-                {e.lien && <a href={e.lien} target="_blank" rel="noopener noreferrer" style={{ display: "inline-block", background: "#FF7043", color: "white", borderRadius: "20px", padding: "5px 12px", fontSize: "10px", fontWeight: 700, textDecoration: "none" }}>S'inscrire →</a>}
+                <div style={{ fontSize: "13px", fontWeight: 600, color: "#1A1A2E", marginBottom: "2px" }}>{e.nom}</div>
+                <div style={{ fontSize: "10px", color: "#888" }}>{e.organisateur}</div>
+                <div style={{ fontSize: "10px", color: "#aaa", marginTop: "2px" }}>📅 {e.date} · 📍 {e.lieu}</div>
+                {e.lien && <a href={e.lien} target="_blank" rel="noopener noreferrer" style={{ display: "inline-block", marginTop: "8px", background: "#FF7043", color: "white", borderRadius: "20px", padding: "5px 12px", fontSize: "10px", fontWeight: 700, textDecoration: "none" }}>S'inscrire →</a>}
               </div>
             ))}
           </div>
@@ -490,16 +547,12 @@ export default function MonEspace() {
                 </div>
               ) : (
                 <div>
-                  <div style={{ background: "#FAFBFF", borderRadius: "10px", padding: "16px", marginBottom: "10px", whiteSpace: "pre-wrap", fontSize: "11px", lineHeight: 1.8, color: "#1A1A2E", border: "0.5px solid #E8E8F0", maxHeight: "400px", overflowY: "auto" }}>
-                    {cv}
-                  </div>
+                  <div style={{ background: "#FAFBFF", borderRadius: "10px", padding: "16px", marginBottom: "10px", whiteSpace: "pre-wrap", fontSize: "11px", lineHeight: 1.8, color: "#1A1A2E", border: "0.5px solid #E8E8F0", maxHeight: "400px", overflowY: "auto" }}>{cv}</div>
                   <div style={{ display: "flex", gap: "8px" }}>
                     <button onClick={() => { navigator.clipboard.writeText(cv); setCvCopied(true); setTimeout(() => setCvCopied(false), 2000); }} style={{ flex: 1, background: "#1A1A2E", color: "white", border: "none", borderRadius: "10px", padding: "10px", fontSize: "12px", fontWeight: 600, cursor: "pointer" }}>
                       {cvCopied ? "✅ Copié !" : "📋 Copier le CV"}
                     </button>
-                    <button onClick={genererCV} disabled={cvLoading} style={{ background: "#F1EFE8", color: "#888", border: "none", borderRadius: "10px", padding: "10px 16px", fontSize: "12px", fontWeight: 600, cursor: "pointer" }}>
-                      {cvLoading ? "⏳" : "🔄"}
-                    </button>
+                    <button onClick={genererCV} disabled={cvLoading} style={{ background: "#F1EFE8", color: "#888", border: "none", borderRadius: "10px", padding: "10px 16px", fontSize: "12px", fontWeight: 600, cursor: "pointer" }}>{cvLoading ? "⏳" : "🔄"}</button>
                   </div>
                 </div>
               )}
@@ -515,8 +568,8 @@ export default function MonEspace() {
               {!lettre ? (
                 <div style={{ textAlign: "center", padding: "20px" }}>
                   <div style={{ fontSize: "32px", marginBottom: "12px" }}>✉️</div>
-                  <div style={{ fontSize: "13px", color: "#888", marginBottom: "8px" }}>Générez une lettre personnalisée pour une offre spécifique</div>
-                  <div style={{ fontSize: "11px", color: "#aaa", marginBottom: "16px" }}>Allez dans l'onglet Offres et cliquez sur "✉️ Lettre" pour une offre précise</div>
+                  <div style={{ fontSize: "13px", color: "#888", marginBottom: "8px" }}>Générez une lettre pour une offre spécifique</div>
+                  <div style={{ fontSize: "11px", color: "#aaa", marginBottom: "16px" }}>Allez dans Offres et cliquez "✉️ Lettre" pour une offre précise</div>
                   <button onClick={() => genererLettre()} disabled={lettreLoading} style={{ background: "#FF7043", color: "white", border: "none", borderRadius: "20px", padding: "10px 24px", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>
                     {lettreLoading ? "⏳ Génération..." : "✨ Générer une lettre générique"}
                   </button>
@@ -528,18 +581,58 @@ export default function MonEspace() {
                       Pour : <strong>{offreSelectionnee.titre}</strong>{offreSelectionnee.entreprise ? ` — ${offreSelectionnee.entreprise}` : ""}
                     </div>
                   )}
-                  <div style={{ background: "#FAFBFF", borderRadius: "10px", padding: "16px", marginBottom: "10px", whiteSpace: "pre-wrap", fontSize: "11px", lineHeight: 1.8, color: "#1A1A2E", border: "0.5px solid #E8E8F0", maxHeight: "400px", overflowY: "auto" }}>
-                    {lettre}
-                  </div>
+                  <div style={{ background: "#FAFBFF", borderRadius: "10px", padding: "16px", marginBottom: "10px", whiteSpace: "pre-wrap", fontSize: "11px", lineHeight: 1.8, color: "#1A1A2E", border: "0.5px solid #E8E8F0", maxHeight: "400px", overflowY: "auto" }}>{lettre}</div>
                   <div style={{ display: "flex", gap: "8px" }}>
                     <button onClick={() => { navigator.clipboard.writeText(lettre); setLettreCopied(true); setTimeout(() => setLettreCopied(false), 2000); }} style={{ flex: 1, background: "#1A1A2E", color: "white", border: "none", borderRadius: "10px", padding: "10px", fontSize: "12px", fontWeight: 600, cursor: "pointer" }}>
                       {lettreCopied ? "✅ Copié !" : "📋 Copier la lettre"}
                     </button>
-                    <button onClick={() => genererLettre()} disabled={lettreLoading} style={{ background: "#F1EFE8", color: "#888", border: "none", borderRadius: "10px", padding: "10px 16px", fontSize: "12px", fontWeight: 600, cursor: "pointer" }}>
-                      {lettreLoading ? "⏳" : "🔄"}
-                    </button>
+                    <button onClick={() => genererLettre()} disabled={lettreLoading} style={{ background: "#F1EFE8", color: "#888", border: "none", borderRadius: "10px", padding: "10px 16px", fontSize: "12px", fontWeight: 600, cursor: "pointer" }}>{lettreLoading ? "⏳" : "🔄"}</button>
                   </div>
                 </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* SUIVI CANDIDATURES */}
+        {activeTab === "candidatures" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+            <div style={{ background: "white", borderRadius: "12px", padding: "14px", border: "0.5px solid #E8E8F0" }}>
+              <div style={{ fontSize: "10px", fontWeight: 700, color: "#888", marginBottom: "10px" }}>💼 MES CANDIDATURES ({candidatures.length})</div>
+              {candidatures.length === 0 ? (
+                <div style={{ textAlign: "center", padding: "20px", fontSize: "12px", color: "#888" }}>Aucune candidature pour le moment</div>
+              ) : (
+                candidatures.map((c, i) => (
+                  <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: "0.5px solid #F1EFE8" }}>
+                    <div>
+                      <div style={{ fontSize: "12px", fontWeight: 600, color: "#1A1A2E" }}>{c.offre_titre}</div>
+                      <div style={{ fontSize: "10px", color: "#888" }}>{c.offre_entreprise} · {c.offre_source}</div>
+                      <div style={{ fontSize: "10px", color: "#aaa" }}>📅 {new Date(c.date_candidature).toLocaleDateString("fr-CA")}</div>
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "4px" }}>
+                      <span style={{ background: "#D6FFE8", color: "#085041", borderRadius: "20px", padding: "2px 8px", fontSize: "9px", fontWeight: 600 }}>✅ Postulé</span>
+                      {c.offre_salaire > 0 && <span style={{ fontSize: "10px", color: "#FF7043", fontWeight: 600 }}>{c.offre_salaire.toLocaleString()}$</span>}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            <div style={{ background: "white", borderRadius: "12px", padding: "14px", border: "0.5px solid #E8E8F0" }}>
+              <div style={{ fontSize: "10px", fontWeight: 700, color: "#888", marginBottom: "10px" }}>📚 MES FORMATIONS ({inscriptions.length})</div>
+              {inscriptions.length === 0 ? (
+                <div style={{ textAlign: "center", padding: "20px", fontSize: "12px", color: "#888" }}>Aucune inscription pour le moment</div>
+              ) : (
+                inscriptions.map((ins, i) => (
+                  <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: "0.5px solid #F1EFE8" }}>
+                    <div>
+                      <div style={{ fontSize: "12px", fontWeight: 600, color: "#1A1A2E" }}>{ins.formation_nom}</div>
+                      <div style={{ fontSize: "10px", color: "#888" }}>{ins.formation_plateforme} · {ins.formation_type}</div>
+                      <div style={{ fontSize: "10px", color: "#aaa" }}>📅 {new Date(ins.date_inscription).toLocaleDateString("fr-CA")}</div>
+                    </div>
+                    <span style={{ background: "#D6FFE8", color: "#085041", borderRadius: "20px", padding: "2px 8px", fontSize: "9px", fontWeight: 600 }}>✅ Inscrit</span>
+                  </div>
+                ))
               )}
             </div>
           </div>
@@ -555,7 +648,8 @@ export default function MonEspace() {
                 ["Rôle actuel", candidat.role_actuel || "—"], ["Ville", candidat.ville || "—"],
                 ["Objectif", candidat.objectif_carriere || "—"],
                 ["Plan", candidat.plan === "propulse" ? "Propulse ✅" : "Découverte"],
-                ["Dernier entretien", candidat.dernier_entretien ? new Date(candidat.dernier_entretien).toLocaleDateString("fr-CA") : "—"],
+                ["Candidatures", candidatures.length + " offres"],
+                ["Formations", inscriptions.length + " inscriptions"],
               ].map(([label, value], i) => (
                 <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "0.5px solid #F1EFE8" }}>
                   <span style={{ fontSize: "12px", color: "#888" }}>{label}</span>
@@ -566,7 +660,7 @@ export default function MonEspace() {
             <div style={{ background: "white", borderRadius: "12px", padding: "16px", border: "0.5px solid #E8E8F0" }}>
               <div style={{ fontSize: "10px", fontWeight: 700, color: "#888", marginBottom: "12px" }}>⚙️ ACTIONS</div>
               <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                <a href={`/?lang=fr&free=1`} style={{ display: "block", background: "#FF7043", color: "white", borderRadius: "10px", padding: "12px", fontSize: "13px", fontWeight: 700, textDecoration: "none", textAlign: "center" }}>🔄 Refaire mon entretien YELMA</a>
+                <a href="/?lang=fr&free=1" style={{ display: "block", background: "#FF7043", color: "white", borderRadius: "10px", padding: "12px", fontSize: "13px", fontWeight: 700, textDecoration: "none", textAlign: "center" }}>🔄 Refaire mon entretien YELMA</a>
                 {candidat.plan !== "propulse" && (
                   <a href="/pricing" style={{ display: "block", background: "#1A1A2E", color: "white", borderRadius: "10px", padding: "12px", fontSize: "13px", fontWeight: 700, textDecoration: "none", textAlign: "center" }}>⭐ Passer à Propulse — 4.99$/mois</a>
                 )}
