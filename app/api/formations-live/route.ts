@@ -1,111 +1,52 @@
 import { NextRequest, NextResponse } from "next/server";
+import { supabaseAdmin } from "@/lib/supabase";
 
 // ============================================
-// GRANDES INSTITUTIONS — LIENS DIRECTS
+// MAPPING COMPÉTENCES → MOTS CLÉS DOMAINES
 // ============================================
-
-const INSTITUTIONS = {
-  // USA
-  mit: {
-    nom: "MIT OpenCourseWare",
-    pays: "🇺🇸 MIT",
-    base: "https://ocw.mit.edu/search/?q=",
-    gratuit: true,
-  },
-  harvard: {
-    nom: "Harvard Online",
-    pays: "🇺🇸 Harvard",
-    base: "https://online-learning.harvard.edu/catalog?keywords=",
-    gratuit: false,
-  },
-  stanford: {
-    nom: "Stanford Online",
-    pays: "🇺🇸 Stanford",
-    base: "https://online.stanford.edu/search-catalog?keywords=",
-    gratuit: false,
-  },
-  edx_harvard: {
-    nom: "edX — Harvard & MIT",
-    pays: "🇺🇸 Harvard / MIT",
-    base: "https://www.edx.org/search?q=",
-    gratuit: false,
-  },
-  // Canada
-  hec: {
-    nom: "HEC Montréal — EDUlib",
-    pays: "🇨🇦 HEC Montréal",
-    base: "https://www.edulib.ca/en/find-a-course?q=",
-    gratuit: true,
-  },
-  mcgill: {
-    nom: "McGill University",
-    pays: "🇨🇦 McGill",
-    base: "https://www.edx.org/search?q=mcgill+",
-    gratuit: false,
-  },
-  udem: {
-    nom: "Université de Montréal",
-    pays: "🇨🇦 UdeM",
-    base: "https://www.edulib.ca/en/find-a-course?q=",
-    gratuit: true,
-  },
-  poly: {
-    nom: "Polytechnique Montréal",
-    pays: "🇨🇦 Polytechnique",
-    base: "https://www.edulib.ca/en/find-a-course?q=",
-    gratuit: true,
-  },
-  uoft: {
-    nom: "University of Toronto",
-    pays: "🇨🇦 U of Toronto",
-    base: "https://www.coursera.org/search?query=university+toronto+",
-    gratuit: false,
-  },
-  ubc: {
-    nom: "University of British Columbia",
-    pays: "🇨🇦 UBC",
-    base: "https://www.edx.org/search?q=ubc+",
-    gratuit: false,
-  },
-};
-
-// ============================================
-// MAPPING COMPÉTENCES → MOTS CLÉS
-// ============================================
-function buildSearchKeywords(
+function detecterDomaines(
   role: string,
   competences: string[],
   axes: string[],
-  objectif: string,
-  type: string
-): string {
-  const base = role?.toLowerCase() || "";
+  objectif: string
+): string[] {
+  const texte = [role, ...competences, ...axes, objectif].join(" ").toLowerCase();
+  const domaines: string[] = [];
 
-  switch (type) {
-    case "renforcement":
-      return competences[0] || base;
-    case "gap":
-      return axes[0] || base;
-    case "prochain_poste":
-      return objectif || base;
-    case "objectif_long_terme":
-      return (objectif || base) + " leadership management";
-    case "certifications":
-      return base + " certification professional";
-    default:
-      return base;
+  if (texte.includes("projet") || texte.includes("pmo") || texte.includes("planif")) domaines.push("Gestion de projet");
+  if (texte.includes("financ") || texte.includes("budget") || texte.includes("compt") || texte.includes("trésor")) domaines.push("Finance");
+  if (texte.includes("leader") || texte.includes("manage") || texte.includes("équipe") || texte.includes("motiv")) domaines.push("Leadership");
+  if (texte.includes("market") || texte.includes("vente") || texte.includes("communic")) domaines.push("Marketing");
+  if (texte.includes("tech") || texte.includes("inform") || texte.includes("data") || texte.includes("python") || texte.includes("sql")) domaines.push("Technologies");
+  if (texte.includes("stratég") || texte.includes("direct") || texte.includes("vp") || texte.includes("senior")) domaines.push("Management stratégique");
+  if (texte.includes("entrepreneur") || texte.includes("startup") || texte.includes("innov")) domaines.push("Entrepreneuriat");
+  if (texte.includes("opérat") || texte.includes("logistiq") || texte.includes("supply")) domaines.push("Gestion des opérations");
+  if (texte.includes("santé") || texte.includes("médic") || texte.includes("hôpital")) domaines.push("Santé");
+  if (texte.includes("ingénier") || texte.includes("génie") || texte.includes("construct")) domaines.push("Ingénierie");
+  if (texte.includes("négocia") || texte.includes("présent") || texte.includes("conflit")) domaines.push("Communication");
+  if (texte.includes("développement") || texte.includes("bien-être") || texte.includes("carriè")) domaines.push("Développement personnel");
+
+  // Toujours inclure Leadership et Management si senior
+  if (texte.includes("10 ans") || texte.includes("senior") || texte.includes("directeur") || texte.includes("manager")) {
+    if (!domaines.includes("Leadership")) domaines.push("Leadership");
+    if (!domaines.includes("Management stratégique")) domaines.push("Management stratégique");
   }
+
+  // Fallback si rien détecté
+  if (domaines.length === 0) domaines.push("Leadership", "Développement personnel");
+
+  return [...new Set(domaines)]; // Dédupliquer
 }
 
 // ============================================
-// GÉNÉRER LES FORMATIONS PAR INSTITUTION
+// CHERCHER FORMATIONS DANS SUPABASE
 // ============================================
-function genererFormations(
-  keywords: string,
+async function chercherFormationsParType(
+  domaines: string[],
   type: string,
-  role: string,
-  langue: string = "fr"
-): {
+  competences: string[],
+  langue: string = "tous"
+): Promise<{
   nom: string;
   type: string;
   institution: string;
@@ -116,154 +57,146 @@ function genererFormations(
   lien: string;
   gratuit: boolean;
   niveau: string;
-}[] {
+  description: string;
+  en_ligne: boolean;
+}[]> {
+  try {
+    // Construire la requête selon le type
+    let query = supabaseAdmin
+      .from("formations_verifiees")
+      .select("*")
+      .eq("disponible", true)
+      .eq("en_ligne", true)
+      .order("gratuit", { ascending: false }); // Gratuit en premier
 
-  const kw = encodeURIComponent(keywords);
-  const roleEnc = encodeURIComponent(role || "");
+    // Filtrer par domaine
+    if (domaines.length > 0) {
+      query = query.in("domaine", domaines);
+    }
 
-  const formations = [];
+    // Filtrer par type de formation
+    switch (type) {
+      case "renforcement":
+        // Cours niveau débutant/intermédiaire pour renforcer
+        query = query.in("niveau", ["Débutant", "Intermédiaire"]);
+        break;
+      case "gap":
+        // Cours pour combler les lacunes — tous niveaux
+        break;
+      case "prochain_poste":
+        // Cours niveau intermédiaire/avancé
+        query = query.in("niveau", ["Intermédiaire", "Avancé"]);
+        break;
+      case "objectif_long_terme":
+        // Cours avancés + certifications
+        query = query.in("niveau", ["Avancé", "Intermédiaire"]);
+        break;
+      case "certifications":
+        query = query.in("domaine", ["Gestion de projet", "Technologies", "Finance"]);
+        break;
+    }
 
-  // MIT OpenCourseWare — Gratuit
-  formations.push({
-    nom: `${keywords} — MIT OpenCourseWare`,
-    type,
-    institution: "MIT",
-    pays: "🇺🇸 MIT",
-    plateforme: "MIT OpenCourseWare",
-    duree: "Libre",
-    prix: "Gratuit",
-    lien: `https://ocw.mit.edu/search/?q=${kw}`,
-    gratuit: true,
-    niveau: "Avancé",
-  });
+    const { data, error } = await query.limit(8);
 
-  // Harvard Online
-  formations.push({
-    nom: `${keywords} — Harvard Online`,
-    type,
-    institution: "Harvard",
-    pays: "🇺🇸 Harvard",
-    plateforme: "Harvard Online",
-    duree: "4-12 semaines",
-    prix: "Voir le site",
-    lien: `https://online-learning.harvard.edu/catalog?keywords=${kw}`,
-    gratuit: false,
-    niveau: "Intermédiaire à Avancé",
-  });
+    if (error) throw error;
+    if (!data || data.length === 0) return [];
 
-  // edX — Harvard & MIT
-  formations.push({
-    nom: `${keywords} — edX (Harvard & MIT)`,
-    type,
-    institution: "Harvard / MIT",
-    pays: "🇺🇸 Harvard / MIT",
-    plateforme: "edX",
-    duree: "4-16 semaines",
-    prix: "Gratuit (audit) / Certif. payant",
-    lien: `https://www.edx.org/search?q=${kw}`,
-    gratuit: true,
-    niveau: "Tous niveaux",
-  });
+    return data.map((f: {
+      nom_cours: string;
+      institution: string;
+      pays: string;
+      plateforme: string;
+      duree: string;
+      prix: string;
+      lien_direct: string;
+      gratuit: boolean;
+      niveau: string;
+      description_courte: string;
+      en_ligne: boolean;
+    }) => ({
+      nom: f.nom_cours,
+      type,
+      institution: f.institution,
+      pays: f.pays,
+      plateforme: f.plateforme,
+      duree: f.duree,
+      prix: f.prix,
+      lien: f.lien_direct,
+      gratuit: f.gratuit,
+      niveau: f.niveau,
+      description: f.description_courte,
+      en_ligne: f.en_ligne,
+    }));
 
-  // Stanford Online
-  formations.push({
-    nom: `${keywords} — Stanford Online`,
-    type,
-    institution: "Stanford",
-    pays: "🇺🇸 Stanford",
-    plateforme: "Stanford Online",
-    duree: "4-8 semaines",
-    prix: "Voir le site",
-    lien: `https://online.stanford.edu/search-catalog?keywords=${kw}`,
-    gratuit: false,
-    niveau: "Avancé",
-  });
+  } catch (e) {
+    console.error("Supabase formations error:", e);
+    return [];
+  }
+}
 
-  // HEC Montréal — EDUlib
-  formations.push({
-    nom: `${keywords} — HEC Montréal`,
-    type,
-    institution: "HEC Montréal",
-    pays: "🇨🇦 HEC Montréal",
-    plateforme: "EDUlib",
-    duree: "4-8 semaines",
-    prix: "Gratuit",
-    lien: `https://www.edulib.ca/en/find-a-course?q=${kw}`,
-    gratuit: true,
-    niveau: "Intermédiaire",
-  });
+// ============================================
+// ÉVÉNEMENTS — LIENS VÉRIFIÉS
+// ============================================
+function getEvenements(role: string, ville: string) {
+  const roleEnc = encodeURIComponent(role || "gestion");
+  const villeEnc = encodeURIComponent(ville || "Montréal");
 
-  // McGill via edX
-  formations.push({
-    nom: `${keywords} — McGill University`,
-    type,
-    institution: "McGill",
-    pays: "🇨🇦 McGill",
-    plateforme: "edX",
-    duree: "6-12 semaines",
-    prix: "Gratuit (audit) / Certif. payant",
-    lien: `https://www.edx.org/search?q=mcgill+${kw}`,
-    gratuit: true,
-    niveau: "Intermédiaire",
-  });
-
-  // Université de Montréal — EDUlib
-  formations.push({
-    nom: `${keywords} — Université de Montréal`,
-    type,
-    institution: "UdeM",
-    pays: "🇨🇦 UdeM",
-    plateforme: "EDUlib",
-    duree: "4-8 semaines",
-    prix: "Gratuit",
-    lien: `https://www.edulib.ca/en/find-a-course?q=${kw}`,
-    gratuit: true,
-    niveau: "Intermédiaire",
-  });
-
-  // Polytechnique Montréal — EDUlib
-  formations.push({
-    nom: `${keywords} — Polytechnique Montréal`,
-    type,
-    institution: "Polytechnique",
-    pays: "🇨🇦 Polytechnique",
-    plateforme: "EDUlib",
-    duree: "4-8 semaines",
-    prix: "Gratuit",
-    lien: `https://www.edulib.ca/en/find-a-course?q=${kw}`,
-    gratuit: true,
-    niveau: "Avancé",
-  });
-
-  // University of Toronto — Coursera
-  formations.push({
-    nom: `${keywords} — University of Toronto`,
-    type,
-    institution: "U of Toronto",
-    pays: "🇨🇦 U of Toronto",
-    plateforme: "Coursera",
-    duree: "4-8 semaines",
-    prix: "Gratuit (audit) / Certif. payant",
-    lien: `https://www.coursera.org/search?query=university+toronto+${kw}`,
-    gratuit: true,
-    niveau: "Tous niveaux",
-  });
-
-  // UBC — edX
-  formations.push({
-    nom: `${keywords} — University of British Columbia`,
-    type,
-    institution: "UBC",
-    pays: "🇨🇦 UBC",
-    plateforme: "edX",
-    duree: "6-10 semaines",
-    prix: "Gratuit (audit) / Certif. payant",
-    lien: `https://www.edx.org/search?q=ubc+${kw}`,
-    gratuit: true,
-    niveau: "Intermédiaire",
-  });
-
-  return formations;
+  return [
+    {
+      nom: `Conférence ${role} — Eventbrite ${ville || "Montréal"}`,
+      type: "Conférence",
+      organisateur: "Eventbrite",
+      date: "2026",
+      lieu: ville || "Montréal",
+      prix: "Voir le site",
+      lien: `https://www.eventbrite.ca/d/canada--${villeEnc}/${roleEnc}/`,
+    },
+    {
+      nom: `Networking ${role} — Meetup ${ville || "Montréal"}`,
+      type: "Networking",
+      organisateur: "Meetup",
+      date: "2026",
+      lieu: ville || "Montréal",
+      prix: "Gratuit",
+      lien: `https://www.meetup.com/find/?keywords=${roleEnc}&location=${villeEnc}`,
+    },
+    {
+      nom: "Programme de mentorat professionnel — Mentorat Québec",
+      type: "Mentorat",
+      organisateur: "Mentorat Québec",
+      date: "2026",
+      lieu: "Québec",
+      prix: "Gratuit",
+      lien: "https://www.mentoratquebec.org/",
+    },
+    {
+      nom: "Mentorat jeunes entrepreneurs — Futurpreneur Canada",
+      type: "Mentorat",
+      organisateur: "Futurpreneur Canada",
+      date: "2026",
+      lieu: "Canada",
+      prix: "Gratuit",
+      lien: "https://www.futurpreneur.ca/fr/",
+    },
+    {
+      nom: "Réseau des Femmes d'Affaires du Québec — Mentorat",
+      type: "Mentorat",
+      organisateur: "RFAQ",
+      date: "2026",
+      lieu: "Québec",
+      prix: "Voir le site",
+      lien: "https://www.rfaq.ca/",
+    },
+    {
+      nom: "Forum Emploi — Ordre des ingénieurs du Québec",
+      type: "Networking",
+      organisateur: "OIQ",
+      date: "2026",
+      lieu: "Montréal",
+      prix: "Voir le site",
+      lien: "https://www.oiq.qc.ca/",
+    },
+  ];
 }
 
 // ============================================
@@ -275,92 +208,50 @@ export async function POST(req: NextRequest) {
     const { role, ville, competences, axes, objectif, experience, gps_an1_titre } = body;
 
     const roleBase = role || gps_an1_titre || "gestion";
+    const competencesArr = competences || [];
+    const axesArr = axes || [];
+    const objectifStr = objectif || "";
 
-    // Générer les formations par type
-    const renforcement = genererFormations(
-      buildSearchKeywords(roleBase, competences || [], axes || [], objectif || "", "renforcement"),
-      "Renforcement",
-      roleBase
-    );
+    // Détecter les domaines pertinents
+    const domaines = detecterDomaines(roleBase, competencesArr, axesArr, objectifStr);
+    console.log("FORMATIONS DOMAINES DÉTECTÉS:", domaines);
 
-    const gap = genererFormations(
-      buildSearchKeywords(roleBase, competences || [], axes || [], objectif || "", "gap"),
-      "Gap marché",
-      roleBase
-    );
+    // Chercher formations par type en parallèle
+    const [renforcement, gap, prochainPoste, objectifLT] = await Promise.all([
+      chercherFormationsParType(domaines, "renforcement", competencesArr),
+      chercherFormationsParType(domaines, "gap", competencesArr),
+      chercherFormationsParType(domaines, "prochain_poste", competencesArr),
+      chercherFormationsParType(domaines, "objectif_long_terme", competencesArr),
+    ]);
 
-    const prochainPoste = genererFormations(
-      buildSearchKeywords(roleBase, competences || [], axes || [], objectif || "", "prochain_poste"),
-      "Prochain poste",
-      roleBase
-    );
+    // Dédupliquer entre les types
+    const liensVus = new Set<string>();
+    const dedup = (list: typeof renforcement) => list.filter(f => {
+      if (liensVus.has(f.lien)) return false;
+      liensVus.add(f.lien);
+      return true;
+    });
 
-    const objectifLongTerme = genererFormations(
-      buildSearchKeywords(roleBase, competences || [], axes || [], objectif || "", "objectif_long_terme"),
-      "Objectif long terme",
-      roleBase
-    );
+    const renf = dedup(renforcement);
+    const gapF = dedup(gap);
+    const proch = dedup(prochainPoste);
+    const objLT = dedup(objectifLT);
 
-    // Événements — liens directs vers grandes conférences
-    const evenements = [
-      {
-        nom: `Conférence ${roleBase} — Eventbrite Montréal`,
-        type: "Conférence",
-        organisateur: "Eventbrite",
-        date: "2026",
-        lieu: ville || "Montréal",
-        prix: "Voir le site",
-        lien: `https://www.eventbrite.ca/d/canada--montreal/${encodeURIComponent(roleBase)}/`,
-      },
-      {
-        nom: `Networking ${roleBase} — Meetup Montréal`,
-        type: "Networking",
-        organisateur: "Meetup",
-        date: "2026",
-        lieu: ville || "Montréal",
-        prix: "Gratuit",
-        lien: `https://www.meetup.com/find/?keywords=${encodeURIComponent(roleBase)}&location=Montréal`,
-      },
-      {
-        nom: `Programme mentorat — Réseau des Femmes d'Affaires du Québec`,
-        type: "Mentorat",
-        organisateur: "RFAQ",
-        date: "2026",
-        lieu: "Québec",
-        prix: "Voir le site",
-        lien: "https://www.rfaq.ca/",
-      },
-      {
-        nom: "Programme mentorat — Futurpreneur Canada",
-        type: "Mentorat",
-        organisateur: "Futurpreneur",
-        date: "2026",
-        lieu: "Canada",
-        prix: "Gratuit",
-        lien: "https://www.futurpreneur.ca/fr/",
-      },
-      {
-        nom: "Mentorat professionnel — Mentorat Québec",
-        type: "Mentorat",
-        organisateur: "Mentorat Québec",
-        date: "2026",
-        lieu: "Québec",
-        prix: "Gratuit",
-        lien: "https://www.mentoratquebec.org/",
-      },
-    ];
+    const evenements = getEvenements(roleBase, ville);
+
+    console.log(`FORMATIONS: ${renf.length} renf, ${gapF.length} gap, ${proch.length} proch, ${objLT.length} objLT`);
 
     return NextResponse.json({
       formations: {
-        renforcement,
-        gap,
-        prochain_poste: prochainPoste,
-        objectif_long_terme: objectifLongTerme,
+        renforcement: renf,
+        gap: gapF,
+        prochain_poste: proch,
+        objectif_long_terme: objLT,
       },
       evenements,
-      total_formations: renforcement.length + gap.length + prochainPoste.length + objectifLongTerme.length,
+      total_formations: renf.length + gapF.length + proch.length + objLT.length,
       total_evenements: evenements.length,
-      institutions: Object.keys(INSTITUTIONS).length,
+      domaines_detectes: domaines,
     });
 
   } catch (error) {
