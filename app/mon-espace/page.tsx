@@ -526,7 +526,18 @@ export default function MonEspace() {
                 <div style={{ fontSize: "13px", fontWeight: 600, color: "#1A1A2E", marginBottom: "2px" }}>{e.nom}</div>
                 <div style={{ fontSize: "10px", color: "#888" }}>{e.organisateur}</div>
                 <div style={{ fontSize: "10px", color: "#aaa", marginTop: "2px" }}>📅 {e.date} · 📍 {e.lieu}</div>
-                {e.lien && <a href={e.lien} target="_blank" rel="noopener noreferrer" style={{ display: "inline-block", marginTop: "8px", background: "#FF7043", color: "white", borderRadius: "20px", padding: "5px 12px", fontSize: "10px", fontWeight: 700, textDecoration: "none" }}>S'inscrire →</a>}
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "8px" }}>
+  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "8px" }}>
+  {e.lien && <a href={e.lien} target="_blank" rel="noopener noreferrer" style={{ background: "#FF7043", color: "white", borderRadius: "20px", padding: "5px 12px", fontSize: "10px", fontWeight: 700, textDecoration: "none" }}>S'inscrire →</a>}
+  <button onClick={() => marquerInscrit({ nom: e.nom, type: e.type, plateforme: e.organisateur, lien: e.lien, duree: "" })} style={{ background: "#D6FFE8", color: "#085041", border: "none", borderRadius: "20px", padding: "5px 10px", fontSize: "10px", fontWeight: 600, cursor: "pointer" }}>
+    ✅ Je participe
+  </button>
+</div>
+
+  <button onClick={() => marquerInscrit({ nom: e.nom, type: e.type, plateforme: e.organisateur, lien: e.lien, duree: "" })} style={{ background: "#D6FFE8", color: "#085041", border: "none", borderRadius: "20px", padding: "5px 10px", fontSize: "10px", fontWeight: 600, cursor: "pointer" }}>
+    ✅ Je m'inscris
+  </button>
+</div>
               </div>
             ))}
           </div>
