@@ -6,6 +6,7 @@ import RapportGPSComponent from "./components/RapportGPS";
 type Message = {
   role: "bot" | "user";
   text: string;
+  historiqueAnalyse?: { type: string; score: number; mode: string }[];
   rapport?: {
     force1?: string; force1_desc?: string;
     force2?: string; force2_desc?: string;
@@ -271,10 +272,11 @@ export default function Home() {
             objectif_declare: userInfo?.objectif_declare,
             salaire_min: userInfo?.salaire_min,
             salaire_max: userInfo?.salaire_max,
-          },
+                      },
+          historiqueAnalyse: (messages.filter(m => m.role === "bot").slice(-1)[0] as Message)?.historiqueAnalyse || [],
+       
         }),
       });
-
       const data = await res.json();
       const { parseRapport } = await import("./components/RapportGPS");
       const rapport = data.rapportData || parseRapport(data.reply);
@@ -282,6 +284,7 @@ export default function Home() {
         role: "bot",
         text: data.reply,
         rapport: rapport || undefined,
+        historiqueAnalyse: data.historiqueAnalyse || [],
       };
       const updatedMessages = [...newMessages, botMessage];
       setMessages(updatedMessages);

@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 
 // ============================================
-// DÉTECTION DU CAS PROFIL (1-9)
+// DÉTECTION PROFIL 1-10
 // ============================================
-function detecterCas(candidatInfo: {
+function detecterProfil(candidatInfo: {
   annee_experience?: string;
   annee_autre_experience?: string;
   diplome?: string;
@@ -15,106 +15,458 @@ function detecterCas(candidatInfo: {
   const exp = candidatInfo.annee_experience?.toLowerCase() || "";
   const autreExp = candidatInfo.annee_autre_experience?.toLowerCase() || "";
   const diplome = candidatInfo.diplome?.toLowerCase() || "";
-  const objectif = candidatInfo.objectif_declare?.trim() || "";
   const statut = candidatInfo.statut_emploi?.toLowerCase() || "";
 
   const sansExp = exp.includes("aucune") || exp === "";
   const avecAutreExp = !autreExp.includes("aucune") && autreExp !== "";
   const sansDiplome = diplome.includes("autodidacte") || diplome.includes("sans diplôme");
-  const avecObjectif = objectif.length > 0;
+  const isEtudiant = statut.includes("étudiant");
   const isReconversion = statut.includes("reconversion");
-  const isSenior = exp.includes("plus de 10");
-  const isInter = exp.includes("3 à 5");
-  const isJunior = exp.includes("moins") || exp.includes("1 à 2");
 
-  if (isSenior) return 9;
-  if (isReconversion) return 8;
-  if (isInter) return 7;
-  if (isJunior && avecObjectif) return 6;
-  if (isJunior && !avecObjectif) return 5;
-  if (sansExp && avecObjectif) return 4;
-  if (sansExp && avecAutreExp) return 3;
-  if (sansExp && !sansDiplome) return 2;
-  return 1;
+  if (sansDiplome) return 1;
+  if (isEtudiant && !avecAutreExp) return 2;
+  if (isEtudiant && avecAutreExp) return 3;
+  if (sansExp && !avecAutreExp) return 4;
+  if (sansExp && avecAutreExp) return 5;
+  if (exp.includes("moins") || exp.includes("1 à 2")) return 6;
+  if (exp.includes("3 à 5")) return 7;
+  if (exp.includes("6 à 10")) return 8;
+  if (exp.includes("plus de 10")) return 9;
+  if (isReconversion) return 10;
+  return 6;
 }
 
 // ============================================
 // GRILLE GPS RÉALISTE
 // ============================================
-function getNiveauGPS(experience: string, roleActuel: string): {
-  maxNiveaux: number;
-  an1: string;
-  an2: string;
-  an3: string;
-  an4: string;
-  an5: string;
-  niveauActuel: string;
-} {
+function getNiveauGPS(experience: string, roleActuel: string) {
   const exp = experience?.toLowerCase() || "";
   const role = roleActuel?.toLowerCase() || "";
   const isManager = role.includes("manager") || role.includes("directeur") || role.includes("chef") || role.includes("responsable") || role.includes("vp");
 
   if (exp.includes("plus de 10")) {
-    if (isManager) return {
-      maxNiveaux: 4,
-      an1: "Stabilisation + positionnement stratégique",
-      an2: "Manager confirmé",
-      an3: "Manager confirmé",
-      an4: "Senior Manager",
-      an5: "Directeur",
-      niveauActuel: "Manager+"
-    };
-    return {
-      maxNiveaux: 2,
-      an1: "Stabilisation poste actuel",
-      an2: "Senior confirmé",
-      an3: "Lead / Expert",
-      an4: "Lead confirmé",
-      an5: "Manager possible",
-      niveauActuel: "Senior"
-    };
+    if (isManager) return { maxNiveaux: 4, niveauActuel: "Manager+" };
+    return { maxNiveaux: 2, niveauActuel: "Senior" };
   }
-  if (exp.includes("6 à 10")) return {
-    maxNiveaux: 2,
-    an1: "Stabilisation poste actuel",
-    an2: "Senior confirmé",
-    an3: "Senior confirmé",
-    an4: "Lead / Expert",
-    an5: "Manager début possible",
-    niveauActuel: "Senior/Lead"
-  };
-  if (exp.includes("3 à 5")) return {
-    maxNiveaux: 1,
-    an1: "Stabilisation poste actuel",
-    an2: "Intermédiaire confirmé",
-    an3: "Intermédiaire confirmé",
-    an4: "Senior début",
-    an5: "Senior",
-    niveauActuel: "Intermédiaire"
-  };
-  if (exp.includes("1 à 2")) return {
-    maxNiveaux: 1,
-    an1: "Junior confirmé",
-    an2: "Stabilisation",
-    an3: "Intermédiaire début",
-    an4: "Intermédiaire",
-    an5: "Intermédiaire confirmé",
-    niveauActuel: "Junior"
-  };
-  // Moins 1 an
-  return {
-    maxNiveaux: 1,
-    an1: "Stabilisation poste actuel",
-    an2: "Junior confirmé",
-    an3: "Junior confirmé",
-    an4: "Intermédiaire début",
-    an5: "Intermédiaire",
-    niveauActuel: "Junior/Assistant"
-  };
+  if (exp.includes("6 à 10")) return { maxNiveaux: 2, niveauActuel: "Senior/Lead" };
+  if (exp.includes("3 à 5")) return { maxNiveaux: 1, niveauActuel: "Intermédiaire" };
+  if (exp.includes("1 à 2")) return { maxNiveaux: 1, niveauActuel: "Junior" };
+  return { maxNiveaux: 1, niveauActuel: "Junior/Assistant" };
 }
 
 // ============================================
-// VALIDATION GPS CÔTÉ CODE
+// CLASSIFICATION DYNAMIQUE DE LA RÉPONSE
+// ============================================
+function classifierReponse(reponse: string): {
+  type: "vague" | "structuree" | "evitement" | "riche";
+  actions: string[];
+  niveau_detail: number;
+  structure_logique: number;
+  ton: string;
+  score: number;
+} {
+  const r = reponse.toLowerCase().trim();
+  const mots = r.split(" ").length;
+
+  const signauxEvitement = ["je ne sais pas", "ça dépend", "c'est difficile", "je suppose", "peut-être", "honnêtement je ne sais"];
+  const isEvitement = signauxEvitement.some(s => r.includes(s)) && mots < 30;
+  const isVague = mots < 25 && !isEvitement;
+  const isRiche = mots > 80 && (r.includes("parce que") || r.includes("résultat") || r.includes("%") || r.includes("$") || r.split("j'ai").length > 3);
+
+  const verbesAction = ["géré", "créé", "développé", "livré", "organisé", "coordonné", "analysé", "présenté", "négocié", "formé", "supervisé", "planifié", "construit", "automatisé", "optimisé", "résolu", "piloté", "dirigé", "conçu", "implémenté", "déployé"];
+  const actions = verbesAction.filter(v => r.includes(v));
+
+  let ton = "hesitant";
+  if (r.includes("j'ai") && actions.length >= 2) ton = "assertif";
+  if (r.includes("toujours") || r.includes("naturellement") || r.includes("automatiquement")) ton = "proactif";
+  if (isEvitement) ton = "hesitant";
+  if (mots < 15) ton = "vague";
+
+  const niveau_detail = isEvitement ? 1 : isVague ? 2 : isRiche ? 5 : Math.min(4, Math.floor(mots / 20) + 1);
+  const structure_logique = actions.length >= 3 ? 5 : actions.length >= 2 ? 4 : actions.length >= 1 ? 3 : isEvitement ? 1 : 2;
+  const score = isEvitement ? 0.8 : isVague ? 1.5 : isRiche ? 4.5 + Math.min(actions.length * 0.1, 0.5) : 2.5 + actions.length * 0.3;
+
+  const type = isEvitement ? "evitement" : isVague ? "vague" : isRiche ? "riche" : "structuree";
+
+  return { type, actions, niveau_detail, structure_logique, ton, score: Math.min(score, 5) };
+}
+
+// ============================================
+// DÉCISION MODE QUESTION
+// ============================================
+function deciderModeQuestion(
+  historiqueAnalyse: { type: string; score: number }[],
+  dernierType: string
+): "creuser" | "complexifier" | "contourner" {
+  if (dernierType === "evitement") return "contourner";
+  if (dernierType === "riche" || dernierType === "structuree") return "complexifier";
+  return "creuser";
+}
+
+// ============================================
+// BANQUES DE QUESTIONS PAR PROFIL
+// ============================================
+const BANQUES_QUESTIONS: Record<number, Record<string, string[]>> = {
+  1: {
+    decouverte: [
+      "Qu'est-ce que tu as appris seul qui t'a vraiment rendu fier ?",
+      "Raconte-moi un problème concret que tu as résolu sans aide extérieure.",
+      "Qu'est-ce que les gens autour de toi te demandent souvent de faire ?",
+      "Quelle est la chose la plus utile que tu aies créée ou construite ?",
+      "Si tu avais une journée entière sans contrainte, sur quoi travaillerais-tu ?",
+      "Quelle compétence as-tu développée par curiosité personnelle ?",
+      "Quel projet personnel t'a demandé le plus d'efforts et pourquoi tu ne t'es pas arrêté ?",
+      "Comment tu apprends quelque chose de nouveau quand tu n'as personne pour t'aider ?",
+      "Qu'est-ce que tu as accompli que les gens de ton entourage n'auraient pas su faire ?",
+      "Raconte-moi une fois où tu as transformé une idée en quelque chose de concret.",
+    ],
+    creuser: [
+      "Tu peux me donner un exemple concret de ça ?",
+      "Qu'est-ce que tu as fait exactement dans cette situation ?",
+      "Quel était le résultat final ?",
+      "Combien de temps ça t'a pris et comment tu t'y es pris ?",
+      "Qu'est-ce qui t'a poussé à continuer quand c'était difficile ?",
+    ],
+    complexifier: [
+      "Et si ça n'avait pas fonctionné, tu aurais fait quoi différemment ?",
+      "Comment tu as géré les obstacles que tu as rencontrés ?",
+      "Qu'est-ce que cette expérience t'a appris sur toi-même ?",
+      "Comment tu t'es amélioré depuis cette première fois ?",
+      "Quel impact ça a eu sur les gens autour de toi ?",
+    ],
+    contourner: [
+      "Pense à la dernière fois que quelqu'un t'a dit merci pour ton aide — c'était pour quoi ?",
+      "Dans ta vie quotidienne, qu'est-ce qui te vient naturellement sans effort ?",
+      "Décris une journée où tu t'es senti vraiment utile.",
+      "Qu'est-ce que tu ferais si on te donnait un budget de 1000$ pour résoudre un problème dans ta communauté ?",
+    ],
+  },
+  2: {
+    decouverte: [
+      "Quel cours t'a le plus passionné et pourquoi exactement ?",
+      "Décris un projet scolaire dont tu es vraiment fier.",
+      "Dans les travaux d'équipe, quel rôle tu prends naturellement ?",
+      "Qu'est-ce que tu fais en dehors des cours qui te ressemble vraiment ?",
+      "Si tu pouvais travailler sur n'importe quel type de projet, ce serait quoi ?",
+      "Qu'est-ce que tes professeurs disent généralement de toi ?",
+      "Quel défi académique as-tu surmonté qui t'a surpris toi-même ?",
+      "Comment tu aides tes collègues de classe quand ils ont du mal ?",
+      "Qu'est-ce que tu apprends le plus rapidement dans tes études ?",
+      "Si tu avais à choisir une spécialisation demain, ce serait laquelle et pourquoi ?",
+    ],
+    creuser: [
+      "Concrètement, qu'est-ce que tu as fait dans ce projet ?",
+      "Quel a été ton rôle exact dans l'équipe ?",
+      "Qu'est-ce qui a bien marché et qu'est-ce qui t'a posé problème ?",
+      "Qu'est-ce que le professeur a dit de ton travail ?",
+    ],
+    complexifier: [
+      "Comment tu aurais fait différemment si tu recommençais ?",
+      "Qu'est-ce que ce projet t'a appris que tes cours ne t'ont pas appris ?",
+      "Comment tu as géré les désaccords avec tes coéquipiers ?",
+      "Comment tu t'assures que ta contribution est vraiment utile à l'équipe ?",
+    ],
+    contourner: [
+      "À quoi tu passes ton temps libre quand personne ne te regarde ?",
+      "Si tu avais à expliquer ton domaine à un enfant de 10 ans, tu dirais quoi ?",
+      "Qu'est-ce que tu fais naturellement que tes camarades trouvent difficile ?",
+    ],
+  },
+  3: {
+    decouverte: [
+      "Quelle tâche pendant ton stage tu ferais encore aujourd'hui pour rien ?",
+      "Raconte-moi la journée de stage dont tu es le plus fier.",
+      "Qu'est-ce que tu as appris sur toi-même pendant ce stage ?",
+      "Comment tes collègues de stage te percevaient-ils ?",
+      "Qu'est-ce que tu aurais voulu faire de plus pendant ce stage ?",
+      "Quel problème as-tu résolu que ton superviseur ne t'avait pas demandé de résoudre ?",
+      "Comment tu t'es adapté quand quelque chose ne se passait pas comme prévu ?",
+      "Qu'est-ce que ce stage t'a confirmé sur toi-même ?",
+      "Quelle compétence as-tu développée pendant ce stage que tu n'avais pas avant ?",
+      "Comment tu as géré une situation difficile ou un conflit pendant le stage ?",
+    ],
+    creuser: [
+      "Qu'est-ce que tu as fait concrètement dans cette situation ?",
+      "Quel impact ton travail a eu sur l'équipe ou le projet ?",
+      "Tu peux me donner des chiffres ou des résultats mesurables ?",
+      "Comment tu as su que tu avais bien fait ton travail ?",
+    ],
+    complexifier: [
+      "Qu'est-ce que tu ferais différemment si tu refaisais ce stage ?",
+      "Comment tu gères une situation où tu ne sais pas quoi faire ?",
+      "Qu'est-ce que tu as pris comme initiative sans qu'on te le demande ?",
+      "Comment tu as su prioriser quand tu avais plusieurs tâches en même temps ?",
+    ],
+    contourner: [
+      "Qu'est-ce que ton superviseur t'a dit qui t'a surpris positivement ?",
+      "Dans quel type de situation tu te sentais le plus à ta place pendant le stage ?",
+      "Qu'est-ce que tes collègues de stage sont venus te demander le plus souvent ?",
+    ],
+  },
+  4: {
+    decouverte: [
+      "Pourquoi ce domaine précisément — qu'est-ce qui t'attire vraiment dedans ?",
+      "Qu'est-ce que tu as déjà fait qui se rapproche de cet objectif ?",
+      "Qu'est-ce que les gens de ce domaine font au quotidien selon toi ?",
+      "Qu'est-ce que tu as comme compétences que tu penses transférables ?",
+      "Comment tu t'es préparé concrètement pour ce domaine ?",
+      "Qu'est-ce que tu as appris sur ce secteur par toi-même en dehors des cours ?",
+      "Quel projet académique te rapproche le plus de cet objectif ?",
+      "Comment tu imagines ta première semaine dans ce rôle ?",
+      "Qu'est-ce qui te ferait abandonner cet objectif ?",
+      "Comment tu saurais que tu as réussi dans ce domaine dans 3 ans ?",
+    ],
+    creuser: [
+      "Donne-moi un exemple concret de ce que tu viens de dire.",
+      "Comment tu sais que tu serais bon dans ce domaine ?",
+      "Qu'est-ce que tu as déjà accompli qui prouve cette capacité ?",
+    ],
+    complexifier: [
+      "Qu'est-ce qui te manque encore selon toi pour y arriver ?",
+      "Comment tu comptes combler ces lacunes concrètement ?",
+      "Qu'est-ce qu'un bon professionnel dans ce domaine fait différemment d'un mauvais selon toi ?",
+    ],
+    contourner: [
+      "Si tu imaginais ta première journée dans ce rôle, tu ferais quoi exactement ?",
+      "Qu'est-ce que tu sais déjà faire aujourd'hui qui sera utile dans ce rôle ?",
+      "Qui dans ton entourage exerce ce métier et qu'est-ce que tu as retenu de ses expériences ?",
+    ],
+  },
+  5: {
+    decouverte: [
+      "Quelle réalisation concrète de ton stage es-tu le plus fier de mentionner en entrevue ?",
+      "Qu'est-ce que tu aimais tellement dans ton stage que tu ne regardais pas l'heure ?",
+      "Comment tes résultats de stage se comparaient à ceux de tes collègues ?",
+      "Qu'est-ce que tu veux faire différemment dans ton prochain rôle ?",
+      "Quelle compétence as-tu développée pendant le stage qui t'a surpris toi-même ?",
+      "Comment tu as contribué à quelque chose de plus grand que ta tâche assignée ?",
+      "Qu'est-ce que tu as pris comme initiative que ton superviseur n'attendait pas ?",
+      "Comment tu as géré un moment de pression ou d'urgence pendant le stage ?",
+      "Qu'est-ce que ce stage t'a appris sur la façon dont les entreprises fonctionnent ?",
+      "Quelle décision as-tu prise seul pendant le stage et quel en était le résultat ?",
+    ],
+    creuser: [
+      "Tu peux quantifier l'impact de ce que tu as fait ?",
+      "Qu'est-ce que tu as mis en place exactement pour obtenir ce résultat ?",
+      "Qui d'autre a bénéficié de ton travail et comment ?",
+    ],
+    complexifier: [
+      "Comment tu as géré une situation où ça n'allait pas comme prévu ?",
+      "Qu'est-ce que cette expérience t'a appris sur ta façon de travailler ?",
+      "Si tu avais eu plus d'autonomie, qu'est-ce que tu aurais fait en plus ?",
+      "Comment tu maintiens la qualité de ton travail quand tu es sous pression ?",
+    ],
+    contourner: [
+      "Qu'est-ce que tu as fait pendant ton stage que personne ne t'avait demandé de faire ?",
+      "Quel problème as-tu vu dans ton stage que tu aurais aimé résoudre mais tu n'avais pas l'autorité ?",
+      "Qu'est-ce que tes collègues ont remarqué chez toi que tu n'aurais pas dit toi-même ?",
+    ],
+  },
+  6: {
+    decouverte: [
+      "Quelle est ta réalisation la plus concrète depuis que tu travailles ?",
+      "Qu'est-ce que tu fais mieux que la plupart de tes collègues au même niveau ?",
+      "Raconte-moi une situation difficile que tu as gérée seul.",
+      "Qu'est-ce qui te frustre dans ton rôle actuel ?",
+      "Qu'est-ce que ton patron te demande le plus souvent de faire ?",
+      "Comment tu as évolué depuis tes premiers mois dans ce poste ?",
+      "Quelle décision as-tu prise récemment qui a eu un impact positif ?",
+      "Comment tu gères quand tu reçois des directives contradictoires ?",
+      "Qu'est-ce que tu as appris dans ce poste qui t'a surpris ?",
+      "Quelle compétence as-tu développée que tu n'avais pas en arrivant ?",
+    ],
+    creuser: [
+      "Comment tu t'y es pris exactement pour obtenir ce résultat ?",
+      "Quel était l'enjeu si ça n'avait pas fonctionné ?",
+      "Quels outils ou méthodes tu as utilisés ?",
+      "En combien de temps tu as livré ça ?",
+      "Qui était impliqué et quel était ton rôle exact ?",
+    ],
+    complexifier: [
+      "Comment tu gères quand tu as 3 priorités en même temps et pas assez de temps ?",
+      "Donne-moi un exemple où tu as dû convaincre quelqu'un qui n'était pas d'accord avec toi.",
+      "Comment tu t'assures que ton travail a vraiment l'impact attendu ?",
+      "Qu'est-ce que tu as changé dans ta façon de travailler depuis tes débuts ?",
+      "Comment tu gères une erreur que tu as faite au travail ?",
+    ],
+    contourner: [
+      "Si ton patron devait te décrire à un collègue, il dirait quoi selon toi ?",
+      "Qu'est-ce que tu as appris dans ce poste que tu n'aurais pas appris à l'école ?",
+      "Quel aspect de ton travail tu maîtrises tellement que tu pourrais enseigner ?",
+      "Qu'est-ce que tes collègues viennent te demander quand ils sont bloqués ?",
+    ],
+  },
+  7: {
+    decouverte: [
+      "Quelle est la réalisation de ta carrière dont tu es le plus fier et pourquoi ?",
+      "Qu'est-ce que tu fais que peu de gens à ton niveau savent faire ?",
+      "Comment tu as évolué en termes de responsabilités depuis 3 ans ?",
+      "Qu'est-ce qui te frustre dans ton poste actuel et pourquoi ça bloque ?",
+      "Comment tu prends des décisions quand tu n'as pas toutes les informations ?",
+      "Raconte-moi un moment où tu as eu un impact au-delà de tes responsabilités directes.",
+      "Comment tu développes les compétences de tes collègues moins expérimentés ?",
+      "Qu'est-ce que tu as mis en place qui dure encore après toi ?",
+      "Comment tu gères des parties prenantes qui ont des intérêts contradictoires ?",
+      "Quelle décision difficile as-tu dû prendre sans avoir le soutien de tout le monde ?",
+    ],
+    creuser: [
+      "Quel était le contexte exact et quels étaient les enjeux ?",
+      "Comment tu as mesuré le succès de cette initiative ?",
+      "Quels obstacles tu as rencontrés et comment tu les as surmontés ?",
+      "Quelle était ta part personnelle versus celle de l'équipe ?",
+    ],
+    complexifier: [
+      "Raconte-moi un échec professionnel significatif et ce que tu en as tiré.",
+      "Comment tu gères quand tu dois défendre une décision impopulaire ?",
+      "Donne-moi un exemple où tu as changé d'avis sur quelque chose d'important.",
+      "Comment tu restes efficace quand l'organisation change autour de toi ?",
+    ],
+    contourner: [
+      "Si tu pouvais changer une seule chose dans ton organisation, ce serait quoi et pourquoi ?",
+      "Qu'est-ce que tu ferais différemment si tu recommençais ta carrière depuis le début ?",
+      "Qu'est-ce que les gens qui travaillent avec toi disent de toi quand tu n'es pas là ?",
+    ],
+  },
+  8: {
+    decouverte: [
+      "Quelle est ton expertise la plus rare sur le marché selon toi ?",
+      "Comment tu as développé une compétence que peu de personnes possèdent dans ton domaine ?",
+      "Quel problème complexe as-tu résolu que d'autres avaient abandonné ?",
+      "Comment ton approche diffère de celle de tes pairs de même niveau ?",
+      "Quel impact financier ou stratégique as-tu eu dans ta dernière organisation ?",
+      "Comment tu construis et maintiens ton réseau d'influence interne et externe ?",
+      "Raconte-moi une transformation que tu as initiée de bout en bout.",
+      "Comment tu gères l'ambiguïté stratégique quand la direction n'est pas claire ?",
+      "Qu'est-ce que tu as fait qui a changé la façon dont ton organisation fonctionne ?",
+      "Comment tu identifies les opportunités que personne d'autre ne voit ?",
+    ],
+    creuser: [
+      "Quel était l'impact financier ou stratégique de cette décision ?",
+      "Comment tu as influencé des décisions au-delà de ton périmètre direct ?",
+      "Quelles ressources tu avais et comment tu les as optimisées ?",
+      "Comment tu as mesuré concrètement le succès de cette initiative ?",
+    ],
+    complexifier: [
+      "Raconte-moi une situation où tu as dû aller contre la décision de ta hiérarchie.",
+      "Comment tu maintiens ton niveau d'expertise dans un domaine qui évolue vite ?",
+      "Qu'est-ce que tu ferais différemment dans ta carrière avec ce que tu sais maintenant ?",
+      "Comment tu gères le fait de savoir plus que tes supérieurs sur certains sujets ?",
+    ],
+    contourner: [
+      "Si tu devais former ton remplaçant en 3 mois, sur quoi tu insisterais absolument ?",
+      "Qu'est-ce que tu ne feras plus jamais dans ta carrière et pourquoi ?",
+      "Qu'est-ce que tes clients ou partenaires te disent que tes collègues n'entendent pas ?",
+    ],
+  },
+  9: {
+    decouverte: [
+      "Quel est ton impact le plus mesurable sur une organisation au cours des 5 dernières années ?",
+      "Quelle transformation as-tu initiée qui a changé la façon dont une industrie ou organisation fonctionne ?",
+      "Comment tu définis ton héritage professionnel ?",
+      "Qu'est-ce que tu peux faire aujourd'hui que tu ne pouvais pas faire il y a 5 ans ?",
+      "Comment tu restes pertinent dans un domaine qui évolue aussi vite ?",
+      "Raconte-moi une décision stratégique difficile que tu as prise et dont tu es fier.",
+      "Comment tu alignes des parties prenantes de niveaux très différents sur une vision commune ?",
+      "Qu'est-ce que tu as construit qui existera encore dans 10 ans ?",
+      "Comment tu développes les leaders de demain dans ton équipe ?",
+      "Quelle est la chose la plus contre-intuitive que tu aies apprise dans ta carrière ?",
+    ],
+    creuser: [
+      "Quel était le contexte de marché ou organisationnel qui rendait ça si complexe ?",
+      "Comment tu as aligné des parties prenantes de niveaux très différents ?",
+      "Quel a été ton rôle exact versus celui de ton équipe ?",
+      "Quel était le risque si tu t'étais trompé ?",
+    ],
+    complexifier: [
+      "Comment tu gères des situations où tu es le moins expert dans la pièce ?",
+      "Raconte-moi une décision stratégique difficile que tu regrettes.",
+      "Comment tu transmets ton expertise à la prochaine génération ?",
+      "Qu'est-ce qui t'empêche d'avoir encore plus d'impact ?",
+    ],
+    contourner: [
+      "Si tu devais conseiller ton jeune toi de 30 ans, tu lui dirais quoi ?",
+      "Qu'est-ce que les gens sous-estiment le plus dans ton domaine d'expertise ?",
+      "Quel conseil donnes-tu systématiquement et que les gens ignorent souvent ?",
+    ],
+  },
+  10: {
+    decouverte: [
+      "Qu'est-ce qui t'a convaincu que tu devais absolument changer de domaine maintenant ?",
+      "Quelle compétence de ton ancien domaine tu penses vraiment transférable dans le nouveau ?",
+      "Comment tu t'es préparé concrètement à cette transition ?",
+      "Qu'est-ce que tu savais faire dans ton ancien rôle que les gens du nouveau domaine ne savent généralement pas faire ?",
+      "Quel aspect de ton nouveau domaine te passionne le plus et pourquoi ?",
+      "Comment tu as validé que tu avais les capacités pour réussir dans ce nouveau domaine ?",
+      "Qu'est-ce que tu as déjà accompli concrètement dans ce nouveau domaine ?",
+      "Quel déclencheur exact t'a poussé à faire ce changement maintenant et pas avant ?",
+      "Comment tu gères la baisse de statut potentielle et le retour en bas de l'échelle ?",
+      "Comment tu expliques cette reconversion à un recruteur sceptique ?",
+    ],
+    creuser: [
+      "Qu'est-ce que tu as fait concrètement pour te préparer à ce nouveau domaine ?",
+      "Comment tu as validé que cette compétence est vraiment transférable ?",
+      "Quel résultat concret as-tu déjà obtenu dans ce nouveau domaine ?",
+    ],
+    complexifier: [
+      "Qu'est-ce que tu feras si dans 1 an tu n'as pas encore percé dans le nouveau domaine ?",
+      "Comment tu gères l'incertitude financière de cette transition ?",
+      "Qu'est-ce que tu as dû abandonner et comment tu l'as vécu ?",
+      "Comment tu construis ta crédibilité dans un domaine où tu es perçu comme débutant ?",
+    ],
+    contourner: [
+      "Si tu n'avais pas de contraintes financières, tu aurais fait cette reconversion il y a combien d'années ?",
+      "Qu'est-ce que les gens de ton entourage disent de cette décision ?",
+      "Qu'est-ce qui dans ton ancien métier te manquera le plus ?",
+    ],
+  },
+};
+
+// ============================================
+// SÉLECTIONNER LA PROCHAINE QUESTION
+// ============================================
+function selectionnerQuestion(
+  profil: number,
+  mode: "creuser" | "complexifier" | "contourner",
+  questionsDejaposees: string[]
+): string {
+  const banque = BANQUES_QUESTIONS[profil] || BANQUES_QUESTIONS[6];
+  const pool = banque[mode] || banque.creuser;
+  const disponibles = pool.filter(q => !questionsDejaposees.includes(q));
+  if (disponibles.length === 0) return pool[Math.floor(Math.random() * pool.length)];
+  return disponibles[Math.floor(Math.random() * disponibles.length)];
+}
+
+// ============================================
+// SAUVEGARDER PATTERN RÉEL
+// ============================================
+async function sauvegarderPattern(
+  profil: number,
+  domaine: string,
+  question: string,
+  reponse: string,
+  analyse: ReturnType<typeof classifierReponse>
+) {
+  try {
+    await supabaseAdmin.from("patterns_calibration").insert({
+      profil_type: profil,
+      domaine,
+      question_objectif: question,
+      reponse_brute: reponse,
+      type_reponse: analyse.type,
+      actions_detectees: analyse.actions,
+      niveau_detail: analyse.niveau_detail,
+      structure_logique: analyse.structure_logique,
+      ton: analyse.ton,
+      score_comportemental: analyse.score,
+      source: "reel",
+    });
+  } catch (e) {
+    console.error("Erreur sauvegarde pattern:", e);
+  }
+}
+
+// ============================================
+// VALIDATION GPS
 // ============================================
 function validateGPS(
   gpsData: {
@@ -132,8 +484,6 @@ function validateGPS(
 ) {
   const niveauInfo = getNiveauGPS(experience, roleActuel);
   const maxNiveaux = niveauInfo.maxNiveaux;
-
-  // Salaire An1 = salaire actuel × 1.036 (sauf reconversion × 0.85)
   const facteurAn1 = isReconversion ? 0.85 : 1.036;
   const s1 = Math.round(salaireMin * facteurAn1 / 1000) * 1000;
   const s2 = Math.round(s1 * 1.05 / 1000) * 1000;
@@ -141,46 +491,34 @@ function validateGPS(
   const s4 = Math.round(s3 * 1.07 / 1000) * 1000;
   const s5 = Math.round(s4 * 1.08 / 1000) * 1000;
 
-  const roleBase = roleActuel
-    .replace(/^assistant\s*/i, "")
-    .replace(/\s*junior$/i, "")
-    .trim() || roleActuel;
+  const roleBase = roleActuel.replace(/^assistant\s*/i, "").replace(/\s*junior$/i, "").trim() || roleActuel;
 
   const getTitre = (an: number, titreGPT: string): string => {
     if (maxNiveaux <= 1) {
-      if (an === 1) return roleBase + " confirmé";
-      if (an === 2) return roleBase + " confirmé";
-      if (an === 3) return roleBase + " senior";
-      if (an === 4) return roleBase + " senior";
+      if (an <= 2) return roleBase + " confirmé";
+      if (an <= 4) return roleBase + " senior";
       return roleBase + " expert";
     }
     if (maxNiveaux === 2) {
-      if (an === 1) return roleBase + " confirmé";
-      if (an === 2) return roleBase + " senior";
+      if (an <= 2) return roleBase + " confirmé";
       if (an === 3) return roleBase + " senior";
       return titreGPT || roleBase + " expert";
     }
     return titreGPT || roleBase;
   };
 
-  // An5 différent de An4
-  const titreAn4 = getTitre(4, gpsData.an4?.titre || "");
-  const titreAn5Raw = getTitre(5, gpsData.an5?.titre || "");
-  const titreAn5 = titreAn5Raw === titreAn4 ? titreAn4 + " senior" : titreAn5Raw;
-
   const validatedGPS = {
     an1: { titre: getTitre(1, gpsData.an1?.titre || ""), salaire: s1, action: gpsData.an1?.action || "Consolider les compétences" },
     an2: { titre: getTitre(2, gpsData.an2?.titre || ""), salaire: s2, action: gpsData.an2?.action || "Développer l'expertise" },
     an3: { titre: getTitre(3, gpsData.an3?.titre || ""), salaire: s3, action: gpsData.an3?.action || "Prendre plus de responsabilités" },
-    an4: { titre: titreAn4, salaire: s4, action: gpsData.an4?.action || "Viser un niveau supérieur" },
-    an5: { titre: titreAn5, salaire: s5, action: gpsData.an5?.action || "POTENTIEL MAX !" },
+    an4: { titre: getTitre(4, gpsData.an4?.titre || ""), salaire: s4, action: gpsData.an4?.action || "Viser un niveau supérieur" },
+    an5: { titre: getTitre(5, gpsData.an5?.titre || ""), salaire: s5, action: gpsData.an5?.action || "POTENTIEL MAX !" },
   };
 
-  // Scénario objectif
   const obj = objectifDeclare?.toLowerCase() || "";
   const annee = new Date().getFullYear();
-  const isVP = obj.includes("vp") || obj.includes("vice-président") || obj.includes("vice président");
-  const isCEO = obj.includes("ceo") || obj.includes("pdg") || obj.includes("président général");
+  const isVP = obj.includes("vp") || obj.includes("vice-président");
+  const isCEO = obj.includes("ceo") || obj.includes("pdg");
   const isDirecteur = obj.includes("directeur") || obj.includes("director");
   const isManagerObj = obj.includes("manager") || obj.includes("gestionnaire") || obj.includes("chef") || obj.includes("responsable");
   const exp = experience?.toLowerCase() || "";
@@ -190,8 +528,6 @@ function validateGPS(
   let message = "Ton objectif de " + objectifDeclare + " est atteignable ! Ce GPS te montre le chemin.";
 
   if (!objectifDeclare) {
-    scenario = 1;
-    delai = "5 ans";
     message = "YELMA t'a défini un objectif réaliste selon ton profil et tes compétences révélées.";
   } else if (exp.includes("moins") || exp.includes("aucune")) {
     if (isVP || isCEO) { scenario = 3; delai = "18-20 ans"; message = "Ton objectif de " + objectifDeclare + " est excellent à long terme. Tu peux l'atteindre vers " + (annee + 18) + "-" + (annee + 20) + ". En 5 ans, concentre-toi sur " + roleBase + " expert."; }
@@ -199,123 +535,115 @@ function validateGPS(
     else if (isManagerObj) { scenario = 2; delai = "6-8 ans"; message = "Ton objectif de " + objectifDeclare + " est atteignable en 6-8 ans. En 5 ans, vise " + roleBase + " senior."; }
   } else if (exp.includes("1 à 2")) {
     if (isVP || isCEO) { scenario = 3; delai = "15-18 ans"; message = "Ton objectif de " + objectifDeclare + " est excellent — compte 15-18 ans. En 5 ans, vise " + roleBase + " senior."; }
-    else if (isDirecteur) { scenario = 3; delai = "10-12 ans"; message = "Ton objectif de " + objectifDeclare + " est réaliste en 10-12 ans. En 5 ans, vise un poste senior."; }
+    else if (isDirecteur) { scenario = 3; delai = "10-12 ans"; message = "Ton objectif de " + objectifDeclare + " est réaliste en 10-12 ans."; }
     else if (isManagerObj) { scenario = 2; delai = "5-7 ans"; message = "Ton objectif de " + objectifDeclare + " est atteignable en 5-7 ans !"; }
   } else if (exp.includes("3 à 5")) {
-    if (isVP || isCEO) { scenario = 3; delai = "10-12 ans"; message = "Ton objectif de " + objectifDeclare + " est réaliste en 10-12 ans. En 5 ans, vise Senior."; }
+    if (isVP || isCEO) { scenario = 3; delai = "10-12 ans"; message = "Ton objectif de " + objectifDeclare + " est réaliste en 10-12 ans."; }
     else if (isDirecteur) { scenario = 2; delai = "6-8 ans"; message = "Ton objectif de " + objectifDeclare + " est atteignable en 6-8 ans !"; }
   } else if (exp.includes("6 à 10")) {
-    if (isVP || isCEO) { scenario = 2; delai = "6-8 ans"; message = "Ton objectif de " + objectifDeclare + " est atteignable en 6-8 ans avec les bonnes certifications !"; }
+    if (isVP || isCEO) { scenario = 2; delai = "6-8 ans"; message = "Ton objectif de " + objectifDeclare + " est atteignable en 6-8 ans !"; }
   }
 
-  return { gps: validatedGPS, scenario, delai, message, salaireMax: s1 * 1.15 };
+  return { gps: validatedGPS, scenario, delai, message, salaireMax: s1 };
 }
 
 // ============================================
-// PROMPT CONVERSATION — 9 CAS
+// PARSE DONNÉES EXTRAITES
 // ============================================
-function buildConversationPrompt(candidatInfo?: {
-  prenom?: string;
-  diplome?: string;
-  annee_diplome?: string;
-  domaine_etudes?: string;
-  annee_experience?: string;
-  annee_autre_experience?: string;
-  domaine_actuel?: string;
-  role_actuel?: string;
-  ville?: string;
-  statut_emploi?: string;
-  objectif_declare?: string;
+function parseExtractedData(json: Record<string, unknown>, candidatInfo: {
   salaire_min?: number;
-  salaire_max?: number;
+  annee_experience?: string;
+  role_actuel?: string;
+  objectif_declare?: string;
+  statut_emploi?: string;
 }) {
-  const cas = detecterCas(candidatInfo || {});
-  const niveauInfo = getNiveauGPS(
-    candidatInfo?.annee_experience || "",
-    candidatInfo?.role_actuel || ""
-  );
-  const isReconversion = candidatInfo?.statut_emploi?.toLowerCase().includes("reconversion") || false;
-
-  // Questions par objectif selon le cas
-  const objectifsQuestions: Record<number, string[]> = {
-    1: [
-      "OBJECTIF : Découvrir les intérêts et passions — demande ce qui l'attire dans la vie professionnelle sans jamais mentionner de métier précis",
-      "OBJECTIF : Identifier l'environnement de travail préféré — terrain, bureau, créatif, technique",
-      "OBJECTIF : Détecter les activités naturelles — ce qui vient sans effort",
-      "OBJECTIF : Identifier les soft skills — comment il aide les autres",
-      "OBJECTIF : Détecter les préférences de domaine — ce que les gens autour de lui disent qu'il fait bien",
-    ],
-    2: [
-      "OBJECTIF : Comprendre le choix d'études — pourquoi ce diplôme",
-      "OBJECTIF : Identifier ce qu'il a préféré dans ses études",
-      "OBJECTIF : Détecter un projet académique marquant",
-      "OBJECTIF : Identifier le type de travail qui l'attire dans son domaine",
-      "OBJECTIF : Explorer si un autre domaine l'attire aussi",
-    ],
-    3: [
-      "OBJECTIF : Analyser l'expérience de stage ou bénévolat la plus marquante",
-      "OBJECTIF : Identifier la tâche qu'il faisait le mieux",
-      "OBJECTIF : Ce qu'il a appris sur lui-même",
-      "OBJECTIF : L'environnement où il s'est senti le plus à l'aise",
-      "OBJECTIF : Ce qu'il aurait voulu faire de plus dans cette expérience",
-    ],
-    4: [
-      "OBJECTIF : Valider la motivation derrière l'objectif déclaré",
-      "OBJECTIF : Identifier ce qu'il a déjà fait qui se rapproche de cet objectif",
-      "OBJECTIF : Compétences qu'il pense avoir pour atteindre l'objectif",
-      "OBJECTIF : Ce qui lui manque selon lui pour y arriver",
-      "OBJECTIF : Son niveau de connaissance du domaine cible",
-    ],
-    5: [
-      "OBJECTIF : Identifier une réalisation concrète récente dans son rôle actuel",
-      "OBJECTIF : Ce qu'il aime le plus dans son travail actuel",
-      "OBJECTIF : Ce qu'il aime le moins — frustrations actuelles",
-      "OBJECTIF : Domaine où il se sent le plus compétent",
-      "OBJECTIF : Comment il voudrait faire évoluer son rôle",
-    ],
-    6: [
-      "OBJECTIF : Identifier une réalisation concrète récente",
-      "OBJECTIF : Lien entre rôle actuel et objectif déclaré",
-      "OBJECTIF : Ce qui lui manque encore pour atteindre l'objectif",
-      "OBJECTIF : Compétence développée récemment",
-      "OBJECTIF : Motivation derrière l'objectif déclaré",
-    ],
-    7: [
-      "OBJECTIF : Identifier la réalisation la plus significative",
-      "OBJECTIF : Frustrations actuelles dans le poste",
-      "OBJECTIF : Responsabilités supplémentaires souhaitées",
-      "OBJECTIF : Vision dans 5 ans",
-      "OBJECTIF : Compétence prioritaire à développer",
-    ],
-    8: [
-      "OBJECTIF : Comprendre la raison du changement de domaine",
-      "OBJECTIF : Réalisation dont il est fier dans son domaine actuel",
-      "OBJECTIF : Compétences transférables identifiées",
-      "OBJECTIF : Niveau de connaissance du nouveau domaine",
-      "OBJECTIF : Plus grande crainte dans cette reconversion",
-    ],
-    9: [
-      "OBJECTIF : Identifier la réalisation professionnelle la plus marquante",
-      "OBJECTIF : Expertise la plus rare et précieuse sur le marché",
-      "OBJECTIF : Aspiration — management, conseil ou liberté",
-      "OBJECTIF : Ce qu'il ne veut plus faire dans sa carrière",
-      "OBJECTIF : Vision dans 5 ans — même domaine ou évolution",
-    ],
+  const parseGPSRaw = (obj: unknown) => {
+    if (!obj || typeof obj !== "object") return undefined;
+    const g = obj as Record<string, unknown>;
+    return { titre: String(g.titre || ""), salaire: Number(g.salaire || 0), action: String(g.action || "") };
   };
 
-  const questions = objectifsQuestions[cas] || objectifsQuestions[7];
+  const opportunites = Array.isArray(json.opportunites) ? json.opportunites.map((o: unknown) => {
+    const op = o as Record<string, unknown>;
+    return { titre: String(op.titre || ""), salaire: Number(op.salaire || 0), description: String(op.description || "") };
+  }) : [];
 
-  const gpsDescription = isReconversion
-    ? `An 1: Poste passerelle (salaire × 0.85 — baisse temporaire honnête à mentionner)
-An 2: Junior nouveau domaine (retour au salaire actuel)
-An 3: Junior confirmé nouveau domaine
-An 4: Intermédiaire nouveau domaine
-An 5: Intermédiaire confirmé nouveau domaine`
-    : `An 1: ${niveauInfo.an1}
-An 2: ${niveauInfo.an2}
-An 3: ${niveauInfo.an3}
-An 4: ${niveauInfo.an4}
-An 5: ${niveauInfo.an5}`;
+  const formations = Array.isArray(json.formations) ? json.formations.map((f: unknown) => {
+    const fm = f as Record<string, unknown>;
+    return { nom: String(fm.nom || ""), type: String(fm.type || "Formation"), plateforme: String(fm.plateforme || ""), duree: String(fm.duree || "") };
+  }) : [];
+
+  const certifications = Array.isArray(json.certifications) ? json.certifications.map((c: unknown) => {
+    const ct = c as Record<string, unknown>;
+    return { nom: String(ct.nom || ""), organisme: String(ct.organisme || "") };
+  }) : [];
+
+  const salaireMin = candidatInfo.salaire_min || 45000;
+  const objectifDeclare = String(json.objectif_final || candidatInfo.objectif_declare || "");
+  const isReconversion = candidatInfo.statut_emploi?.toLowerCase().includes("reconversion") || false;
+
+  const validated = validateGPS(
+    { an1: parseGPSRaw(json.an1), an2: parseGPSRaw(json.an2), an3: parseGPSRaw(json.an3), an4: parseGPSRaw(json.an4), an5: parseGPSRaw(json.an5) },
+    salaireMin, candidatInfo.annee_experience || "", candidatInfo.role_actuel || "", objectifDeclare, isReconversion
+  );
+
+  return {
+    niveau_education: String(json.niveau || "JUNIOR"),
+    force1: String(json.force1 || ""), force1_desc: String(json.force1_desc || ""),
+    force2: String(json.force2 || ""), force2_desc: String(json.force2_desc || ""),
+    force3: String(json.force3 || ""), force3_desc: String(json.force3_desc || ""),
+    axe1: String(json.axe1 || ""), axe1_desc: String(json.axe1_desc || ""),
+    axe2: String(json.axe2 || ""), axe2_desc: String(json.axe2_desc || ""),
+    salaire_min: salaireMin,
+    salaire_max: validated.salaireMax,
+    role_actuel: String(json.role_actuel || candidatInfo.role_actuel || ""),
+    ville: String(json.ville || "Montréal"),
+    objectif_carriere: objectifDeclare,
+    scenario_objectif: validated.scenario,
+    message_objectif: validated.message,
+    delai_objectif: validated.delai,
+    analyse_comparative: String(json.analyse || ""),
+    gps_an1: validated.gps.an1, gps_an2: validated.gps.an2,
+    gps_an3: validated.gps.an3, gps_an4: validated.gps.an4, gps_an5: validated.gps.an5,
+    opportunites, formations, certifications,
+  };
+}
+
+// ============================================
+// DÉTECTION RAPPORT FINAL
+// ============================================
+function isRapportFinal(text: string): boolean {
+  return (
+    (text.includes("TES 3 COMPÉTENCES") || text.includes("COMPÉTENCES CLÉS")) &&
+    (text.includes("GPS DE CARRIÈRE") || text.includes("An 1:")) &&
+    text.includes("FORMATIONS")
+  );
+}
+
+// ============================================
+// PROMPT SYSTÈME DYNAMIQUE
+// ============================================
+function buildSystemPrompt(
+  candidatInfo: {
+    prenom?: string; diplome?: string; annee_diplome?: string; domaine_etudes?: string;
+    annee_experience?: string; annee_autre_experience?: string; domaine_actuel?: string;
+    role_actuel?: string; ville?: string; statut_emploi?: string; objectif_declare?: string;
+    salaire_min?: number; salaire_max?: number;
+  },
+  profil: number,
+  historiqueAnalyse: { type: string; score: number; mode: string }[]
+) {
+  const niveauInfo = getNiveauGPS(candidatInfo?.annee_experience || "", candidatInfo?.role_actuel || "");
+  const isReconversion = candidatInfo?.statut_emploi?.toLowerCase().includes("reconversion") || false;
+  const nbEchanges = historiqueAnalyse.length;
+  const scoresMoyen = historiqueAnalyse.length > 0
+    ? historiqueAnalyse.reduce((acc, h) => acc + (h.score || 2), 0) / historiqueAnalyse.length
+    : 0;
+  const dernierMode = historiqueAnalyse.length > 0 ? historiqueAnalyse[historiqueAnalyse.length - 1].mode : "creuser";
+
+  // Seuil rapport : entre 8 et 10 échanges
+  const SEUIL_MIN_RAPPORT = 8;
+  const SEUIL_MAX_RAPPORT = 10;
 
   return `Tu es YELMA, conseiller de carrière expert et bienveillant.
 
@@ -329,58 +657,46 @@ PROFIL CONNU - NE JAMAIS REDEMANDER :
 - Statut: ${candidatInfo?.statut_emploi || "non fourni"}
 - Objectif déclaré: ${candidatInfo?.objectif_declare || "non fourni"}
 - Fourchette salariale: ${candidatInfo?.salaire_min || 40000}$ — ${candidatInfo?.salaire_max || 60000}$
-- CAS PROFIL DÉTECTÉ: ${cas}
+- PROFIL DÉTECTÉ: ${profil}
 - Niveau actuel: ${niveauInfo.niveauActuel}
 - Reconversion: ${isReconversion ? "OUI" : "NON"}
+- Échanges complétés: ${nbEchanges}/${SEUIL_MAX_RAPPORT}
+- Score comportemental moyen: ${scoresMoyen.toFixed(1)}/5
+- Mode actuel: ${dernierMode}
 
-MISSION : Révéler 3 compétences GÉNÉRIQUES et TRANSFÉRABLES + 2 axes de développement.
+MISSION YELMA :
+Révéler 3 à 5 compétences GÉNÉRIQUES et TRANSFÉRABLES + 2 axes de développement
+en analysant IMPLICITEMENT les comportements — jamais en demandant directement.
 
-RÈGLES COMPÉTENCES :
-- Format court : "Analyse budgétaire", "Coordination des équipes", "Gestion des risques"
-- YELMA déduit et reformule — il ne répète JAMAIS ce que le candidat dit
-- Les compétences doivent être reconnues dans les offres d'emploi
-
-RÈGLES AXES DE DÉVELOPPEMENT :
-- Détecter 2 compétences que le candidat N'A PAS mentionnées
-- Mais que le marché demande fréquemment pour ce rôle
-- Formuler positivement : "Axe de développement" jamais "faiblesse"
-- Format: "Compétence — explication courte pourquoi c'est important"
-
-RÈGLES CONVERSATION :
+RÈGLES ABSOLUES :
 1. NE JAMAIS redemander les infos du profil
 2. NE JAMAIS répéter ce que le candidat dit
-3. UNE seule question par échange — formulée DIFFÉREMMENT à chaque conversation
-4. Après 5 échanges : générer le rapport IMMÉDIATEMENT sans annonce
-5. Questions variées — même objectif, formulation toujours différente
-6. Si réponse trop courte : relancer avec une question de précision
+3. UNE seule question par échange — courte et directe
+4. Générer le rapport entre ${SEUIL_MIN_RAPPORT} et ${SEUIL_MAX_RAPPORT} échanges
+   - À partir de ${SEUIL_MIN_RAPPORT} échanges : générer le rapport si tu as assez de matière
+   - À ${SEUIL_MAX_RAPPORT} échanges : générer le rapport OBLIGATOIREMENT
+5. JAMAIS de "je vais générer" — écrire le rapport directement
+6. Questions formulées DIFFÉREMMENT à chaque conversation
 
-OBJECTIFS DES 5 QUESTIONS (formuler librement — ne jamais copier mot pour mot) :
-${questions.map((q, i) => `Question ${i + 1} — ${q}`).join("\n")}
+LOGIQUE DE PROGRESSION DES QUESTIONS :
+- Échanges 1-3 : Questions de découverte — explorer les domaines, intérêts, réalisations
+- Échanges 4-6 : Questions d'approfondissement — détails, résultats, impact mesurable
+- Échanges 7-8 : Questions de complexification — obstacles, décisions, valeurs, vision
+- Échanges 9-10 : Synthèse ou rapport si assez de matière
 
-PREMIER MESSAGE :
-${cas <= 4
-  ? "Saluer " + (candidatInfo?.prenom || "") + " et poser directement la première question selon l'objectif ci-dessus. Maximum 2 phrases."
-  : "Saluer " + (candidatInfo?.prenom || "") + " en mentionnant son rôle de " + (candidatInfo?.role_actuel || "") + " et poser directement la première question. Maximum 2 phrases."
-}
+MODE ACTUEL — ${dernierMode.toUpperCase()} :
+${dernierMode === "creuser" ? "→ Réponse vague détectée. Approfondir avec une question concrète sur les actions ou les résultats." : ""}
+${dernierMode === "complexifier" ? "→ Bonne réponse détectée. Monter en complexité — obstacles, décisions difficiles, impact." : ""}
+${dernierMode === "contourner" ? "→ Évitement détecté. Contourner avec une question indirecte sur une situation vécue." : ""}
 
-GPS RÉALISTE — CAS ${cas} :
-${gpsDescription}
-${isReconversion ? "IMPORTANT reconversion: mentionner honnêtement la baisse temporaire de salaire An 1 (-15%) et l'accélération grâce aux compétences transférables" : ""}
+${nbEchanges >= SEUIL_MIN_RAPPORT ? `⚡ TU AS ASSEZ DE MATIÈRE — Génère le rapport maintenant si les compétences sont claires.` : ""}
+${nbEchanges >= SEUIL_MAX_RAPPORT ? `🚨 RAPPORT OBLIGATOIRE — Tu dois générer le rapport final maintenant.` : ""}
 
-LOGIQUE OPPORTUNITÉS — CAS ${cas} :
-${cas <= 4 ? "Proposer jobs accessibles sans expérience ou avec peu d'expérience — salaire entrée de gamme" : ""}
-${cas === 5 || cas === 6 ? "Proposer postes similaires mieux rémunérés OU postes légèrement supérieurs si exp compatible" : ""}
-${cas === 7 ? "Proposer postes intermédiaires supérieurs OU senior débutant" : ""}
-${cas === 8 ? "Proposer postes PASSERELLES entre ancien et nouveau domaine" : ""}
-${cas === 9 ? "Proposer postes stratégiques, conseil, direction, freelance" : ""}
+PROGRESSION GPS — RÉALISTE :
+Niveau: ${niveauInfo.niveauActuel} — Max ${niveauInfo.maxNiveaux} niveau(x) en 5 ans
+${isReconversion ? "RECONVERSION: An 1 = baisse temporaire de salaire (-15%) à mentionner honnêtement" : ""}
 
-LOGIQUE FORMATIONS — 4 types obligatoires :
-1. Renforcement : approfondir une compétence révélée
-2. Gap marché : combler un axe de développement détecté
-3. Prochain poste : préparer An 1-2 du GPS
-4. Objectif long terme : certification pour objectif final
-
-RAPPORT FINAL après 5 échanges — écrire DIRECTEMENT sans introduction :
+RAPPORT FINAL — écrire DIRECTEMENT sans annonce :
 
 TES 3 COMPÉTENCES CLÉS
 
@@ -395,8 +711,8 @@ TES 3 COMPÉTENCES CLÉS
 
 TES 2 AXES DE DÉVELOPPEMENT
 
-🔹 [Compétence manquante 1] — [explication courte pourquoi important]
-🔹 [Compétence manquante 2] — [explication courte pourquoi important]
+🔹 [Compétence manquante 1] — [explication courte]
+🔹 [Compétence manquante 2] — [explication courte]
 
 OPPORTUNITÉS
 
@@ -417,7 +733,7 @@ An 3: [Titre] | [Salaire] | [Action courte]
 An 4: [Titre] | [Salaire] | [Action courte]
 An 5: [Titre] | [Salaire] | [Action courte]
 
-OBJECTIF: [objectif déclaré ou proposé par YELMA]
+OBJECTIF: [objectif déclaré ou proposé]
 SCENARIO: [1/2/3]
 MESSAGE_OBJECTIF: [message honnête et motivant]
 DELAI_OBJECTIF: [délai réaliste]
@@ -441,21 +757,12 @@ CERTIFICATIONS
 // PROMPT EXTRACTION JSON
 // ============================================
 function buildExtractionPrompt(rapport: string, candidatInfo: {
-  salaire_min?: number;
-  salaire_max?: number;
-  role_actuel?: string;
-  ville?: string;
-  annee_experience?: string;
-  diplome?: string;
-  objectif_declare?: string;
-  statut_emploi?: string;
+  salaire_min?: number; salaire_max?: number; role_actuel?: string;
+  ville?: string; annee_experience?: string; objectif_declare?: string; statut_emploi?: string;
 }) {
-  const niveauInfo = getNiveauGPS(
-    candidatInfo.annee_experience || "",
-    candidatInfo.role_actuel || ""
-  );
+  const niveauInfo = getNiveauGPS(candidatInfo.annee_experience || "", candidatInfo.role_actuel || "");
 
-  return `Extrait les données de ce rapport YELMA et retourne UNIQUEMENT ce JSON valide sans backticks ni markdown:
+  return `Extrait les données de ce rapport YELMA et retourne UNIQUEMENT ce JSON valide sans backticks:
 
 ${rapport}
 
@@ -469,9 +776,9 @@ JSON attendu:
   "force3": "competence generique courte",
   "force3_desc": "1 phrase valeur marche",
   "axe1": "competence manquante 1",
-  "axe1_desc": "explication courte pourquoi important",
+  "axe1_desc": "explication courte",
   "axe2": "competence manquante 2",
-  "axe2_desc": "explication courte pourquoi important",
+  "axe2_desc": "explication courte",
   "opportunites": [
     {"titre": "vrai titre poste", "salaire": 52000, "description": "5 mots max"},
     {"titre": "vrai titre poste", "salaire": 56000, "description": "5 mots max"},
@@ -490,7 +797,7 @@ JSON attendu:
   "an3": {"titre": "vrai titre", "salaire": 70000, "action": "action courte"},
   "an4": {"titre": "vrai titre", "salaire": 76000, "action": "action courte"},
   "an5": {"titre": "vrai titre", "salaire": 83000, "action": "action courte"},
-  "analyse": "1 phrase honnnete sur objectif",
+  "analyse": "1 phrase honnete sur objectif",
   "formations": [
     {"nom": "nom", "type": "Renforcement", "plateforme": "plateforme", "duree": "duree"},
     {"nom": "nom", "type": "Gap marche", "plateforme": "plateforme", "duree": "duree"},
@@ -504,121 +811,64 @@ JSON attendu:
 }
 
 REGLES:
-- Niveau GPS maximum ${niveauInfo.maxNiveaux} niveaux depuis ${niveauInfo.niveauActuel}
-- Sigles: VP=Vice-President, CEO=Directeur general, CFO=Directeur financier
-- objectif_final en toutes lettres
+- GPS maximum ${niveauInfo.maxNiveaux} niveaux depuis ${niveauInfo.niveauActuel}
 - formations: exactement 4 avec les 4 types
 - certifications: exactement 2
 - axe1 et axe2: competences NON mentionnees par le candidat mais demandees par le marche`;
 }
 
 // ============================================
-// PARSE DONNÉES EXTRAITES
-// ============================================
-function parseExtractedData(json: Record<string, unknown>, candidatInfo: {
-  salaire_min?: number;
-  salaire_max?: number;
-  annee_experience?: string;
-  role_actuel?: string;
-  objectif_declare?: string;
-  statut_emploi?: string;
-}) {
-  const parseGPSRaw = (obj: unknown) => {
-    if (!obj || typeof obj !== "object") return undefined;
-    const g = obj as Record<string, unknown>;
-    return { titre: String(g.titre || ""), salaire: Number(g.salaire || 0), action: String(g.action || "") };
-  };
-
-  const opportunites = Array.isArray(json.opportunites)
-    ? json.opportunites.map((o: unknown) => {
-        const op = o as Record<string, unknown>;
-        return { titre: String(op.titre || ""), salaire: Number(op.salaire || 0), description: String(op.description || "") };
-      }) : [];
-
-  const formations = Array.isArray(json.formations)
-    ? json.formations.map((f: unknown) => {
-        const fm = f as Record<string, unknown>;
-        return { nom: String(fm.nom || ""), type: String(fm.type || "Formation"), plateforme: String(fm.plateforme || ""), duree: String(fm.duree || "") };
-      }) : [];
-
-  const certifications = Array.isArray(json.certifications)
-    ? json.certifications.map((c: unknown) => {
-        const ct = c as Record<string, unknown>;
-        return { nom: String(ct.nom || ""), organisme: String(ct.organisme || "") };
-      }) : [];
-
-  const salaireMin = candidatInfo.salaire_max || candidatInfo.salaire_min || 45000;
-  const objectifDeclare = String(json.objectif_final || candidatInfo.objectif_declare || "");
-  const isReconversion = candidatInfo.statut_emploi?.toLowerCase().includes("reconversion") || false;
-
-  const validated = validateGPS(
-    { an1: parseGPSRaw(json.an1), an2: parseGPSRaw(json.an2), an3: parseGPSRaw(json.an3), an4: parseGPSRaw(json.an4), an5: parseGPSRaw(json.an5) },
-    salaireMin,
-    candidatInfo.annee_experience || "",
-    candidatInfo.role_actuel || "",
-    objectifDeclare,
-    isReconversion
-  );
-
-  return {
-    niveau_education: String(json.niveau || "JUNIOR"),
-    force1: String(json.force1 || ""), force1_desc: String(json.force1_desc || ""),
-    force2: String(json.force2 || ""), force2_desc: String(json.force2_desc || ""),
-    force3: String(json.force3 || ""), force3_desc: String(json.force3_desc || ""),
-    axe1: String(json.axe1 || ""), axe1_desc: String(json.axe1_desc || ""),
-    axe2: String(json.axe2 || ""), axe2_desc: String(json.axe2_desc || ""),
-    salaire_min: candidatInfo.salaire_min || salaireMin,
-    salaire_max: candidatInfo.salaire_max || validated.salaireMax,
-    role_actuel: String(json.role_actuel || candidatInfo.role_actuel || ""),
-    ville: String(json.ville || "Montréal"),
-    objectif_carriere: objectifDeclare,
-    scenario_objectif: validated.scenario,
-    message_objectif: validated.message,
-    delai_objectif: validated.delai,
-    analyse_comparative: String(json.analyse || ""),
-    gps_an1: validated.gps.an1,
-    gps_an2: validated.gps.an2,
-    gps_an3: validated.gps.an3,
-    gps_an4: validated.gps.an4,
-    gps_an5: validated.gps.an5,
-    opportunites,
-    formations,
-    certifications,
-  };
-}
-
-// ============================================
-// DÉTECTION RAPPORT FINAL
-// ============================================
-function isRapportFinal(text: string): boolean {
-  const hasCompetences = text.includes("COMPÉTENCES") || text.includes("compétences clés") || text.includes("COMPÉTENCES CLÉS");
-  const hasGPS = text.includes("GPS") || text.includes("An 1") || text.includes("AN 1");
-  const hasFormations = text.includes("FORMATION") || text.includes("formation");
-  const hasSalaire = text.includes("valeur sur le marché") || text.includes("salaire") || text.includes("SALAIRE") || text.includes("$");
-  return hasCompetences && hasGPS && (hasFormations || hasSalaire);
-}
-
-// ============================================
-// API ROUTE
+// API ROUTE PRINCIPALE
 // ============================================
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { history, lang, email, nom, prenom, candidatInfo } = body;
+    const { history, lang, email, nom, prenom, candidatInfo, historiqueAnalyse: historiqueAnalyseIn } = body;
 
-    const conversationPrompt = buildConversationPrompt(candidatInfo);
+    const profil = detecterProfil(candidatInfo || {});
+    let historiqueAnalyse: { type: string; score: number; mode: string }[] = historiqueAnalyseIn || [];
+    let modeActuel: "creuser" | "complexifier" | "contourner" = "creuser";
+
+    const derniereReponseUser = history.filter((m: { role: string }) => m.role === "user").slice(-1)[0];
+
+    if (derniereReponseUser && derniereReponseUser.content !== "START") {
+      const analyse = classifierReponse(derniereReponseUser.content);
+      modeActuel = deciderModeQuestion(historiqueAnalyse, analyse.type);
+
+      if (email) {
+        await sauvegarderPattern(
+          profil,
+          candidatInfo?.domaine_actuel || candidatInfo?.domaine_etudes || "général",
+          history.filter((m: { role: string }) => m.role === "assistant").slice(-1)[0]?.content || "",
+          derniereReponseUser.content,
+          analyse
+        );
+      }
+
+      historiqueAnalyse = [...historiqueAnalyse, { type: analyse.type, score: analyse.score, mode: modeActuel }];
+    }
+
+    const nbEchanges = history.filter((m: { role: string }) => m.role === "user").length;
+    let systemPrompt = buildSystemPrompt(candidatInfo, profil, historiqueAnalyse);
+
+    // Injecter prochaine question si moins de 8 échanges
+    if (nbEchanges < 8 && derniereReponseUser?.content !== "START") {
+      const questionsDejaposees = history
+        .filter((m: { role: string }) => m.role === "assistant")
+        .map((m: { content: string }) => m.content)
+        .join(" ");
+      const prochaine = selectionnerQuestion(profil, modeActuel, [questionsDejaposees]);
+      systemPrompt += `\n\nPROCHAINE QUESTION À POSER (formule-la naturellement) :\n${prochaine}`;
+    }
 
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-      },
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${process.env.OPENAI_API_KEY}` },
       body: JSON.stringify({
         model: "gpt-4o-mini",
-        messages: [{ role: "system", content: conversationPrompt }, ...history],
+        messages: [{ role: "system", content: systemPrompt }, ...history],
         temperature: 0.7,
-        max_tokens: 2000,
+        max_tokens: 2500,
       }),
     });
 
@@ -626,20 +876,15 @@ export async function POST(req: NextRequest) {
     if (!response.ok) throw new Error(data.error?.message || "Erreur OpenAI");
 
     const reply = data.choices[0].message.content;
-    console.log("EMAIL:", email);
-    console.log("IS RAPPORT FINAL:", isRapportFinal(reply));
+    console.log("PROFIL:", profil, "| MODE:", modeActuel, "| ÉCHANGES:", nbEchanges, "| IS RAPPORT:", isRapportFinal(reply));
 
     if (isRapportFinal(reply) && email) {
-      console.log("EXTRACTING DATA...");
       try {
         const extractionPrompt = buildExtractionPrompt(reply, candidatInfo || {});
 
         const extractResponse = await fetch("https://api.openai.com/v1/chat/completions", {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-          },
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${process.env.OPENAI_API_KEY}` },
           body: JSON.stringify({
             model: "gpt-4o-mini",
             messages: [{ role: "user", content: extractionPrompt }],
@@ -654,51 +899,67 @@ export async function POST(req: NextRequest) {
 
         if (jsonMatch) {
           const parsed = JSON.parse(jsonMatch[0]);
-          const rapportData = parseExtractedData(parsed, {
-          salaire_min: candidatInfo?.salaire_min,
-          salaire_max: candidatInfo?.salaire_max,
-          annee_experience: candidatInfo?.annee_experience,
-          role_actuel: candidatInfo?.role_actuel,
-          objectif_declare: candidatInfo?.objectif_declare,
-          statut_emploi: candidatInfo?.statut_emploi,
-         });
+          const rapportData = parseExtractedData(parsed, candidatInfo || {});
 
-          console.log("SAVING TO SUPABASE...");
-          const { error } = await supabaseAdmin
-            .from("candidats")
-            .upsert({
-              email, nom, prenom,
-              langue: lang || "fr",
-              trial_start: new Date().toISOString(),
-              trial_end: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
-              plan_choisi: "decouverte",
-              domaine_actuel: candidatInfo?.domaine_actuel,
-              diplome_max: candidatInfo?.diplome,
-              duree_experience: candidatInfo?.annee_experience,
-              statut_emploi: candidatInfo?.statut_emploi,
-              objectif_declare: candidatInfo?.objectif_declare,
-              ...rapportData,
-              nb_entretiens: 1,
-              dernier_entretien: new Date().toISOString(),
-            }, { onConflict: "email" });
+          await supabaseAdmin.from("candidats").upsert({
+            email, nom, prenom,
+            langue: lang || "fr",
+            trial_start: new Date().toISOString(),
+            trial_end: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+            plan_choisi: "decouverte",
+            domaine_actuel: candidatInfo?.domaine_actuel,
+            diplome_max: candidatInfo?.diplome,
+            duree_experience: candidatInfo?.annee_experience,
+            statut_emploi: candidatInfo?.statut_emploi,
+            objectif_declare: candidatInfo?.objectif_declare,
+            ...rapportData,
+            nb_entretiens: 1,
+            dernier_entretien: new Date().toISOString(),
+          }, { onConflict: "email" });
 
-          if (error) console.error("SUPABASE ERROR:", error);
-          else console.log("SAVED SUCCESSFULLY!");
+          const scoresMoyen = historiqueAnalyse.length > 0
+            ? historiqueAnalyse.reduce((acc, h) => acc + h.score, 0) / historiqueAnalyse.length
+            : 0;
 
-          return NextResponse.json({ reply, rapportData });
+          await supabaseAdmin.from("entretiens_enrichis").insert({
+            email,
+            profil_type: profil,
+            domaine: candidatInfo?.domaine_actuel || candidatInfo?.domaine_etudes || "général",
+            echanges: history.map((m: { role: string; content: string }, i: number) => ({
+              role: m.role, contenu: m.content,
+              analyse: historiqueAnalyse[Math.floor(i / 2)] || null,
+            })),
+            scores_finaux: {
+              score_moyen: scoresMoyen,
+              nb_echanges: historiqueAnalyse.length,
+              distribution: {
+                vague: historiqueAnalyse.filter(h => h.type === "vague").length,
+                structuree: historiqueAnalyse.filter(h => h.type === "structuree").length,
+                evitement: historiqueAnalyse.filter(h => h.type === "evitement").length,
+                riche: historiqueAnalyse.filter(h => h.type === "riche").length,
+              }
+            },
+            competences_detectees: [rapportData.force1, rapportData.force2, rapportData.force3].filter(Boolean),
+            gaps_detectes: [rapportData.axe1, rapportData.axe2].filter(Boolean),
+            moteur_dominant: scoresMoyen >= 4 ? "accomplissement" : scoresMoyen >= 3 ? "influence" : "affiliation",
+            top_competences: {
+              force1: { nom: rapportData.force1, desc: rapportData.force1_desc },
+              force2: { nom: rapportData.force2, desc: rapportData.force2_desc },
+              force3: { nom: rapportData.force3, desc: rapportData.force3_desc },
+            },
+          });
+
+          return NextResponse.json({ reply, rapportData, historiqueAnalyse });
         }
       } catch (extractError) {
         console.error("Extraction error:", extractError);
       }
     }
 
-    return NextResponse.json({ reply });
+    return NextResponse.json({ reply, historiqueAnalyse });
 
   } catch (error) {
     console.error("Erreur API:", error);
-    return NextResponse.json(
-      { reply: "Une erreur est survenue. Veuillez réessayer." },
-      { status: 500 }
-    );
+    return NextResponse.json({ reply: "Une erreur est survenue. Veuillez réessayer." }, { status: 500 });
   }
 }
