@@ -38,6 +38,7 @@ export default function MonEspace() {
   const [candidat, setCandidat] = useState<Candidat | null>(null);
   const [activeTab, setActiveTab] = useState("rapport");
   const [tokenLoading, setTokenLoading] = useState(false);
+  const [autoLoading, setAutoLoading] = useState(true);
 
   const [offres, setOffres] = useState<Offre[]>([]);
   const [offresLoading, setOffresLoading] = useState(false);
@@ -93,15 +94,13 @@ export default function MonEspace() {
       } else {
         // Fallback — envoyer magic link
         setEmail(emailParam);
-        fetch("/api/auth", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email: emailParam }),
-        });
-      }
-    })
-    .catch(() => setEmail(emailParam));
-}
+         }
+      })
+      .catch(() => setEmail(emailParam))
+      .finally(() => setAutoLoading(false));
+    } else {
+      setAutoLoading(false);
+    }
 
    }, []);
 
@@ -281,6 +280,15 @@ export default function MonEspace() {
     if (candidat && activeTab === "offres" && offres.length === 0) chargerOffres();
     if (candidat && (activeTab === "formations" || activeTab === "evenements") && formations.renforcement.length === 0) chargerFormations();
   }, [activeTab, candidat]);
+
+    if (autoLoading) return (
+    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#FAFBFF" }}>
+      <div style={{ textAlign: "center" }}>
+        <div style={{ fontSize: "32px", marginBottom: "12px" }}>⏳</div>
+        <div style={{ fontSize: "14px", color: "#888" }}>Chargement de votre espace...</div>
+      </div>
+    </div>
+  );
 
   if (tokenLoading) return (
     <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#FAFBFF" }}>
