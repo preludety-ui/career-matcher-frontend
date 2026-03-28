@@ -82,23 +82,27 @@ export default function MonEspace() {
     const emailParam = params.get("email") || localStorage.getItem("yelma_email") || "";
     if (tab) setActiveTab(tab);
     if (emailParam) {
-      setEmail(emailParam);
-      fetch("/api/auth", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: emailParam }),
-      }).then(r => r.json()).then(data => {
-        if (data.dev_link) {
-          const token = new URL(data.dev_link).searchParams.get("token");
-          if (token) {
-            fetch(`/api/auth?token=${token}`)
-              .then(r => r.json())
-              .then(d => { if (d.success) setCandidat(d.candidat); });
-          }
-        }
-      });
-    }
-  }, []);
+  // Essayer de charger directement depuis Supabase
+  fetch(`/api/candidats?email=${encodeURIComponent(emailParam)}`)
+    .then(r => r.json())
+    .then(data => {
+      if (data.candidat) {
+        setCandidat(data.candidat);
+        localStorage.setItem("yelma_email", emailParam);
+      } else {
+        // Fallback — envoyer magic link
+        setEmail(emailParam);
+        fetch("/api/auth", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: emailParam }),
+        });
+      }
+    })
+    .catch(() => setEmail(emailParam));
+}
+
+   }, []);
 
   // Charger candidatures et inscriptions
   useEffect(() => {
