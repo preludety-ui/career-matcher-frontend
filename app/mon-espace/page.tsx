@@ -88,13 +88,13 @@ export default function MonEspace() {
   fetch(`/api/candidats?email=${encodeURIComponent(emailParam)}`)
     .then(r => r.json())
     .then(data => {
-      if (data.candidat) {
-        setCandidat(data.candidat);
-        localStorage.setItem("yelma_email", emailParam);
+  const candidatData = data.candidat || data.data;
+  if (candidatData) {
+    setCandidat(candidatData);
+   localStorage.setItem("yelma_email", emailParam);
       } else {
-        // Fallback — envoyer magic link
-        setEmail(emailParam);
-         }
+            setEmail(emailParam);
+          }
       })
       .catch(() => setEmail(emailParam))
       .finally(() => setAutoLoading(false));
