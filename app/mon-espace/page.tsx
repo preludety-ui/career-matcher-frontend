@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import RapportGPS from "../components/RapportGPS";
 
 type Formation = { nom: string; type: string; plateforme: string; duree: string; prix?: string; lien?: string; note?: string };
@@ -27,7 +27,249 @@ type Candidat = {
   offres?: Offre[];
   dernier_entretien?: string;
   diplome_max?: string; duree_experience?: string;
+  domaine_actuel?: string; statut_emploi?: string; objectif_declare?: string;
 };
+
+function EntretienDansMonEspace({ candidat, onRapportGenere }: {
+  candidat: Candidat;
+  onRapportGenere: (rapport: Record<string, unknown>) => void;
+}) {
+  const [etape, setEtape] = useState<"formulaire" | "chat" | "termine">("formulaire");
+  const [formData, setFormData] = useState({
+    role_actuel: candidat.role_actuel || "",
+    annee_experience: candidat.duree_experience || "",
+    domaine_actuel: candidat.domaine_actuel || "",
+    ville: candidat.ville || "",
+    statut_emploi: candidat.statut_emploi || "",
+    objectif_declare: candidat.objectif_declare || "",
+    diplome: candidat.diplome_max || "",
+    annee_autre_experience: "",
+    domaine_etudes: "",
+  });
+  const [messages, setMessages] = useState<{ role: "bot" | "user"; text: string }[]>([]);
+  const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [historiqueAnalyse, setHistoriqueAnalyse] = useState<{ type: string; score: number; mode: string }[]>([]);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  const demarrerEntretien = async () => {
+    setEtape("chat");
+    setLoading(true);
+    try {
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          history: [],
+          lang: "fr",
+          email: candidat.email,
+          nom: candidat.nom,
+          prenom: candidat.prenom,
+          candidatInfo: {
+            ...formData,
+            salaire_min: candidat.salaire_min || 40000,
+            salaire_max: candidat.salaire_max || 60000,
+          },
+          historiqueAnalyse: [],
+        }),
+      });
+      const data = await res.json();
+      setMessages([{ role: "bot", text: data.reply }]);
+      setHistoriqueAnalyse(data.historiqueAnalyse || []);
+      if (data.rapportData) {
+        onRapportGenere(data.rapportData);
+        setEtape("termine");
+      }
+    } catch { console.error("Erreur démarrage entretien"); }
+    finally { setLoading(false); }
+  };
+
+  const envoyerMessage = async () => {
+    if (!input.trim() || loading) return;
+    const newMessages = [...messages, { role: "user" as const, text: input }];
+    setMessages(newMessages);
+    setInput("");
+    setLoading(true);
+    try {
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          history: newMessages.map(m => ({ role: m.role === "bot" ? "assistant" : "user", content: m.text })),
+          lang: "fr",
+          email: candidat.email,
+          nom: candidat.nom,
+          prenom: candidat.prenom,
+          candidatInfo: {
+            ...formData,
+            salaire_min: candidat.salaire_min || 40000,
+            salaire_max: candidat.salaire_max || 60000,
+          },
+          historiqueAnalyse,
+        }),
+      });
+      const data = await res.json();
+      setMessages([...newMessages, { role: "bot", text: data.reply }]);
+      setHistoriqueAnalyse(data.historiqueAnalyse || historiqueAnalyse);
+      if (data.rapportData) {
+        onRapportGenere(data.rapportData);
+        setEtape("termine");
+      }
+    } catch { console.error("Erreur envoi message"); }
+    finally { setLoading(false); }
+  };
+
+  if (etape === "formulaire") return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+      <div style={{ background: "white", borderRadius: "12px", padding: "16px", border: "0.5px solid #E8E8F0" }}>
+        <div style={{ fontSize: "10px", fontWeight: 700, color: "#FF7043", marginBottom: "12px" }}>🎯 NOUVEL ENTRETIEN YELMA</div>
+        <div style={{ fontSize: "11px", color: "#888", marginBottom: "16px" }}>Vérifiez et mettez à jour votre profil avant de commencer</div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+          <div>
+            <label style={{ fontSize: "11px", fontWeight: 600, color: "#1A1A2E", display: "block", marginBottom: "4px" }}>Rôle actuel</label>
+            <input
+              value={formData.role_actuel}
+              onChange={e => setFormData({ ...formData, role_actuel: e.target.value })}
+              style={{ width: "100%", border: "1px solid #E8E8F0", borderRadius: "10px", padding: "8px 12px", fontSize: "13px" }}
+              placeholder="ex: Analyste financier"
+            />
+          </div>
+          <div>
+            <label style={{ fontSize: "11px", fontWeight: 600, color: "#1A1A2E", display: "block", marginBottom: "4px" }}>Domaine actuel</label>
+            <input
+              value={formData.domaine_actuel}
+              onChange={e => setFormData({ ...formData, domaine_actuel: e.target.value })}
+              style={{ width: "100%", border: "1px solid #E8E8F0", borderRadius: "10px", padding: "8px 12px", fontSize: "13px" }}
+              placeholder="ex: Finance, Technologie"
+            />
+          </div>
+          <div>
+            <label style={{ fontSize: "11px", fontWeight: 600, color: "#1A1A2E", display: "block", marginBottom: "4px" }}>Années d'expérience</label>
+            <select
+              value={formData.annee_experience}
+              onChange={e => setFormData({ ...formData, annee_experience: e.target.value })}
+              style={{ width: "100%", border: "1px solid #E8E8F0", borderRadius: "10px", padding: "8px 12px", fontSize: "13px", background: "white" }}
+            >
+              <option value="">Sélectionnez</option>
+              <option>Aucune</option>
+              <option>Moins de 1 an</option>
+              <option>1 à 2 ans</option>
+              <option>3 à 5 ans</option>
+              <option>6 à 10 ans</option>
+              <option>Plus de 10 ans</option>
+            </select>
+          </div>
+          <div>
+            <label style={{ fontSize: "11px", fontWeight: 600, color: "#1A1A2E", display: "block", marginBottom: "4px" }}>Ville</label>
+            <input
+              value={formData.ville}
+              onChange={e => setFormData({ ...formData, ville: e.target.value })}
+              style={{ width: "100%", border: "1px solid #E8E8F0", borderRadius: "10px", padding: "8px 12px", fontSize: "13px" }}
+              placeholder="ex: Montréal"
+            />
+          </div>
+          <div>
+            <label style={{ fontSize: "11px", fontWeight: 600, color: "#1A1A2E", display: "block", marginBottom: "4px" }}>Statut actuel</label>
+            <select
+              value={formData.statut_emploi}
+              onChange={e => setFormData({ ...formData, statut_emploi: e.target.value })}
+              style={{ width: "100%", border: "1px solid #E8E8F0", borderRadius: "10px", padding: "8px 12px", fontSize: "13px", background: "white" }}
+            >
+              <option value="">Sélectionnez</option>
+              <option>En recherche d&apos;emploi active</option>
+              <option>En emploi - cherche à évoluer</option>
+              <option>Étudiant(e)</option>
+              <option>En reconversion professionnelle</option>
+            </select>
+          </div>
+          <div>
+            <label style={{ fontSize: "11px", fontWeight: 600, color: "#1A1A2E", display: "block", marginBottom: "4px" }}>Objectif de carrière (optionnel)</label>
+            <input
+              value={formData.objectif_declare}
+              onChange={e => setFormData({ ...formData, objectif_declare: e.target.value })}
+              style={{ width: "100%", border: "1px solid #E8E8F0", borderRadius: "10px", padding: "8px 12px", fontSize: "13px" }}
+              placeholder="ex: Directeur de projet"
+            />
+          </div>
+        </div>
+
+        <button
+          onClick={demarrerEntretien}
+          style={{ width: "100%", marginTop: "16px", background: "#FF7043", color: "white", border: "none", borderRadius: "12px", padding: "14px", fontSize: "14px", fontWeight: 700, cursor: "pointer" }}
+        >
+          Démarrer mon entretien YELMA →
+        </button>
+      </div>
+    </div>
+  );
+
+  if (etape === "termine") return (
+    <div style={{ background: "white", borderRadius: "12px", padding: "24px", border: "0.5px solid #E8E8F0", textAlign: "center" }}>
+      <div style={{ fontSize: "32px", marginBottom: "12px" }}>🎉</div>
+      <div style={{ fontSize: "16px", fontWeight: 700, color: "#1A1A2E", marginBottom: "8px" }}>Entretien terminé !</div>
+      <div style={{ fontSize: "12px", color: "#888", marginBottom: "16px" }}>Votre nouveau rapport a été généré et sauvegardé.</div>
+      <button
+        onClick={() => setEtape("formulaire")}
+        style={{ background: "#F1EFE8", color: "#1A1A2E", border: "none", borderRadius: "12px", padding: "10px 20px", fontSize: "13px", fontWeight: 600, cursor: "pointer" }}
+      >
+        Refaire un entretien
+      </button>
+    </div>
+  );
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", height: "70vh", background: "white", borderRadius: "12px", border: "0.5px solid #E8E8F0", overflow: "hidden" }}>
+      <div style={{ background: "#1A1A2E", padding: "12px 16px" }}>
+        <div style={{ fontSize: "12px", fontWeight: 700, color: "white" }}>🎯 Entretien YELMA en cours</div>
+        <div style={{ fontSize: "10px", color: "#FF7043" }}>{messages.filter(m => m.role === "user").length}/8 échanges</div>
+      </div>
+
+      <div style={{ flex: 1, overflowY: "auto", padding: "16px", display: "flex", flexDirection: "column", gap: "10px" }}>
+        {messages.map((m, i) => (
+          <div key={i} style={{ display: "flex", justifyContent: m.role === "user" ? "flex-end" : "flex-start" }}>
+            <div style={{
+              maxWidth: "85%", padding: "10px 14px", borderRadius: "12px", fontSize: "13px", lineHeight: 1.6,
+              background: m.role === "user" ? "#1A1A2E" : "#F1EFE8",
+              color: m.role === "user" ? "white" : "#1A1A2E",
+            }}>
+              {m.text.split("\n").map((line, j) => <span key={j}>{line}<br /></span>)}
+            </div>
+          </div>
+        ))}
+        {loading && (
+          <div style={{ display: "flex", justifyContent: "flex-start" }}>
+            <div style={{ background: "#F1EFE8", padding: "10px 14px", borderRadius: "12px", fontSize: "13px", color: "#888" }}>
+              En train d'analyser...
+            </div>
+          </div>
+        )}
+        <div ref={messagesEndRef} />
+      </div>
+
+      <div style={{ padding: "12px", borderTop: "0.5px solid #E8E8F0", display: "flex", gap: "8px" }}>
+        <input
+          value={input}
+          onChange={e => setInput(e.target.value)}
+          onKeyDown={e => e.key === "Enter" && envoyerMessage()}
+          placeholder="Écrivez votre réponse..."
+          style={{ flex: 1, border: "1px solid #E8E8F0", borderRadius: "10px", padding: "10px 14px", fontSize: "13px" }}
+        />
+        <button
+          onClick={envoyerMessage}
+          disabled={loading}
+          style={{ background: "#FF7043", color: "white", border: "none", borderRadius: "10px", padding: "10px 16px", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}
+        >
+          Envoyer
+        </button>
+      </div>
+    </div>
+  );
+}
 
 export default function MonEspace() {
   const [email, setEmail] = useState("");
@@ -348,6 +590,7 @@ export default function MonEspace() {
 
   const tabs = [
     { id: "rapport", label: "📊 Rapport" },
+    { id: "entretien", label: "🎯 Nouvel entretien" },
     { id: "offres", label: "💼 Offres" },
     { id: "formations", label: "📚 Formations" },
     { id: "evenements", label: "🎤 Événements" },
@@ -729,6 +972,17 @@ export default function MonEspace() {
         )}
 
         {/* PROFIL */}
+      
+        {activeTab === "entretien" && (
+          <EntretienDansMonEspace
+            candidat={candidat}
+            onRapportGenere={(nouveauRapport) => {
+              setCandidat({ ...candidat, ...nouveauRapport });
+              setActiveTab("rapport");
+            }}
+          />
+        )}
+
         {activeTab === "profil" && (
           <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
             <div style={{ background: "white", borderRadius: "12px", padding: "16px", border: "0.5px solid #E8E8F0" }}>
