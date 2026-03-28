@@ -254,6 +254,8 @@ export default function Preview() {
     try {
       const { candidatInfo, reponses } = profil;
       const history: { role: string; content: string }[] = [];
+      // Bug 2 fix — envoyer START pour déclencher le message d'accueil
+      history.push({ role: "user", content: "START" });
       const questionsposees: string[] = [];
       let rapportData = null;
       let historiqueAnalyse: { type: string; score: number; mode: string }[] = [];
@@ -278,8 +280,10 @@ export default function Preview() {
         historiqueAnalyse = data.historiqueAnalyse || historiqueAnalyse;
 
         // Extraire la question posée
-        const lignes = botReply.split("\n").filter((l: string) => l.trim().length > 10);
-        if (lignes.length > 0) questionsposees.push(lignes[lignes.length - 1]);
+        const lignes = botReply.split("\n").filter((l: string) => 
+       l.trim().length > 10 && l.trim().endsWith("?")
+       );
+       if (lignes.length > 0) questionsposees.push(lignes[0]);
 
         history.push({ role: "assistant", content: botReply });
 
@@ -289,8 +293,12 @@ export default function Preview() {
         }
 
         if (i < reponses.length) {
-          history.push({ role: "user", content: reponses[i] });
-        }
+         const isLast = i === reponses.length - 1;
+          const content = isLast
+         ? reponses[i] + "\n\n[INSTRUCTION SYSTÈME: Tu as maintenant assez d'informations. Génère IMMÉDIATEMENT le rapport final complet en commençant par TES 3 COMPÉTENCES CLÉS. Ne pose plus aucune question.]"
+         : reponses[i];
+        history.push({ role: "user", content });
+      }
       }
 
       return {
@@ -309,7 +317,7 @@ export default function Preview() {
         label: profil.label,
         statut: "erreur",
         erreur: String(e),
-        duree: Math.round((Date.now() - Date.now()) / 1000),
+        duree: Math.round((Date.now() - debut) / 1000),
       };
     }
   };
@@ -359,12 +367,17 @@ export default function Preview() {
 
   // Détecter les questions dupliquées
   const detecterDoublons = () => {
-    const tousQuestions: string[] = [];
-    resultats.forEach(r => r.questionsposees?.forEach(q => tousQuestions.push(q)));
+  const doublonsParProfil: string[] = [];
+  resultats.forEach(r => {
+    if (!r.questionsposees) return;
     const freq: Record<string, number> = {};
-    tousQuestions.forEach(q => { freq[q] = (freq[q] || 0) + 1; });
-    return Object.entries(freq).filter(([, count]) => count > 2).map(([q]) => q);
-  };
+    r.questionsposees.forEach(q => { freq[q] = (freq[q] || 0) + 1; });
+    Object.entries(freq)
+      .filter(([, count]) => count > 1)
+      .forEach(([q]) => doublonsParProfil.push(`[${r.label}] ${q}`));
+  });
+  return doublonsParProfil;
+};
 
   const doublons = detecterDoublons();
 

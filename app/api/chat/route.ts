@@ -491,12 +491,92 @@ function validateGPS(
   const s4 = Math.round(s3 * 1.07 / 1000) * 1000;
   const s5 = Math.round(s4 * 1.08 / 1000) * 1000;
 
-  const roleBase = roleActuel.replace(/^assistant\s*/i, "").replace(/\s*junior$/i, "").trim() || roleActuel;
+  // Nettoyer le rôle actuel
+  const roleBase = roleActuel
+    .replace(/^assistant\s*/i, "")
+    .replace(/^adjoint\s*/i, "")
+    .replace(/\s*junior$/i, "")
+    .replace(/\s*débutant$/i, "")
+    .trim() || roleActuel;
 
+  // Détecter si objectif est déclaré et différent du rôle actuel
+  const hasObjectif =
+    objectifDeclare &&
+    objectifDeclare.trim() !== "" &&
+    objectifDeclare.toLowerCase() !== "non fourni" &&
+    objectifDeclare.toLowerCase() !== roleActuel.toLowerCase() &&
+    objectifDeclare.toLowerCase() !== roleBase.toLowerCase();
+
+  // Évaluer si objectif est réalisable en 5 ans
+  const obj = objectifDeclare?.toLowerCase() || "";
+  const exp = experience?.toLowerCase() || "";
+  const isVP = obj.includes("vp") || obj.includes("vice-président") || obj.includes("vice president");
+  const isCEO = obj.includes("ceo") || obj.includes("pdg") || obj.includes("président général");
+  const isDirecteur = obj.includes("directeur") || obj.includes("director");
+  const isManagerObj = obj.includes("manager") || obj.includes("gestionnaire") || obj.includes("chef") || obj.includes("responsable");
+
+  // Calculer si objectif réalisable en 5 ans selon expérience
+  let objectifRealisable5ans = true;
+  if (exp.includes("moins") || exp.includes("aucune")) {
+    if (isVP || isCEO) objectifRealisable5ans = false;
+    if (isDirecteur) objectifRealisable5ans = false;
+    if (isManagerObj) objectifRealisable5ans = false;
+  } else if (exp.includes("1 à 2")) {
+    if (isVP || isCEO) objectifRealisable5ans = false;
+    if (isDirecteur) objectifRealisable5ans = false;
+  } else if (exp.includes("3 à 5")) {
+    if (isVP || isCEO) objectifRealisable5ans = false;
+  }
+
+  // Reconversion → objectif toujours dans le nouveau domaine
+  const objectifFinal = isReconversion
+    ? objectifDeclare.trim()
+    : (hasObjectif ? objectifDeclare.trim() : roleBase);
+
+  // Construire les titres GPS selon la logique universelle
   const getTitre = (an: number, titreGPT: string): string => {
+
+    // CAS RECONVERSION — progression dans le nouveau domaine
+    if (isReconversion && hasObjectif) {
+      if (an === 1) return objectifFinal + " junior";
+      if (an === 2) return objectifFinal;
+      if (an === 3) return objectifFinal + " confirmé";
+      if (an === 4) return objectifFinal + " senior";
+      return objectifFinal + " senior confirmé";
+    }
+
+    // CAS OBJECTIF RÉALISABLE EN 5 ANS — progression vers l'objectif
+    if (hasObjectif && objectifRealisable5ans) {
+      if (an === 1) return roleBase + " confirmé";
+      if (an === 2) return "Assistant " + objectifFinal;
+      if (an === 3) return objectifFinal + " junior";
+      if (an === 4) return objectifFinal;
+      return objectifFinal + " senior";
+    }
+
+    // CAS OBJECTIF IRRÉALISABLE EN 5 ANS — progression réaliste depuis rôle actuel
+    if (hasObjectif && !objectifRealisable5ans) {
+      if (maxNiveaux <= 1) {
+        if (an === 1) return roleBase + " confirmé";
+        if (an === 2) return roleBase + " confirmé";
+        if (an === 3) return roleBase + " senior";
+        if (an === 4) return roleBase + " senior";
+        return roleBase + " expert";
+      }
+      if (maxNiveaux === 2) {
+        if (an <= 2) return roleBase + " confirmé";
+        if (an === 3) return roleBase + " senior";
+        return titreGPT || roleBase + " expert";
+      }
+      return titreGPT || roleBase;
+    }
+
+    // CAS PAS D'OBJECTIF — progression naturelle depuis rôle actuel
     if (maxNiveaux <= 1) {
-      if (an <= 2) return roleBase + " confirmé";
-      if (an <= 4) return roleBase + " senior";
+      if (an === 1) return roleBase + " confirmé";
+      if (an === 2) return roleBase + " confirmé";
+      if (an === 3) return roleBase + " senior";
+      if (an === 4) return roleBase + " senior";
       return roleBase + " expert";
     }
     if (maxNiveaux === 2) {
@@ -515,33 +595,30 @@ function validateGPS(
     an5: { titre: getTitre(5, gpsData.an5?.titre || ""), salaire: s5, action: gpsData.an5?.action || "POTENTIEL MAX !" },
   };
 
-  const obj = objectifDeclare?.toLowerCase() || "";
+  // Calculer scénario objectif
   const annee = new Date().getFullYear();
-  const isVP = obj.includes("vp") || obj.includes("vice-président");
-  const isCEO = obj.includes("ceo") || obj.includes("pdg");
-  const isDirecteur = obj.includes("directeur") || obj.includes("director");
-  const isManagerObj = obj.includes("manager") || obj.includes("gestionnaire") || obj.includes("chef") || obj.includes("responsable");
-  const exp = experience?.toLowerCase() || "";
-
   let scenario = 1;
   let delai = "atteignable en 5 ans";
   let message = "Ton objectif de " + objectifDeclare + " est atteignable ! Ce GPS te montre le chemin.";
 
-  if (!objectifDeclare) {
+  if (!objectifDeclare || objectifDeclare === "non fourni") {
+    scenario = 1;
+    delai = "5 ans";
     message = "YELMA t'a défini un objectif réaliste selon ton profil et tes compétences révélées.";
-  } else if (exp.includes("moins") || exp.includes("aucune")) {
-    if (isVP || isCEO) { scenario = 3; delai = "18-20 ans"; message = "Ton objectif de " + objectifDeclare + " est excellent à long terme. Tu peux l'atteindre vers " + (annee + 18) + "-" + (annee + 20) + ". En 5 ans, concentre-toi sur " + roleBase + " expert."; }
-    else if (isDirecteur) { scenario = 3; delai = "12-15 ans"; message = "Ton objectif de " + objectifDeclare + " est réaliste à long terme — compte 12-15 ans. En 5 ans, vise " + roleBase + " expert."; }
-    else if (isManagerObj) { scenario = 2; delai = "6-8 ans"; message = "Ton objectif de " + objectifDeclare + " est atteignable en 6-8 ans. En 5 ans, vise " + roleBase + " senior."; }
-  } else if (exp.includes("1 à 2")) {
-    if (isVP || isCEO) { scenario = 3; delai = "15-18 ans"; message = "Ton objectif de " + objectifDeclare + " est excellent — compte 15-18 ans. En 5 ans, vise " + roleBase + " senior."; }
-    else if (isDirecteur) { scenario = 3; delai = "10-12 ans"; message = "Ton objectif de " + objectifDeclare + " est réaliste en 10-12 ans."; }
-    else if (isManagerObj) { scenario = 2; delai = "5-7 ans"; message = "Ton objectif de " + objectifDeclare + " est atteignable en 5-7 ans !"; }
-  } else if (exp.includes("3 à 5")) {
-    if (isVP || isCEO) { scenario = 3; delai = "10-12 ans"; message = "Ton objectif de " + objectifDeclare + " est réaliste en 10-12 ans."; }
-    else if (isDirecteur) { scenario = 2; delai = "6-8 ans"; message = "Ton objectif de " + objectifDeclare + " est atteignable en 6-8 ans !"; }
-  } else if (exp.includes("6 à 10")) {
-    if (isVP || isCEO) { scenario = 2; delai = "6-8 ans"; message = "Ton objectif de " + objectifDeclare + " est atteignable en 6-8 ans !"; }
+  } else if (!objectifRealisable5ans) {
+    if (isVP || isCEO) {
+      if (exp.includes("moins") || exp.includes("aucune")) { scenario = 3; delai = "18-20 ans"; message = "Ton objectif de " + objectifDeclare + " est excellent à long terme. Tu peux l'atteindre vers " + (annee + 18) + "-" + (annee + 20) + ". En 5 ans, concentre-toi sur " + roleBase + " expert."; }
+      else if (exp.includes("1 à 2")) { scenario = 3; delai = "15-18 ans"; message = "Ton objectif de " + objectifDeclare + " est excellent — compte 15-18 ans. En 5 ans, vise " + roleBase + " senior."; }
+      else if (exp.includes("3 à 5")) { scenario = 3; delai = "10-12 ans"; message = "Ton objectif de " + objectifDeclare + " est réaliste en 10-12 ans."; }
+      else { scenario = 2; delai = "6-8 ans"; message = "Ton objectif de " + objectifDeclare + " est atteignable en 6-8 ans !"; }
+    } else if (isDirecteur) {
+      if (exp.includes("moins") || exp.includes("aucune")) { scenario = 3; delai = "12-15 ans"; message = "Ton objectif de " + objectifDeclare + " est réaliste à long terme — compte 12-15 ans. En 5 ans, vise " + roleBase + " expert."; }
+      else if (exp.includes("1 à 2")) { scenario = 3; delai = "10-12 ans"; message = "Ton objectif de " + objectifDeclare + " est réaliste en 10-12 ans."; }
+      else { scenario = 2; delai = "6-8 ans"; message = "Ton objectif de " + objectifDeclare + " est atteignable en 6-8 ans !"; }
+    } else if (isManagerObj) {
+      if (exp.includes("moins") || exp.includes("aucune")) { scenario = 2; delai = "6-8 ans"; message = "Ton objectif de " + objectifDeclare + " est atteignable en 6-8 ans. En 5 ans, vise " + roleBase + " senior."; }
+      else { scenario = 2; delai = "5-7 ans"; message = "Ton objectif de " + objectifDeclare + " est atteignable en 5-7 ans !"; }
+    }
   }
 
   return { gps: validatedGPS, scenario, delai, message, salaireMax: s1 };
@@ -613,10 +690,11 @@ function parseExtractedData(json: Record<string, unknown>, candidatInfo: {
 // DÉTECTION RAPPORT FINAL
 // ============================================
 function isRapportFinal(text: string): boolean {
+  const t = text.toUpperCase();
   return (
-    (text.includes("TES 3 COMPÉTENCES") || text.includes("COMPÉTENCES CLÉS")) &&
-    (text.includes("GPS DE CARRIÈRE") || text.includes("An 1:")) &&
-    text.includes("FORMATIONS")
+    (t.includes("COMPÉTENCES") || t.includes("COMPETENCES") || t.includes("FORCES")) &&
+    (t.includes("GPS") || t.includes("AN 1:") || t.includes("AN 1 :")) &&
+    (t.includes("FORMATION") || t.includes("OPPORTUNIT"))
   );
 }
 
@@ -865,7 +943,10 @@ export async function POST(req: NextRequest) {
     let systemPrompt = buildSystemPrompt(candidatInfo, profil, historiqueAnalyse);
 
     // Injecter prochaine question si moins de 8 échanges
-    if (nbEchanges < 8 && derniereReponseUser?.content !== "START") {
+    // À 8 échanges ou plus — forcer le rapport directement
+    if (nbEchanges >= 6) {
+     systemPrompt += `\n\n🚨 RAPPORT OBLIGATOIRE MAINTENANT — Tu as ${nbEchanges} échanges. Génère IMMÉDIATEMENT le rapport final complet. NE PAS poser de question. Commence directement par "TES 3 COMPÉTENCES CLÉS" sans aucune introduction.`;
+    } else if (derniereReponseUser?.content !== "START") {
       const questionsDejaposees = history
         .filter((m: { role: string }) => m.role === "assistant")
         .map((m: { content: string }) => m.content)
@@ -885,13 +966,14 @@ export async function POST(req: NextRequest) {
       }),
     });
 
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.error?.message || "Erreur OpenAI");
+     const data = await response.json();
+if (!response.ok) throw new Error(data.error?.message || "Erreur OpenAI");
 
-    const reply = data.choices[0].message.content;
-    console.log("PROFIL:", profil, "| MODE:", modeActuel, "| ÉCHANGES:", nbEchanges, "| IS RAPPORT:", isRapportFinal(reply));
+const reply = data.choices[0].message.content;
+if (nbEchanges >= 8) console.log("REPLY ÉCHANGE", nbEchanges, ":", reply.substring(0, 300));
+console.log("PROFIL:", profil, "| MODE:", modeActuel, "| ÉCHANGES:", nbEchanges, "| IS RAPPORT:", isRapportFinal(reply));
 
-    if (isRapportFinal(reply) && email) {
+if (isRapportFinal(reply) && email) {
       try {
         const extractionPrompt = buildExtractionPrompt(reply, candidatInfo || {});
 
