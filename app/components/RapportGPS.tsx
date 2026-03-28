@@ -150,12 +150,13 @@ function getScenarioBadge(scenario: number, objectif: string, delai: string) {
 }
 
 export default function RapportGPS({
-  data, plan, ville, roleActuel
+  data, plan, ville, roleActuel, email
 }: {
   data: RapportData;
   plan: string;
   ville?: string;
   roleActuel?: string;
+  email?: string;
 }) {
   const chartRef = useRef<HTMLCanvasElement>(null);
   const [openJalon, setOpenJalon] = useState<number | null>(null);
@@ -313,7 +314,7 @@ export default function RapportGPS({
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: "8px", flexShrink: 0, marginLeft: "8px" }}>
                   <div style={{ fontSize: "13px", fontWeight: 700, color: "#FF7043" }}>{o.salaire?.toLocaleString()} $</div>
-                  <a href="/mon-espace" style={{ background: "#1A1A2E", color: "white", borderRadius: "20px", padding: "3px 8px", fontSize: "9px", textDecoration: "none", fontWeight: 600 }}>💼 Voir mes offres →</a>
+                  <a href={`/mon-espace?tab=offres&email=${email || ""}`} style={{ background: "#1A1A2E", color: "white", borderRadius: "20px", padding: "3px 8px", fontSize: "9px", textDecoration: "none", fontWeight: 600 }}>💼 Voir mes offres →</a>
                 </div>
               </div>
             ))}
@@ -444,7 +445,7 @@ export default function RapportGPS({
                   <div style={{ fontSize: "11px", fontWeight: 500, color: "#1A1A2E" }}>{f.nom}</div>
                   <div style={{ fontSize: "10px", color: "#888" }}>{f.plateforme} · {f.duree}</div>
                 </div>
-                <a href="/partenaires" style={{ background: "#D6F0FF", color: "#0C447C", borderRadius: "20px", padding: "3px 8px", fontSize: "9px", textDecoration: "none", flexShrink: 0, marginLeft: "8px", fontWeight: 600 }}>Détail →</a>
+                <a href={`/mon-espace?tab=formations&email=${email || ""}`} style={{ background: "#D6F0FF", color: "#0C447C", borderRadius: "20px", padding: "3px 8px", fontSize: "9px", textDecoration: "none", fontWeight: 600 }}>Détail →</a>
               </div>
             ))}
           </div>
@@ -460,7 +461,7 @@ export default function RapportGPS({
               <div key={i} style={{ flex: 1, minWidth: "120px", background: "#FFF8F6", borderRadius: "8px", padding: "8px 10px", borderLeft: "3px solid #FF7043" }}>
                 <div style={{ fontSize: "11px", fontWeight: 600, color: "#FF7043" }}>{c.nom}</div>
                 <div style={{ fontSize: "9px", color: "#888", marginBottom: "4px" }}>{c.organisme}</div>
-                <a href="/partenaires" style={{ fontSize: "9px", color: "#FF7043", textDecoration: "none", fontWeight: 600 }}>Détail →</a>
+                <a href="/mon-espace?tab=formations" style={{ fontSize: "9px", color: "#FF7043", textDecoration: "none", fontWeight: 600 }}>Détail →</a>
               </div>
             ))}
           </div>

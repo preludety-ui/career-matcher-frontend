@@ -56,7 +56,6 @@ export default function MonEspace() {
   const [inscriptions, setInscriptions] = useState<Inscription[]>([]);
   const [postulLoading, setPostulLoading] = useState<string | null>(null);
   const [inscritLoading, setInscritLoading] = useState<string | null>(null);
-
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const token = params.get("token");
@@ -65,11 +64,39 @@ export default function MonEspace() {
       fetch(`/api/auth?token=${token}`)
         .then(r => r.json())
         .then(data => {
-          if (data.success) { setCandidat(data.candidat); window.history.replaceState({}, "", "/mon-espace"); }
+          if (data.success) { 
+  setCandidat(data.candidat); 
+  localStorage.setItem("yelma_email", data.candidat.email);
+  window.history.replaceState({}, "", "/mon-espace"); 
+}
           else setError(data.error || "Lien invalide ou expiré");
         })
         .catch(() => setError("Erreur de connexion"))
         .finally(() => setTokenLoading(false));
+    }
+  }, []);
+      
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const tab = params.get("tab");
+    const emailParam = params.get("email") || localStorage.getItem("yelma_email") || "";
+    if (tab) setActiveTab(tab);
+    if (emailParam) {
+      setEmail(emailParam);
+      fetch("/api/auth", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: emailParam }),
+      }).then(r => r.json()).then(data => {
+        if (data.dev_link) {
+          const token = new URL(data.dev_link).searchParams.get("token");
+          if (token) {
+            fetch(`/api/auth?token=${token}`)
+              .then(r => r.json())
+              .then(d => { if (d.success) setCandidat(d.candidat); });
+          }
+        }
+      });
     }
   }, []);
 
@@ -88,6 +115,25 @@ export default function MonEspace() {
 
   const sendMagicLink = async () => {
     if (!email.includes("@")) { setError("Email invalide"); return; }
+    
+    // Accès admin direct en développement
+    if (process.env.NODE_ENV === "development" && email === "preludety@gmail.com") {
+      const res = await fetch(`/api/auth`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      const data = await res.json();
+      if (data.dev_link) {
+        const token = new URL(data.dev_link).searchParams.get("token");
+        if (token) {
+          const res2 = await fetch(`/api/auth?token=${token}`);
+          const data2 = await res2.json();
+          if (data2.success) { setCandidat(data2.candidat); return; }
+        }
+      }
+    }
+
     setLoading(true); setError("");
     try {
       const res = await fetch("/api/auth", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email }) });

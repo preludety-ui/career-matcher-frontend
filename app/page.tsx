@@ -221,6 +221,8 @@ export default function Home() {
       }
 
       setUserInfo({ ...formData, plan, salaire_min, salaire_max });
+      // Sauvegarder email pour mon-espace
+       localStorage.setItem("yelma_email", formData.email);
       setMessages([]);
       setRapportGenere(false);
 
@@ -624,12 +626,13 @@ export default function Home() {
           <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
             <div className={`max-w-[85%] px-4 py-3 rounded-2xl text-sm leading-relaxed ${m.role === "user" ? "text-white rounded-br-sm" : "bg-white text-gray-800 rounded-bl-sm shadow-sm"}`} style={m.role === "user" ? { background: "#1A1A2E" } : {}}>
               {m.rapport ? (
-                <RapportGPSComponent
-                  data={m.rapport}
-                  plan={userInfo?.plan || "propulse"}
-                  ville={userInfo?.ville}
-                  roleActuel={userInfo?.role_actuel}
-                />
+               <RapportGPSComponent
+  data={m.rapport}
+  plan={userInfo?.plan || "propulse"}
+  ville={userInfo?.ville}
+  roleActuel={userInfo?.role_actuel}
+  email={userInfo?.email}
+/> 
               ) : (
                 m.text.split("\n").map((line, j) => (<span key={j}>{line}<br /></span>))
               )}
