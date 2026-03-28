@@ -385,7 +385,16 @@ export default function MonEspace() {
           <div style={{ fontSize: "10px", color: "#aaa" }}>Mon Espace Personnel</div>
         </div>
         <div style={{ textAlign: "right" }}>
-          <div style={{ fontSize: "12px", color: "white", fontWeight: 600 }}>{candidat.prenom} {candidat.nom}</div>
+      <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+         <div style={{ fontSize: "12px", color: "white", fontWeight: 600 }}>{candidat.prenom} {candidat.nom}</div>
+         <button
+           onClick={() => { setCandidat(null); localStorage.removeItem("yelma_email"); window.location.href = "/"; }}
+           style={{ background: "#FF7043", color: "white", border: "none", borderRadius: "20px", padding: "4px 10px", fontSize: "10px", fontWeight: 600, cursor: "pointer" }}
+         >
+           Déconnexion
+         </button>
+        </div>
+
           <div style={{ display: "flex", alignItems: "center", gap: "6px", justifyContent: "flex-end", marginTop: "2px" }}>
             <span style={{ background: isPropulse ? "#FF7043" : "#555", borderRadius: "20px", padding: "1px 8px", fontSize: "9px", color: "white", fontWeight: 600 }}>
               {isPropulse ? "PROPULSE" : "DÉCOUVERTE"}
