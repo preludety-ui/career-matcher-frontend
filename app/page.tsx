@@ -669,7 +669,8 @@ export default function Home() {
       ) : (
         <div className="bg-white px-4 py-3 border-t border-gray-100 flex-shrink-0">
           <div style={{ display: "flex", gap: "8px" }}>
-            <a href={`/mon-espace?email=${encodeURIComponent(userInfo?.email || "")}&tab=offres`} style={{ flex: 1, background: "#1A1A2E", color: "white", borderRadius: "12px", padding: "12px", fontSize: "13px", fontWeight: 700, textDecoration: "none", textAlign: "center" }}>
+            <a href={`/mon-espace?email=${encodeURIComponent(userInfo?.email || "")}&tab=offres`}
+               onClick={() => localStorage.setItem("yelma_email", userInfo?.email || "")} style={{ flex: 1, background: "#1A1A2E", color: "white", borderRadius: "12px", padding: "12px", fontSize: "13px", fontWeight: 700, textDecoration: "none", textAlign: "center" }}>
               📊 Accéder à mon espace →
             </a>
             <button
