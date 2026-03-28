@@ -34,6 +34,7 @@ export default function MonEspace() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [sent, setSent] = useState(false);
+  const [magicLink, setMagicLink] = useState("");
   const [candidat, setCandidat] = useState<Candidat | null>(null);
   const [activeTab, setActiveTab] = useState("rapport");
   const [tokenLoading, setTokenLoading] = useState(false);
@@ -145,6 +146,7 @@ export default function MonEspace() {
       if (data.success) {
         setSent(true);
         if (data.dev_link) {
+          setMagicLink(data.dev_link);
           const token = new URL(data.dev_link).searchParams.get("token");
           if (token) {
             const res2 = await fetch(`/api/auth?token=${token}`);
@@ -307,15 +309,25 @@ export default function MonEspace() {
             </button>
             <div style={{ textAlign: "center", marginTop: "12px" }}>
               <a href="/" style={{ fontSize: "11px", color: "#888", textDecoration: "none" }}>← Retour à l'accueil</a>
-            </div>
+       </div>
           </div>
         ) : (
           <div style={{ background: "white", borderRadius: "16px", padding: "24px", border: "0.5px solid #E8E8F0", textAlign: "center" }}>
-            <div style={{ fontSize: "32px", marginBottom: "12px" }}>📧</div>
-            <div style={{ fontSize: "14px", fontWeight: 600, color: "#1A1A2E", marginBottom: "6px" }}>Lien envoyé !</div>
-            <div style={{ fontSize: "12px", color: "#888", marginBottom: "16px" }}>Vérifiez votre boîte mail — expire dans 30 minutes</div>
+            <div style={{ fontSize: "32px", marginBottom: "12px" }}>✅</div>
+            <div style={{ fontSize: "14px", fontWeight: 600, color: "#1A1A2E", marginBottom: "6px" }}>Lien de connexion prêt !</div>
+            <div style={{ fontSize: "12px", color: "#888", marginBottom: "16px" }}>Cliquez sur le bouton ci-dessous pour accéder à votre espace</div>
+            {magicLink && (
+              <a
+                href={magicLink}
+                style={{ display: "block", background: "#FF7043", color: "white", borderRadius: "12px", padding: "12px", fontSize: "13px", fontWeight: 700, textDecoration: "none", marginBottom: "12px" }}
+              >
+                Accéder à mon espace YELMA →
+              </a>
+            )}
+            <div style={{ fontSize: "11px", color: "#aaa", marginBottom: "12px" }}>Un email a également été envoyé à {email}</div>
             <button onClick={() => { setSent(false); setError(""); }} style={{ fontSize: "12px", color: "#FF7043", background: "none", border: "none", cursor: "pointer" }}>Renvoyer un lien</button>
           </div>
+
         )}
       </div>
     </div>
