@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
         body: JSON.stringify({
           from: "YELMA <noreply@yelma.ca>",
           to: email,
-          subject: "🔗 Votre lien de connexion YELMA",
+          subject: "Votre accès YELMA",
           html: `
             <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto; padding: 20px;">
               <div style="background: #1A1A2E; padding: 20px; border-radius: 12px; text-align: center; margin-bottom: 20px;">
