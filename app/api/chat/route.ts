@@ -627,6 +627,21 @@ function validateGPS(
 // ============================================
 // PARSE DONNÉES EXTRAITES
 // ============================================
+
+
+    const nettoyerTitreGPS = (titre: string): string => {
+      if (!titre) return titre;
+      return titre
+        .replace(/^devenir\s+/i, "")
+        .replace(/^ouvrir\s+(ma|mon|une|un|sa|son)?\s*/i, "")
+        .replace(/^diriger\s+(une|un|ma|mon|sa|son)?\s*/i, "")
+        .replace(/^créer\s+(une|un|ma|mon|sa|son)?\s*/i, "")
+        .replace(/^établir\s+(un|une)?\s*/i, "")
+        .replace(/\s+senior\s+senior/gi, " senior")
+        .replace(/\s+confirmé\s+confirmé/gi, " confirmé")
+        .trim();
+    };
+    
 function parseExtractedData(json: Record<string, unknown>, candidatInfo: {
   salaire_min?: number;
   annee_experience?: string;
@@ -635,6 +650,7 @@ function parseExtractedData(json: Record<string, unknown>, candidatInfo: {
   statut_emploi?: string;
 }) {
   const parseGPSRaw = (obj: unknown) => {
+
     if (!obj || typeof obj !== "object") return undefined;
     const g = obj as Record<string, unknown>;
     return { titre: String(g.titre || ""), salaire: Number(g.salaire || 0), action: String(g.action || "") };
@@ -680,8 +696,11 @@ function parseExtractedData(json: Record<string, unknown>, candidatInfo: {
     message_objectif: validated.message,
     delai_objectif: validated.delai,
     analyse_comparative: String(json.analyse || ""),
-    gps_an1: validated.gps.an1, gps_an2: validated.gps.an2,
-    gps_an3: validated.gps.an3, gps_an4: validated.gps.an4, gps_an5: validated.gps.an5,
+    gps_an1: validated.gps.an1 ? { ...validated.gps.an1, titre: nettoyerTitreGPS(validated.gps.an1.titre) } : undefined,
+    gps_an2: validated.gps.an2 ? { ...validated.gps.an2, titre: nettoyerTitreGPS(validated.gps.an2.titre) } : undefined,
+    gps_an3: validated.gps.an3 ? { ...validated.gps.an3, titre: nettoyerTitreGPS(validated.gps.an3.titre) } : undefined,
+    gps_an4: validated.gps.an4 ? { ...validated.gps.an4, titre: nettoyerTitreGPS(validated.gps.an4.titre) } : undefined,
+    gps_an5: validated.gps.an5 ? { ...validated.gps.an5, titre: nettoyerTitreGPS(validated.gps.an5.titre) } : undefined,
     opportunites, formations, certifications,
   };
 }
@@ -938,7 +957,10 @@ REGLES:
 - GPS maximum ${niveauInfo.maxNiveaux} niveaux depuis ${niveauInfo.niveauActuel}
 - formations: exactement 4 avec les 4 types
 - certifications: exactement 2
-- axe1 et axe2: competences NON mentionnees par le candidat mais demandees par le marche`;
+- axe1 et axe2: competences NON mentionnees par le candidat mais demandees par le marche
+- force1/2/3 INTERDITS : Communication, Gestion du temps, Competences cliniques, Competences techniques, Esprit critique, Adaptabilite, Creativite, HTML seul, CSS seul, JavaScript seul
+- force1/2/3 OBLIGATOIRE : format Verbe + objet + contexte ex: Gestion des protocoles de soins, Supervision equipe clinique, Analyse donnees financieres, Architecture systemes cloud`;
+
 }
 
 // ============================================

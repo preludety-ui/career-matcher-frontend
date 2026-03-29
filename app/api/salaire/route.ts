@@ -29,7 +29,10 @@ const SALAIRES_PROFESSIONS_REGLEMENTEES: { mots: string[]; min: number; median: 
   { mots: ["notaire"], min: 65000, median: 88000, max: 115000 },
   { mots: ["ingénieur", "ingénieure"], min: 60000, median: 85000, max: 130000 },
   { mots: ["architecte"], min: 60000, median: 82000, max: 115000 },
-  { mots: ["cpa", "comptable agréé", "comptable professionnel"], min: 55000, median: 80000, max: 121000 },
+  { mots: ["directrice rh", "directeur rh", "drh", "vp rh", "vp ressources humaines", "chro"], min: 105000, median: 130000, max: 180000 },
+  { mots: ["directrice ressources humaines", "directeur ressources humaines"], min: 105000, median: 130000, max: 180000 },
+  { mots: ["cpa senior", "cpa manager", "cpa directeur"], min: 95000, median: 110000, max: 145000 },
+  { mots: ["cpa", "comptable agréé", "comptable professionnel agréé"], min: 55000, median: 80000, max: 121000 },
   { mots: ["professeur université", "professeur universitaire", "professeur adjoint", "professeur agrégé"], min: 90000, median: 115000, max: 160000 },
   { mots: ["professeur cégep", "enseignant cégep"], min: 45000, median: 65000, max: 95000 },
   { mots: ["enseignant", "enseignante", "professeur primaire", "professeur secondaire"], min: 42000, median: 62000, max: 92000 },
@@ -182,8 +185,8 @@ async function chercherDansCSV(role: string, province: string): Promise<{
 
     const prov = province?.toLowerCase().includes("québec") || province?.toLowerCase().includes("montreal") || province?.toLowerCase().includes("québec") ? "QC" :
       province?.toLowerCase().includes("ontario") || province?.toLowerCase().includes("toronto") ? "ON" :
-      province?.toLowerCase().includes("alberta") || province?.toLowerCase().includes("calgary") ? "AB" :
-      province?.toLowerCase().includes("colombie") || province?.toLowerCase().includes("vancouver") ? "BC" : "NAT";
+        province?.toLowerCase().includes("alberta") || province?.toLowerCase().includes("calgary") ? "AB" :
+          province?.toLowerCase().includes("colombie") || province?.toLowerCase().includes("vancouver") ? "BC" : "NAT";
 
     const { data, error } = await supabaseAdmin
       .from("salaires_cnp")
@@ -281,18 +284,18 @@ function calculerFourchette(
   secteur: string
 ): { salaire_min: number; salaire_max: number; salaire_median: number } {
 
-// Vérifier si profession réglementée — bypass plafond normal
+  // Vérifier si profession réglementée — bypass plafond normal
   const roleNorm = role?.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "") || "";
   for (const p of SALAIRES_PROFESSIONS_REGLEMENTEES) {
     if (p.mots.some(m => roleNorm.includes(m.normalize("NFD").replace(/[\u0300-\u036f]/g, "")))) {
       const expMult = experience?.toLowerCase().includes("plus de 10") ? 1.25
         : experience?.toLowerCase().includes("6 à 10") ? 1.15
-        : experience?.toLowerCase().includes("3 à 5") ? 1.05
-        : experience?.toLowerCase().includes("1 à 2") ? 1.0
-        : 0.9;
+          : experience?.toLowerCase().includes("3 à 5") ? 1.05
+            : experience?.toLowerCase().includes("1 à 2") ? 1.0
+              : 0.9;
       const villeMult = ville?.toLowerCase().includes("toronto") || ville?.toLowerCase().includes("vancouver") ? 1.1
         : ville?.toLowerCase().includes("calgary") ? 1.08
-        : 1.0;
+          : 1.0;
       return {
         salaire_min: Math.round(p.min * expMult * villeMult / 1000) * 1000,
         salaire_max: Math.round(p.max * expMult * villeMult / 1000) * 1000,
@@ -339,30 +342,30 @@ export async function POST(req: NextRequest) {
     const province = ville || "Montréal";
 
     console.log("SALAIRE REQUEST:", { role, experience, ville, secteurDetecte });
-    
-  // Détecter profession réglementée AVANT le CSV
-const roleNormPost = (role || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-for (const p of SALAIRES_PROFESSIONS_REGLEMENTEES) {
-  if (p.mots.some(m => roleNormPost.includes(m.normalize("NFD").replace(/[\u0300-\u036f]/g, "")))) {
-    const expMult = (experience || "").toLowerCase().includes("plus de 10") ? 1.25
-      : (experience || "").toLowerCase().includes("6 à 10") ? 1.15
-      : (experience || "").toLowerCase().includes("3 à 5") ? 1.05
-      : (experience || "").toLowerCase().includes("1 à 2") ? 1.0
-      : 0.9;
-    const villeMult = (ville || "").toLowerCase().includes("toronto") || (ville || "").toLowerCase().includes("vancouver") ? 1.1
-      : (ville || "").toLowerCase().includes("calgary") ? 1.08
-      : 1.0;
-    console.log("PROFESSION RÉGLEMENTÉE DÉTECTÉE:", p.mots[0]);
-    return NextResponse.json({
-      salaire_min: Math.round(p.min * expMult * villeMult / 1000) * 1000,
-      salaire_max: Math.round(p.max * expMult * villeMult / 1000) * 1000,
-      salaire_median: Math.round(p.median * expMult * villeMult / 1000) * 1000,
-      secteur: secteurDetecte,
-      source: "profession_reglementee",
-      explication: "Basé sur la grille salariale réelle de la profession réglementée",
-    });
-  }
-}
+
+    // Détecter profession réglementée AVANT le CSV
+    const roleNormPost = (role || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    for (const p of SALAIRES_PROFESSIONS_REGLEMENTEES) {
+      if (p.mots.some(m => roleNormPost.includes(m.normalize("NFD").replace(/[\u0300-\u036f]/g, "")))) {
+        const expMult = (experience || "").toLowerCase().includes("plus de 10") ? 1.25
+          : (experience || "").toLowerCase().includes("6 à 10") ? 1.15
+            : (experience || "").toLowerCase().includes("3 à 5") ? 1.05
+              : (experience || "").toLowerCase().includes("1 à 2") ? 1.0
+                : 0.9;
+        const villeMult = (ville || "").toLowerCase().includes("toronto") || (ville || "").toLowerCase().includes("vancouver") ? 1.1
+          : (ville || "").toLowerCase().includes("calgary") ? 1.08
+            : 1.0;
+        console.log("PROFESSION RÉGLEMENTÉE DÉTECTÉE:", p.mots[0]);
+        return NextResponse.json({
+          salaire_min: Math.round(p.min * expMult * villeMult / 1000) * 1000,
+          salaire_max: Math.round(p.max * expMult * villeMult / 1000) * 1000,
+          salaire_median: Math.round(p.median * expMult * villeMult / 1000) * 1000,
+          secteur: secteurDetecte,
+          source: "profession_reglementee",
+          explication: "Basé sur la grille salariale réelle de la profession réglementée",
+        });
+      }
+    }
 
     // Étape 1 — Chercher dans CSV Statistique Canada
     let base = await chercherDansCSV(role || "", province);
@@ -379,13 +382,13 @@ for (const p of SALAIRES_PROFESSIONS_REGLEMENTEES) {
       const r = (role || "").toLowerCase();
       const baseMedian =
         r.includes("directeur") || r.includes("director") ? 110000 :
-        r.includes("manager") || r.includes("gestionnaire") ? 95000 :
-        r.includes("senior") ? 85000 :
-        r.includes("chargé") || r.includes("charge") ? 75000 :
-        r.includes("contrôleur") || r.includes("controleur") ? 80000 :
-        r.includes("analyste") ? 65000 :
-        r.includes("assistant") || r.includes("junior") ? 48000 :
-        60000;
+          r.includes("manager") || r.includes("gestionnaire") ? 95000 :
+            r.includes("senior") ? 85000 :
+              r.includes("chargé") || r.includes("charge") ? 75000 :
+                r.includes("contrôleur") || r.includes("controleur") ? 80000 :
+                  r.includes("analyste") ? 65000 :
+                    r.includes("assistant") || r.includes("junior") ? 48000 :
+                      60000;
       base = { median: baseMedian, low: Math.round(baseMedian * 0.75), high: Math.round(baseMedian * 1.35) };
     }
 
