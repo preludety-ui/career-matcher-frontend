@@ -700,7 +700,20 @@ function parseExtractedData(json: Record<string, unknown>, candidatInfo: {
     gps_an2: validated.gps.an2 ? { ...validated.gps.an2, titre: nettoyerTitreGPS(validated.gps.an2.titre) } : undefined,
     gps_an3: validated.gps.an3 ? { ...validated.gps.an3, titre: nettoyerTitreGPS(validated.gps.an3.titre) } : undefined,
     gps_an4: validated.gps.an4 ? { ...validated.gps.an4, titre: nettoyerTitreGPS(validated.gps.an4.titre) } : undefined,
-    gps_an5: validated.gps.an5 ? { ...validated.gps.an5, titre: nettoyerTitreGPS(validated.gps.an5.titre) } : undefined,
+    gps_an5: validated.gps.an5 ? {
+      ...validated.gps.an5,
+      titre: (() => {
+        const objectif = candidatInfo?.objectif_declare?.trim();
+        const titreGPT = nettoyerTitreGPS(validated.gps.an5.titre);
+        if (!objectif) return titreGPT;
+        // Si le titre GPT ne contient pas les mots clés de l'objectif → forcer l'objectif
+        const motsObjectif = objectif.toLowerCase().split(" ").filter(m => m.length > 3);
+        const titreContientObjectif = motsObjectif.some(m => titreGPT.toLowerCase().includes(m));
+        if (!titreContientObjectif) return objectif + " senior";
+        return titreGPT;
+      })()
+    } : undefined,
+
     opportunites, formations, certifications,
   };
 }
