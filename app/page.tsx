@@ -126,13 +126,13 @@ export default function Home() {
     diplome?: string; annee_diplome?: string; domaine_etudes?: string;
     annee_experience?: string; annee_autre_experience?: string;
     domaine_actuel?: string; role_actuel?: string; ville?: string;
-    statut_emploi?: string; objectif_declare?: string;
+    statut_emploi?: string; objectif_declare?: string; ordre_professionnel_statut?: string; ordre_professionnel_nom?: string;
     salaire_min?: number; salaire_max?: number;
   } | null>(null);
   const [formData, setFormData] = useState({
     nom: "", prenom: "", email: "",
-    diplome: "", annee_diplome: "", domaine_etudes: "",
-    annee_experience: "", annee_autre_experience: "",
+    diplome: "", annee_diplome: "", domaine_etudes: "", ordre_professionnel_statut: "",
+    annee_experience: "", annee_autre_experience: "", ordre_professionnel_nom: "",
     domaine_actuel: "", role_actuel: "", ville: "",
     statut_emploi: "", objectif_declare: ""
   });
@@ -588,6 +588,41 @@ export default function Home() {
                 <label className="text-xs font-semibold mb-1 block" style={{ color: "#1A1A2E" }}>{lang === "fr" ? "Objectif de carrière (optionnel)" : "Career goal (optional)"}</label>
                 <input className="w-full border rounded-xl px-3 py-2 text-sm focus:outline-none" style={{ borderColor: "#E8E8F0" }} placeholder={lang === "fr" ? "ex: Devenir directeur de projet..." : "ex: Become a project manager..."} value={formData.objectif_declare} onChange={(e) => setFormData({ ...formData, objectif_declare: e.target.value })} />
               </div>
+              
+                <label className="text-xs font-semibold mb-1 block" style={{ color: "#1A1A2E" }}>{lang === "fr" ? "Membre d'un ordre professionnel ?" : "Member of a professional order?"}</label>
+                <select className="w-full border rounded-xl px-3 py-2 text-sm focus:outline-none bg-white" style={{ borderColor: "#E8E8F0" }} value={formData.ordre_professionnel_statut} onChange={(e) => setFormData({ ...formData, ordre_professionnel_statut: e.target.value })}>
+                  <option value="">{lang === "fr" ? "Sélectionnez" : "Select"}</option>
+                  <option value="non">Non</option>
+                  <option value="en_cours">En cours d&apos;admission</option>
+                  <option value="membre_actif">Oui — membre actif</option>
+                </select>
+              </div>
+              {formData.ordre_professionnel_statut && formData.ordre_professionnel_statut !== "non" && (
+              <div>
+                <label className="text-xs font-semibold mb-1 block" style={{ color: "#1A1A2E" }}>{lang === "fr" ? "Quel ordre professionnel ?" : "Which professional order?"}</label>
+                <select className="w-full border rounded-xl px-3 py-2 text-sm focus:outline-none bg-white" style={{ borderColor: "#E8E8F0" }} value={formData.ordre_professionnel_nom} onChange={(e) => setFormData({ ...formData, ordre_professionnel_nom: e.target.value })}>
+                  <option value="">Sélectionnez</option>
+                  <option>OIIQ — Infirmières et Infirmiers</option>
+                  <option>CMQ — Collège des médecins</option>
+                  <option>OIQ — Ingénieurs</option>
+                  <option>CPA Québec — Comptables</option>
+                  <option>Barreau du Québec — Avocats</option>
+                  <option>OAQ — Architectes</option>
+                  <option>OMVQ — Médecins vétérinaires</option>
+                  <option>Chambre des notaires</option>
+                  <option>OPQ — Psychologues</option>
+                  <option>ODQ — Dentistes</option>
+                  <option>OOQ — Optométristes</option>
+                  <option>OOAQ — Orthophonistes</option>
+                  <option>OEQ — Ergothérapeutes</option>
+                  <option>OTSTCFQ — Travailleurs sociaux</option>
+                  <option>Transport Canada — Pilotes</option>
+                  <option>MEQ — Brevet enseignement</option>
+                  <option>Autre</option>
+                </select>
+              </div>
+              )}
+
             </div>
 
             {formError && <p className="text-xs text-center" style={{ color: "#FF7043" }}>{formError}</p>}
@@ -605,8 +640,7 @@ export default function Home() {
             </button>
           </div>
         </div>
-      </div>
-    );
+        );
   }
 
   return (
