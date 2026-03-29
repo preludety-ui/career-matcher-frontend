@@ -708,7 +708,7 @@ function buildSystemPrompt(
     role_actuel?: string; ville?: string; statut_emploi?: string; objectif_declare?: string;
     salaire_min?: number; salaire_max?: number;
   },
-      profil: number,
+  profil: number,
   historiqueAnalyse: { type: string; score: number; mode: string }[],
   professionReglementee?: {
     profession: string;
@@ -846,11 +846,16 @@ OPPORTUNITÉS
 
 GPS DE CARRIÈRE — 5 ANS
 
-An 1: [Titre] | [Salaire] | [Action courte]
-An 2: [Titre] | [Salaire] | [Action courte]
-An 3: [Titre] | [Salaire] | [Action courte]
-An 4: [Titre] | [Salaire] | [Action courte]
-An 5: [Titre] | [Salaire] | [Action courte]
+An 1: [Vrai titre de poste du marché] | [Salaire] | [Action courte]
+An 2: [Vrai titre de poste du marché] | [Salaire] | [Action courte]
+An 3: [Vrai titre de poste du marché] | [Salaire] | [Action courte]
+An 4: [Vrai titre de poste du marché] | [Salaire] | [Action courte]
+An 5: [Vrai titre de poste du marché — JAMAIS une phrase comme "Devenir X" ou "Ouvrir X"] | [Salaire] | [Action courte]
+
+RÈGLE ABSOLUE GPS : Les titres doivent être des vrais titres de postes reconnus sur le marché canadien.
+EXEMPLES CORRECTS : "Directrice marketing", "CPA senior", "Développeur lead", "Commandant de bord"
+EXEMPLES INCORRECTS : "Devenir directrice marketing", "Ouvrir une clinique", "Diriger une équipe"
+
 
 OBJECTIF: [objectif déclaré ou proposé]
 SCENARIO: [1/2/3]
@@ -998,7 +1003,7 @@ export async function POST(req: NextRequest) {
     // Injecter prochaine question si moins de 8 échanges
     // À 8 échanges ou plus — forcer le rapport directement
     if (nbEchanges >= 6) {
-     systemPrompt += `\n\n🚨 RAPPORT OBLIGATOIRE MAINTENANT — Tu as ${nbEchanges} échanges. Génère IMMÉDIATEMENT le rapport final complet. NE PAS poser de question. Commence directement par "TES 3 COMPÉTENCES CLÉS" sans aucune introduction.`;
+      systemPrompt += `\n\n🚨 RAPPORT OBLIGATOIRE MAINTENANT — Tu as ${nbEchanges} échanges. Génère IMMÉDIATEMENT le rapport final complet. NE PAS poser de question. Commence directement par "TES 3 COMPÉTENCES CLÉS" sans aucune introduction.`;
     } else if (derniereReponseUser?.content !== "START") {
       const questionsDejaposees = history
         .filter((m: { role: string }) => m.role === "assistant")
@@ -1019,14 +1024,14 @@ export async function POST(req: NextRequest) {
       }),
     });
 
-     const data = await response.json();
-if (!response.ok) throw new Error(data.error?.message || "Erreur OpenAI");
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error?.message || "Erreur OpenAI");
 
-const reply = data.choices[0].message.content;
-if (nbEchanges >= 8) console.log("REPLY ÉCHANGE", nbEchanges, ":", reply.substring(0, 300));
-console.log("PROFIL:", profil, "| MODE:", modeActuel, "| ÉCHANGES:", nbEchanges, "| IS RAPPORT:", isRapportFinal(reply));
+    const reply = data.choices[0].message.content;
+    if (nbEchanges >= 8) console.log("REPLY ÉCHANGE", nbEchanges, ":", reply.substring(0, 300));
+    console.log("PROFIL:", profil, "| MODE:", modeActuel, "| ÉCHANGES:", nbEchanges, "| IS RAPPORT:", isRapportFinal(reply));
 
-if (isRapportFinal(reply) && email) {
+    if ((isRapportFinal(reply) || nbEchanges >= 8) && email) {
       try {
         const extractionPrompt = buildExtractionPrompt(reply, candidatInfo || {});
 
