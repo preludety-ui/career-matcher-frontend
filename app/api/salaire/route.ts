@@ -6,13 +6,41 @@ import { supabaseAdmin } from "@/lib/supabase";
 // ============================================
 const PLAFONDS_NIVEAU: Record<string, number> = {
   "sans_experience": 55000,
-  "junior": 70000,
-  "intermediaire": 95000,
-  "senior": 130000,
-  "manager": 160000,
-  "directeur": 200000,
-  "vp": 280000,
+  "junior": 85000,
+  "intermediaire": 120000,
+  "senior": 180000,
+  "manager": 220000,
+  "directeur": 320000,
+  "vp": 450000,
 };
+
+// Professions réglementées — salaires réels qui bypass les plafonds normaux
+const SALAIRES_PROFESSIONS_REGLEMENTEES: { mots: string[]; min: number; median: number; max: number }[] = [
+  { mots: ["médecin", "omnipraticien", "médecine famille"], min: 180000, median: 250000, max: 306000 },
+  { mots: ["médecin spécialiste", "chirurgien", "cardiologue", "neurologue", "psychiatre", "dermatologue", "gynécologue", "ophtalmologue"], min: 250000, median: 380000, max: 540000 },
+  { mots: ["orthodontiste"], min: 150000, median: 220000, max: 350000 },
+  { mots: ["dentiste", "chirurgien dentiste"], min: 100000, median: 150000, max: 200000 },
+  { mots: ["pharmacien", "pharmacienne"], min: 85000, median: 95000, max: 120000 },
+  { mots: ["vétérinaire", "médecin vétérinaire"], min: 70000, median: 88000, max: 110000 },
+  { mots: ["infirmière praticienne", "infirmier praticien", "ips"], min: 100000, median: 112000, max: 130000 },
+  { mots: ["infirmier", "infirmière"], min: 55000, median: 72000, max: 103000 },
+  { mots: ["psychologue"], min: 70000, median: 85000, max: 110000 },
+  { mots: ["avocat", "avocate"], min: 65000, median: 92000, max: 130000 },
+  { mots: ["notaire"], min: 65000, median: 88000, max: 115000 },
+  { mots: ["ingénieur", "ingénieure"], min: 60000, median: 85000, max: 130000 },
+  { mots: ["architecte"], min: 60000, median: 82000, max: 115000 },
+  { mots: ["cpa", "comptable agréé", "comptable professionnel"], min: 55000, median: 80000, max: 121000 },
+  { mots: ["professeur université", "professeur universitaire", "professeur adjoint", "professeur agrégé"], min: 90000, median: 115000, max: 160000 },
+  { mots: ["professeur cégep", "enseignant cégep"], min: 45000, median: 65000, max: 95000 },
+  { mots: ["enseignant", "enseignante", "professeur primaire", "professeur secondaire"], min: 42000, median: 62000, max: 92000 },
+  { mots: ["pilote", "commandant de bord"], min: 55000, median: 100000, max: 200000 },
+  { mots: ["optométriste"], min: 85000, median: 100000, max: 130000 },
+  { mots: ["ergothérapeute"], min: 62000, median: 75000, max: 95000 },
+  { mots: ["physiothérapeute", "physio"], min: 62000, median: 75000, max: 95000 },
+  { mots: ["travailleur social", "travailleuse sociale"], min: 48000, median: 62000, max: 85000 },
+  { mots: ["orthophoniste"], min: 65000, median: 78000, max: 100000 },
+  { mots: ["éducateur petite enfance", "éducatrice petite enfance"], min: 38000, median: 48000, max: 70000 },
+];
 
 // ============================================
 // MULTIPLICATEURS SECTEUR
@@ -252,6 +280,26 @@ function calculerFourchette(
   diplome: string,
   secteur: string
 ): { salaire_min: number; salaire_max: number; salaire_median: number } {
+
+// Vérifier si profession réglementée — bypass plafond normal
+  const roleNorm = role?.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "") || "";
+  for (const p of SALAIRES_PROFESSIONS_REGLEMENTEES) {
+    if (p.mots.some(m => roleNorm.includes(m.normalize("NFD").replace(/[\u0300-\u036f]/g, "")))) {
+      const expMult = experience?.toLowerCase().includes("plus de 10") ? 1.25
+        : experience?.toLowerCase().includes("6 à 10") ? 1.15
+        : experience?.toLowerCase().includes("3 à 5") ? 1.05
+        : experience?.toLowerCase().includes("1 à 2") ? 1.0
+        : 0.9;
+      const villeMult = ville?.toLowerCase().includes("toronto") || ville?.toLowerCase().includes("vancouver") ? 1.1
+        : ville?.toLowerCase().includes("calgary") ? 1.08
+        : 1.0;
+      return {
+        salaire_min: Math.round(p.min * expMult * villeMult / 1000) * 1000,
+        salaire_max: Math.round(p.max * expMult * villeMult / 1000) * 1000,
+        salaire_median: Math.round(p.median * expMult * villeMult / 1000) * 1000,
+      };
+    }
+  }
 
   const niveau = detecterNiveau(role, experience);
   const plafond = PLAFONDS_NIVEAU[niveau] || 130000;
