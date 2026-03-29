@@ -708,8 +708,19 @@ function buildSystemPrompt(
     role_actuel?: string; ville?: string; statut_emploi?: string; objectif_declare?: string;
     salaire_min?: number; salaire_max?: number;
   },
-  profil: number,
-  historiqueAnalyse: { type: string; score: number; mode: string }[]
+      profil: number,
+  historiqueAnalyse: { type: string; score: number; mode: string }[],
+  professionReglementee?: {
+    profession: string;
+    ordre: string;
+    diplome_minimum: string;
+    annees_etudes: number;
+    etapes_parcours: { etape: string; duree: string; salaire: number }[];
+    salaire_debutant: number;
+    salaire_intermediaire: number;
+    salaire_senior: number;
+  } | null
+
 ) {
   const niveauInfo = getNiveauGPS(candidatInfo?.annee_experience || "", candidatInfo?.role_actuel || "");
   const isReconversion = candidatInfo?.statut_emploi?.toLowerCase().includes("reconversion") || false;
@@ -743,6 +754,23 @@ PROFIL CONNU - NE JAMAIS REDEMANDER :
 - Mode actuel: ${dernierMode}
 
 MISSION YELMA :
+
+${professionReglementee ? `
+⚠️ PROFESSION RÉGLEMENTÉE DÉTECTÉE : ${professionReglementee.profession}
+- Ordre obligatoire : ${professionReglementee.ordre}
+- Diplôme minimum requis : ${professionReglementee.diplome_minimum}
+- Durée totale du parcours : ${professionReglementee.annees_etudes} ans
+- Statut ordre candidat : ${(candidatInfo as { ordre_professionnel_statut?: string })?.ordre_professionnel_statut || "non fourni"}
+- Ordre déclaré : ${(candidatInfo as { ordre_professionnel_nom?: string })?.ordre_professionnel_nom || "non fourni"}
+
+RÈGLES SPÉCIALES PROFESSION RÉGLEMENTÉE :
+1. Salaires GPS basés sur la grille réelle : débutant ${professionReglementee.salaire_debutant}$ / intermédiaire ${professionReglementee.salaire_intermediaire}$ / senior ${professionReglementee.salaire_senior}$
+2. Si candidat PAS encore membre ordre → GPS An 1 inclut l'étape d'admission à l'ordre
+3. Si diplôme déclaré insuffisant → alerter honnêtement et inclure parcours académique dans formations
+4. Formations recommandées incluent les formations continues obligatoires de l'ordre
+5. GPS suit les étapes réelles du parcours professionnel réglementé
+` : ""}
+
 Révéler 3 à 5 compétences PROFESSIONNELLES OPÉRATIONNELLES reconnues dans les offres d'emploi.
 
 EXEMPLES DE BONNES COMPÉTENCES (matchables avec offres d'emploi) :
@@ -917,6 +945,31 @@ export async function POST(req: NextRequest) {
     const { history, lang, email, nom, prenom, candidatInfo, historiqueAnalyse: historiqueAnalyseIn } = body;
 
     const profil = detecterProfil(candidatInfo || {});
+    // Détecter profession réglementée
+    let professionReglementee = null;
+    const roleActuel = (candidatInfo?.role_actuel || candidatInfo?.domaine_actuel || "").toLowerCase();
+    const objectifDeclare = (candidatInfo?.objectif_declare || "").toLowerCase();
+
+    try {
+      const { data: professions } = await supabaseAdmin
+        .from("professions_reglementees")
+        .select("*");
+
+      if (professions) {
+        for (const p of professions) {
+          const mots = p.mots_cles || [];
+          const matchRole = mots.some((m: string) => roleActuel.includes(m.toLowerCase()));
+          const matchObjectif = mots.some((m: string) => objectifDeclare.includes(m.toLowerCase()));
+          if (matchRole || matchObjectif) {
+            professionReglementee = p;
+            break;
+          }
+        }
+      }
+    } catch (e) {
+      console.error("Erreur détection profession réglementée:", e);
+    }
+
     let historiqueAnalyse: { type: string; score: number; mode: string }[] = historiqueAnalyseIn || [];
     let modeActuel: "creuser" | "complexifier" | "contourner" = "creuser";
 
@@ -940,7 +993,7 @@ export async function POST(req: NextRequest) {
     }
 
     const nbEchanges = history.filter((m: { role: string }) => m.role === "user").length;
-    let systemPrompt = buildSystemPrompt(candidatInfo, profil, historiqueAnalyse);
+    let systemPrompt = buildSystemPrompt(candidatInfo, profil, historiqueAnalyse, professionReglementee);
 
     // Injecter prochaine question si moins de 8 échanges
     // À 8 échanges ou plus — forcer le rapport directement
