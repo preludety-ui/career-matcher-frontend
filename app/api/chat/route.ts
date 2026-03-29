@@ -641,7 +641,7 @@ function validateGPS(
         .replace(/\s+confirmé\s+confirmé/gi, " confirmé")
         .trim();
     };
-    
+
 function parseExtractedData(json: Record<string, unknown>, candidatInfo: {
   salaire_min?: number;
   annee_experience?: string;
@@ -871,10 +871,13 @@ An 3: [Vrai titre de poste du marché] | [Salaire] | [Action courte]
 An 4: [Vrai titre de poste du marché] | [Salaire] | [Action courte]
 An 5: [Vrai titre de poste du marché — JAMAIS une phrase comme "Devenir X" ou "Ouvrir X"] | [Salaire] | [Action courte]
 
-RÈGLE ABSOLUE GPS : Les titres doivent être des vrais titres de postes reconnus sur le marché canadien.
-EXEMPLES CORRECTS : "Directrice marketing", "CPA senior", "Développeur lead", "Commandant de bord"
-EXEMPLES INCORRECTS : "Devenir directrice marketing", "Ouvrir une clinique", "Diriger une équipe"
-
+RÈGLE ABSOLUE GPS :
+1. Les titres doivent être des vrais titres de postes reconnus sur le marché canadien
+2. An 5 DOIT être aligné avec l'objectif déclaré : "${candidatInfo?.objectif_declare || "non déclaré"}"
+3. Si objectif déclaré existe → An 5 = ce titre exact ou variante senior/confirmé
+4. JAMAIS de phrases : "Devenir X", "Ouvrir X", "Diriger X", "Lancer X", "Établir X"
+5. EXEMPLES CORRECTS : "Directrice marketing", "CPA senior", "Lead développeur", "Architecte associé", "Professeur titulaire"
+6. EXEMPLES INCORRECTS : "Devenir directrice", "Ouvrir une clinique", "Lancer un laboratoire"
 
 OBJECTIF: [objectif déclaré ou proposé]
 SCENARIO: [1/2/3]
