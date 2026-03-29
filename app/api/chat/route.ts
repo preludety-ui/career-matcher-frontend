@@ -974,7 +974,7 @@ REGLES:
 - formations: exactement 4 avec les 4 types
 - certifications: exactement 2
 - axe1 et axe2: competences NON mentionnees par le candidat mais demandees par le marche
-- force1/2/3 INTERDITS : Communication, Gestion du temps, Competences cliniques, Competences techniques, Esprit critique, Adaptabilite, Creativite, HTML seul, CSS seul, JavaScript seul
+- force1/2/3 INTERDITS : Communication, Gestion du temps, Competences cliniques, Competences techniques, Esprit critique, Adaptabilite, Creativite, HTML seul, CSS seul, JavaScript seul, Communication des concepts techniques, Travail en equipe, Resolution de problemes, Leadership seul
 - force1/2/3 OBLIGATOIRE : format Verbe + objet + contexte ex: Gestion des protocoles de soins, Supervision equipe clinique, Analyse donnees financieres, Architecture systemes cloud`;
 
 }
