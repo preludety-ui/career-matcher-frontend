@@ -754,8 +754,10 @@ function buildSystemPrompt(
     salaire_debutant: number;
     salaire_intermediaire: number;
     salaire_senior: number;
+  } | null,
+  gpsDeterm?: {
+    etapes: { annee: number; titre: string; salaire_min: number; salaire_max: number; actions: string[] }[];
   } | null
-
 ) {
   const niveauInfo = getNiveauGPS(candidatInfo?.annee_experience || "", candidatInfo?.role_actuel || "");
   const isReconversion = candidatInfo?.statut_emploi?.toLowerCase().includes("reconversion") || false;
@@ -880,20 +882,19 @@ OPPORTUNITÉS
 [Description 5 mots max]
 
 GPS DE CARRIÈRE — 5 ANS
-
-An 1: [Vrai titre de poste du marché] | [Salaire] | [Action courte]
-An 2: [Vrai titre de poste du marché] | [Salaire] | [Action courte]
-An 3: [Vrai titre de poste du marché] | [Salaire] | [Action courte]
-An 4: [Vrai titre de poste du marché] | [Salaire] | [Action courte]
-An 5: [Vrai titre de poste du marché — JAMAIS une phrase comme "Devenir X" ou "Ouvrir X"] | [Salaire] | [Action courte]
-
-RÈGLE ABSOLUE GPS :
-1. Les titres doivent être des vrais titres de postes reconnus sur le marché canadien
-2. An 5 DOIT être aligné avec l'objectif déclaré : "${candidatInfo?.objectif_declare || "non déclaré"}"
-3. Si objectif déclaré existe → An 5 = ce titre exact ou variante senior/confirmé
-4. JAMAIS de phrases : "Devenir X", "Ouvrir X", "Diriger X", "Lancer X", "Établir X"
-5. EXEMPLES CORRECTS : "Directrice marketing", "CPA senior", "Lead développeur", "Architecte associé", "Professeur titulaire"
-6. EXEMPLES INCORRECTS : "Devenir directrice", "Ouvrir une clinique", "Lancer un laboratoire"
+${gpsDeterm ? `⚠️ UTILISE EXACTEMENT CES DONNÉES — NE PAS MODIFIER :
+An 1: ${gpsDeterm.etapes[0]?.titre} | ${gpsDeterm.etapes[0]?.salaire_min}$-${gpsDeterm.etapes[0]?.salaire_max}$ | ${gpsDeterm.etapes[0]?.actions[0]}
+An 2: ${gpsDeterm.etapes[1]?.titre} | ${gpsDeterm.etapes[1]?.salaire_min}$-${gpsDeterm.etapes[1]?.salaire_max}$ | ${gpsDeterm.etapes[1]?.actions[0]}
+An 3: ${gpsDeterm.etapes[2]?.titre} | ${gpsDeterm.etapes[2]?.salaire_min}$-${gpsDeterm.etapes[2]?.salaire_max}$ | ${gpsDeterm.etapes[2]?.actions[0]}
+An 4: ${gpsDeterm.etapes[3]?.titre} | ${gpsDeterm.etapes[3]?.salaire_min}$-${gpsDeterm.etapes[3]?.salaire_max}$ | ${gpsDeterm.etapes[3]?.actions[0]}
+An 5: ${gpsDeterm.etapes[4]?.titre} | ${gpsDeterm.etapes[4]?.salaire_min}$-${gpsDeterm.etapes[4]?.salaire_max}$ | ${gpsDeterm.etapes[4]?.actions[0]}
+RÈGLE : Copie ces titres et salaires EXACTEMENT — ne pas inventer` : `
+An 1: [Vrai titre de poste] | [Salaire] | [Action courte]
+An 2: [Vrai titre de poste] | [Salaire] | [Action courte]
+An 3: [Vrai titre de poste] | [Salaire] | [Action courte]
+An 4: [Vrai titre de poste] | [Salaire] | [Action courte]
+An 5: [Vrai titre aligné avec objectif : "${candidatInfo?.objectif_declare || "non déclaré"}"] | [Salaire] | [Action courte]
+RÈGLE : JAMAIS "Devenir X", "Ouvrir X", "Diriger X"`}
 
 OBJECTIF: [objectif déclaré ou proposé]
 SCENARIO: [1/2/3]
@@ -1039,12 +1040,44 @@ export async function POST(req: NextRequest) {
     }
 
     const nbEchanges = history.filter((m: { role: string }) => m.role === "user").length;
-    let systemPrompt = buildSystemPrompt(candidatInfo, profil, historiqueAnalyse, professionReglementee);
+
+    // ── MOTEUR DÉTERMINISTE — calculé avant le prompt ──
+    const signauxBruts = {
+      signaux_comportementaux: historiqueAnalyse.map(h => h.type),
+      actions_mentionnees: [] as string[],
+      domaine_actuel: candidatInfo?.domaine_actuel || "",
+      role_actuel: candidatInfo?.role_actuel || "",
+      objectif_declare: candidatInfo?.objectif_declare || "",
+      diplome: candidatInfo?.diplome || "",
+      annees_experience: parseInt(candidatInfo?.annee_experience || "0") || 0,
+      niveau_detail: historiqueAnalyse.length > 0
+        ? historiqueAnalyse.reduce((a: number, h: { score: number }) => a + (h.score || 2), 0) / historiqueAnalyse.length
+        : 2,
+      structure_logique: 3,
+    };
+    const signauxNormalises = normaliserSignaux(signauxBruts);
+    const resultatMatching = await scoreMetiers(signauxNormalises);
+    const gpsDeterm = resultatMatching.top_metiers.length > 0
+      ? await construireGPS(signauxNormalises, resultatMatching.top_metiers[0])
+      : null;
+    // ── FIN MOTEUR DÉTERMINISTE ──
+
+    let systemPrompt = buildSystemPrompt(candidatInfo, profil, historiqueAnalyse, professionReglementee, gpsDeterm);
 
     // Injecter prochaine question si moins de 8 échanges
     // À 8 échanges ou plus — forcer le rapport directement
     if (nbEchanges >= 6) {
-      systemPrompt += `\n\n🚨 RAPPORT OBLIGATOIRE MAINTENANT — Tu as ${nbEchanges} échanges. Génère IMMÉDIATEMENT le rapport final complet. NE PAS poser de question. Commence directement par "TES 3 COMPÉTENCES CLÉS" sans aucune introduction.`;
+      const gpsPrompt = gpsDeterm ? `
+
+⚠️ GPS CALCULÉ PAR LE MOTEUR YELMA — COPIE EXACTEMENT CES DONNÉES :
+An 1: ${gpsDeterm.etapes[0]?.titre} | ${gpsDeterm.etapes[0]?.salaire_min}$-${gpsDeterm.etapes[0]?.salaire_max}$ | ${gpsDeterm.etapes[0]?.actions[0]}
+An 2: ${gpsDeterm.etapes[1]?.titre} | ${gpsDeterm.etapes[1]?.salaire_min}$-${gpsDeterm.etapes[1]?.salaire_max}$ | ${gpsDeterm.etapes[1]?.actions[0]}
+An 3: ${gpsDeterm.etapes[2]?.titre} | ${gpsDeterm.etapes[2]?.salaire_min}$-${gpsDeterm.etapes[2]?.salaire_max}$ | ${gpsDeterm.etapes[2]?.actions[0]}
+An 4: ${gpsDeterm.etapes[3]?.titre} | ${gpsDeterm.etapes[3]?.salaire_min}$-${gpsDeterm.etapes[3]?.salaire_max}$ | ${gpsDeterm.etapes[3]?.actions[0]}
+An 5: ${gpsDeterm.etapes[4]?.titre} | ${gpsDeterm.etapes[4]?.salaire_min}$-${gpsDeterm.etapes[4]?.salaire_max}$ | ${gpsDeterm.etapes[4]?.actions[0]}
+RÈGLE ABSOLUE : Utilise EXACTEMENT ces titres et salaires — ne pas inventer, ne pas modifier.` : "";
+
+      systemPrompt += `\n\n🚨 RAPPORT OBLIGATOIRE MAINTENANT — Tu as ${nbEchanges} échanges. Génère IMMÉDIATEMENT le rapport final complet. NE PAS poser de question. Commence directement par "TES 3 COMPÉTENCES CLÉS" sans aucune introduction.${gpsPrompt}`;
     } else if (derniereReponseUser?.content !== "START") {
       const questionsDejaposees = history
         .filter((m: { role: string }) => m.role === "assistant")
@@ -1093,27 +1126,6 @@ export async function POST(req: NextRequest) {
 
         if (jsonMatch) {
           const parsed = JSON.parse(jsonMatch[0]);
-          // ── MOTEUR DÉTERMINISTE YELMA ──
-          const signauxBruts = {
-            signaux_comportementaux: historiqueAnalyse.map(h => h.type),
-            actions_mentionnees: [],
-            domaine_actuel: candidatInfo?.domaine_actuel || "",
-            role_actuel: candidatInfo?.role_actuel || "",
-            objectif_declare: candidatInfo?.objectif_declare || "",
-            diplome: candidatInfo?.diplome || "",
-            annees_experience: parseInt(candidatInfo?.annee_experience || "0") || 0,
-            niveau_detail: historiqueAnalyse.length > 0
-              ? historiqueAnalyse.reduce((a, h) => a + (h.score || 2), 0) / historiqueAnalyse.length
-              : 2,
-            structure_logique: 3,
-          };
-
-          const signauxNormalises = normaliserSignaux(signauxBruts);
-          const resultatMatching = await scoreMetiers(signauxNormalises);
-          const gpsDeterm = resultatMatching.top_metiers.length > 0
-            ? await construireGPS(signauxNormalises, resultatMatching.top_metiers[0])
-            : null;
-          // ── FIN MOTEUR DÉTERMINISTE ──
 
           const rapportData = parseExtractedData(parsed, candidatInfo || {});
 
