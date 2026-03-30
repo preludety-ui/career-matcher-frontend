@@ -1165,6 +1165,14 @@ export async function POST(req: NextRequest) {
             },
           });
 
+          // Forcer les titres GPS depuis le moteur déterministe
+          if (gpsDeterm && gpsDeterm.etapes.length === 5) {
+            rapportData.gps_an1 = { titre: gpsDeterm.etapes[0].titre, salaire: rapportData.gps_an1?.salaire ?? 0, action: rapportData.gps_an1?.action ?? "" }
+            rapportData.gps_an2 = { titre: gpsDeterm.etapes[1].titre, salaire: rapportData.gps_an2?.salaire ?? 0, action: rapportData.gps_an2?.action ?? "" }
+            rapportData.gps_an3 = { titre: gpsDeterm.etapes[2].titre, salaire: rapportData.gps_an3?.salaire ?? 0, action: rapportData.gps_an3?.action ?? "" }
+            rapportData.gps_an4 = { titre: gpsDeterm.etapes[3].titre, salaire: rapportData.gps_an4?.salaire ?? 0, action: rapportData.gps_an4?.action ?? "" }
+            rapportData.gps_an5 = { titre: gpsDeterm.etapes[4].titre, salaire: rapportData.gps_an5?.salaire ?? 0, action: rapportData.gps_an5?.action ?? "" }
+          }
           return NextResponse.json({
             reply,
             rapportData,
