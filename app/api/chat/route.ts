@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
+import { normaliserSignaux } from "@/lib/extracteur";
+import { scoreMetiers } from "@/lib/matching";
+import { construireGPS } from "@/lib/gps";
 
 // ============================================
 // DÉTECTION PROFIL 1-10
@@ -629,18 +632,18 @@ function validateGPS(
 // ============================================
 
 
-    const nettoyerTitreGPS = (titre: string): string => {
-      if (!titre) return titre;
-      return titre
-        .replace(/^devenir\s+/i, "")
-        .replace(/^ouvrir\s+(ma|mon|une|un|sa|son)?\s*/i, "")
-        .replace(/^diriger\s+(une|un|ma|mon|sa|son)?\s*/i, "")
-        .replace(/^créer\s+(une|un|ma|mon|sa|son)?\s*/i, "")
-        .replace(/^établir\s+(un|une)?\s*/i, "")
-        .replace(/\s+senior\s+senior/gi, " senior")
-        .replace(/\s+confirmé\s+confirmé/gi, " confirmé")
-        .trim();
-    };
+const nettoyerTitreGPS = (titre: string): string => {
+  if (!titre) return titre;
+  return titre
+    .replace(/^devenir\s+/i, "")
+    .replace(/^ouvrir\s+(ma|mon|une|un|sa|son)?\s*/i, "")
+    .replace(/^diriger\s+(une|un|ma|mon|sa|son)?\s*/i, "")
+    .replace(/^créer\s+(une|un|ma|mon|sa|son)?\s*/i, "")
+    .replace(/^établir\s+(un|une)?\s*/i, "")
+    .replace(/\s+senior\s+senior/gi, " senior")
+    .replace(/\s+confirmé\s+confirmé/gi, " confirmé")
+    .trim();
+};
 
 function parseExtractedData(json: Record<string, unknown>, candidatInfo: {
   salaire_min?: number;
@@ -1090,6 +1093,28 @@ export async function POST(req: NextRequest) {
 
         if (jsonMatch) {
           const parsed = JSON.parse(jsonMatch[0]);
+          // ── MOTEUR DÉTERMINISTE YELMA ──
+          const signauxBruts = {
+            signaux_comportementaux: historiqueAnalyse.map(h => h.type),
+            actions_mentionnees: [],
+            domaine_actuel: candidatInfo?.domaine_actuel || "",
+            role_actuel: candidatInfo?.role_actuel || "",
+            objectif_declare: candidatInfo?.objectif_declare || "",
+            diplome: candidatInfo?.diplome || "",
+            annees_experience: parseInt(candidatInfo?.annee_experience || "0") || 0,
+            niveau_detail: historiqueAnalyse.length > 0
+              ? historiqueAnalyse.reduce((a, h) => a + (h.score || 2), 0) / historiqueAnalyse.length
+              : 2,
+            structure_logique: 3,
+          };
+
+          const signauxNormalises = normaliserSignaux(signauxBruts);
+          const resultatMatching = await scoreMetiers(signauxNormalises);
+          const gpsDeterm = resultatMatching.top_metiers.length > 0
+            ? await construireGPS(signauxNormalises, resultatMatching.top_metiers[0])
+            : null;
+          // ── FIN MOTEUR DÉTERMINISTE ──
+
           const rapportData = parseExtractedData(parsed, candidatInfo || {});
 
           await supabaseAdmin.from("candidats").upsert({
@@ -1140,7 +1165,13 @@ export async function POST(req: NextRequest) {
             },
           });
 
-          return NextResponse.json({ reply, rapportData, historiqueAnalyse });
+          return NextResponse.json({
+            reply,
+            rapportData,
+            historiqueAnalyse,
+            matching: resultatMatching,
+            gps_determ: gpsDeterm,
+          });
         }
       } catch (extractError) {
         console.error("Extraction error:", extractError);
