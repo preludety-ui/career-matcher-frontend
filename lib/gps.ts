@@ -183,24 +183,24 @@ export async function construireGPS(
     top_metier: MetierScore
 ): Promise<GPSDeterm> {
     console.log('GPS CALLED avec:', signaux.role_actuel_normalise, signaux.objectif_normalise)
-  // 1. Chercher le métier actuel dans Supabase
-const motCle = signaux.role_actuel_normalise.trim()
-const { data: metierActuelData } = await supabaseAdmin
-    .from('metiers')
-    .select('id, titre_fr, code_cnp, secteur')
-    .or(`titre_fr.ilike.%${motCle}%,alias.cs.{"${motCle}"}`)
-    .limit(1)
-    .single()
+    // 1. Chercher le métier actuel dans Supabase
+    const motCle = signaux.role_actuel_normalise.trim()
+    const { data: metierActuelData } = await supabaseAdmin
+        .from('metiers')
+        .select('id, titre_fr, code_cnp, secteur')
+        .or(`titre_fr.ilike.%${motCle}%,alias.cs.{"${motCle}"}`)
+        .limit(1)
+        .single()
 
-console.log('METIER ACTUEL:', metierActuelData)
+    console.log('METIER ACTUEL:', metierActuelData)
 
-const metier_actuel = metierActuelData ?? {
-    id: null as string | null,
-    titre_fr: signaux.role_actuel_normalise,
-    code_cnp: '00000',
-    secteur: signaux.domaine_code,
-}
-    
+    const metier_actuel = metierActuelData ?? {
+        id: null as string | null,
+        titre_fr: signaux.role_actuel_normalise,
+        code_cnp: '00000',
+        secteur: signaux.domaine_code,
+    }
+
 
     // 2. Chercher le métier cible via metier_evolution (source de vérité)
     let metier_cible: { id: string | null; titre_fr: string; code_cnp: string; secteur: string } | null = null
@@ -228,7 +228,11 @@ const metier_actuel = metierActuelData ?? {
         const evolution = evolutions?.find(e => {
             const titreCible = (e.metier_cible as unknown as { titre_fr: string })?.titre_fr || ''
             const cible = normalize(titreCible)
-            const match = cible.includes(objectif) || objectif.includes(cible) || cible.split(' ').some(mot => mot.length > 3 && objectif.includes(mot))
+            const motsObjectif = objectif.split(' ').filter(mot => mot.length > 3)
+            const motsCible = cible.split(' ').filter(mot => mot.length > 3)
+            const match = (
+                cible.includes(objectif) || objectif.includes(cible) || motsObjectif.every(mot => cible.includes(mot)) || motsCible.every(mot => objectif.includes(mot))
+            )
             console.log('MATCH CHECK:', cible, '|', objectif, '|', match)
             return match
         }) ?? evolutions?.find(e => e.type_evolution === 'progression')
