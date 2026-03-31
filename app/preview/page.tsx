@@ -218,7 +218,7 @@ const PROFILS_TEST = [
       salaire_min: 42000, salaire_max: 52000,
     },
     salaire_attendu: { min: 40000, max: 85000 },
-    gps_an5_attendu: "enseignante",
+    gps_an5_attendu: "école",
     reponses: [
       "J'ai développé une approche pédagogique différenciée qui a permis à 3 élèves en difficulté d'atteindre leur niveau scolaire",
       "J'ai créé des outils d'évaluation formative qui m'ont permis d'adapter mon enseignement en temps réel",
