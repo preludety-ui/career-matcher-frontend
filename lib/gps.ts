@@ -185,11 +185,10 @@ export async function construireGPS(
     console.log('GPS CALLED avec:', signaux.role_actuel_normalise, signaux.objectif_normalise)
   // 1. Chercher le métier actuel dans Supabase
 const motCle = signaux.role_actuel_normalise.trim()
-
 const { data: metierActuelData } = await supabaseAdmin
     .from('metiers')
     .select('id, titre_fr, code_cnp, secteur')
-    .ilike('titre_fr', `%${motCle}%`)
+    .or(`titre_fr.ilike.%${motCle}%,alias.cs.{"${motCle}"}`)
     .limit(1)
     .single()
 
