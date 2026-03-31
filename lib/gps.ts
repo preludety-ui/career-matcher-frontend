@@ -183,21 +183,25 @@ export async function construireGPS(
     top_metier: MetierScore
 ): Promise<GPSDeterm> {
     console.log('GPS CALLED avec:', signaux.role_actuel_normalise, signaux.objectif_normalise)
-    // 1. Chercher le métier actuel dans Supabase
-    const motCle = signaux.role_actuel_normalise.split(' ')[0]
-    const { data: metierActuelData } = await supabaseAdmin
-        .from('metiers')
-        .select('id, titre_fr, code_cnp, secteur')
-        .or(`titre_fr.ilike.%${motCle}%,alias.cs.{${motCle}}`)
-        .limit(1)
-        .single()
-    console.log('METIER ACTUEL:', metierActuelData)
-    const metier_actuel = metierActuelData ?? {
-        id: null as string | null,
-        titre_fr: signaux.role_actuel_normalise,
-        code_cnp: '00000',
-        secteur: signaux.domaine_code,
-    }
+  // 1. Chercher le métier actuel dans Supabase
+const motCle = signaux.role_actuel_normalise.trim()
+
+const { data: metierActuelData } = await supabaseAdmin
+    .from('metiers')
+    .select('id, titre_fr, code_cnp, secteur')
+    .ilike('titre_fr', `%${motCle}%`)
+    .limit(1)
+    .single()
+
+console.log('METIER ACTUEL:', metierActuelData)
+
+const metier_actuel = metierActuelData ?? {
+    id: null as string | null,
+    titre_fr: signaux.role_actuel_normalise,
+    code_cnp: '00000',
+    secteur: signaux.domaine_code,
+}
+    
 
     // 2. Chercher le métier cible via metier_evolution (source de vérité)
     let metier_cible: { id: string | null; titre_fr: string; code_cnp: string; secteur: string } | null = null
@@ -206,6 +210,7 @@ export async function construireGPS(
     let annees_evolution_max = 5
 
     if (metier_actuel.id) {
+        console.log('RECHERCHE EVOLUTIONS POUR ID:', metier_actuel.id)
         const { data: evolutions } = await supabaseAdmin
             .from('metier_evolution')
             .select(`
