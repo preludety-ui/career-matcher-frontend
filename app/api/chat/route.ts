@@ -40,24 +40,6 @@ function detecterProfil(candidatInfo: {
 }
 
 // ============================================
-// GRILLE GPS RÉALISTE
-// ============================================
-function getNiveauGPS(experience: string, roleActuel: string) {
-  const exp = experience?.toLowerCase() || "";
-  const role = roleActuel?.toLowerCase() || "";
-  const isManager = role.includes("manager") || role.includes("directeur") || role.includes("chef") || role.includes("responsable") || role.includes("vp");
-
-  if (exp.includes("plus de 10")) {
-    if (isManager) return { maxNiveaux: 4, niveauActuel: "Manager+" };
-    return { maxNiveaux: 2, niveauActuel: "Senior" };
-  }
-  if (exp.includes("6 à 10")) return { maxNiveaux: 2, niveauActuel: "Senior/Lead" };
-  if (exp.includes("3 à 5")) return { maxNiveaux: 1, niveauActuel: "Intermédiaire" };
-  if (exp.includes("1 à 2")) return { maxNiveaux: 1, niveauActuel: "Junior" };
-  return { maxNiveaux: 1, niveauActuel: "Junior/Assistant" };
-}
-
-// ============================================
 // CLASSIFICATION DYNAMIQUE DE LA RÉPONSE
 // ============================================
 function classifierReponse(reponse: string): {
@@ -469,266 +451,12 @@ async function sauvegarderPattern(
 }
 
 // ============================================
-// VALIDATION GPS
-// ============================================
-function validateGPS(
-  gpsData: {
-    an1?: { titre: string; salaire: number; action: string };
-    an2?: { titre: string; salaire: number; action: string };
-    an3?: { titre: string; salaire: number; action: string };
-    an4?: { titre: string; salaire: number; action: string };
-    an5?: { titre: string; salaire: number; action: string };
-  },
-  salaireMin: number,
-  experience: string,
-  roleActuel: string,
-  objectifDeclare: string,
-  isReconversion: boolean
-) {
-  const niveauInfo = getNiveauGPS(experience, roleActuel);
-  const maxNiveaux = niveauInfo.maxNiveaux;
-  const facteurAn1 = isReconversion ? 0.85 : 1.036;
-  const s1 = Math.round(salaireMin * facteurAn1 / 1000) * 1000;
-  const s2 = Math.round(s1 * 1.05 / 1000) * 1000;
-  const s3 = Math.round(s2 * 1.06 / 1000) * 1000;
-  const s4 = Math.round(s3 * 1.07 / 1000) * 1000;
-  const s5 = Math.round(s4 * 1.08 / 1000) * 1000;
-
-  // Nettoyer le rôle actuel
-  const roleBase = roleActuel
-    .replace(/^assistant\s*/i, "")
-    .replace(/^adjoint\s*/i, "")
-    .replace(/\s*junior$/i, "")
-    .replace(/\s*débutant$/i, "")
-    .trim() || roleActuel;
-
-  // Détecter si objectif est déclaré et différent du rôle actuel
-  const hasObjectif =
-    objectifDeclare &&
-    objectifDeclare.trim() !== "" &&
-    objectifDeclare.toLowerCase() !== "non fourni" &&
-    objectifDeclare.toLowerCase() !== roleActuel.toLowerCase() &&
-    objectifDeclare.toLowerCase() !== roleBase.toLowerCase();
-
-  // Évaluer si objectif est réalisable en 5 ans
-  const obj = objectifDeclare?.toLowerCase() || "";
-  const exp = experience?.toLowerCase() || "";
-  const isVP = obj.includes("vp") || obj.includes("vice-président") || obj.includes("vice president");
-  const isCEO = obj.includes("ceo") || obj.includes("pdg") || obj.includes("président général");
-  const isDirecteur = obj.includes("directeur") || obj.includes("director");
-  const isManagerObj = obj.includes("manager") || obj.includes("gestionnaire") || obj.includes("chef") || obj.includes("responsable");
-
-  // Calculer si objectif réalisable en 5 ans selon expérience
-  let objectifRealisable5ans = true;
-  if (exp.includes("moins") || exp.includes("aucune")) {
-    if (isVP || isCEO) objectifRealisable5ans = false;
-    if (isDirecteur) objectifRealisable5ans = false;
-    if (isManagerObj) objectifRealisable5ans = false;
-  } else if (exp.includes("1 à 2")) {
-    if (isVP || isCEO) objectifRealisable5ans = false;
-    if (isDirecteur) objectifRealisable5ans = false;
-  } else if (exp.includes("3 à 5")) {
-    if (isVP || isCEO) objectifRealisable5ans = false;
-  }
-
-  // Reconversion → objectif toujours dans le nouveau domaine
-  const objectifFinal = isReconversion
-    ? objectifDeclare.trim()
-    : (hasObjectif ? objectifDeclare.trim() : roleBase);
-
-  // Construire les titres GPS selon la logique universelle
-  const getTitre = (an: number, titreGPT: string): string => {
-
-    // CAS RECONVERSION — progression dans le nouveau domaine
-    if (isReconversion && hasObjectif) {
-      if (an === 1) return objectifFinal + " junior";
-      if (an === 2) return objectifFinal;
-      if (an === 3) return objectifFinal + " confirmé";
-      if (an === 4) return objectifFinal + " senior";
-      return objectifFinal + " senior confirmé";
-    }
-
-    // CAS OBJECTIF RÉALISABLE EN 5 ANS — progression vers l'objectif
-    if (hasObjectif && objectifRealisable5ans) {
-      if (an === 1) return roleBase + " confirmé";
-      if (an === 2) return "Assistant " + objectifFinal;
-      if (an === 3) return objectifFinal + " junior";
-      if (an === 4) return objectifFinal;
-      return objectifFinal + " senior";
-    }
-
-    // CAS OBJECTIF IRRÉALISABLE EN 5 ANS — progression réaliste depuis rôle actuel
-    if (hasObjectif && !objectifRealisable5ans) {
-      if (maxNiveaux <= 1) {
-        if (an === 1) return roleBase + " confirmé";
-        if (an === 2) return roleBase + " confirmé";
-        if (an === 3) return roleBase + " senior";
-        if (an === 4) return roleBase + " senior";
-        return roleBase + " expert";
-      }
-      if (maxNiveaux === 2) {
-        if (an <= 2) return roleBase + " confirmé";
-        if (an === 3) return roleBase + " senior";
-        return titreGPT || roleBase + " expert";
-      }
-      return titreGPT || roleBase;
-    }
-
-    // CAS PAS D'OBJECTIF — progression naturelle depuis rôle actuel
-    if (maxNiveaux <= 1) {
-      if (an === 1) return roleBase + " confirmé";
-      if (an === 2) return roleBase + " confirmé";
-      if (an === 3) return roleBase + " senior";
-      if (an === 4) return roleBase + " senior";
-      return roleBase + " expert";
-    }
-    if (maxNiveaux === 2) {
-      if (an <= 2) return roleBase + " confirmé";
-      if (an === 3) return roleBase + " senior";
-      return titreGPT || roleBase + " expert";
-    }
-    return titreGPT || roleBase;
-  };
-
-  const validatedGPS = {
-    an1: { titre: getTitre(1, gpsData.an1?.titre || ""), salaire: s1, action: gpsData.an1?.action || "Consolider les compétences" },
-    an2: { titre: getTitre(2, gpsData.an2?.titre || ""), salaire: s2, action: gpsData.an2?.action || "Développer l'expertise" },
-    an3: { titre: getTitre(3, gpsData.an3?.titre || ""), salaire: s3, action: gpsData.an3?.action || "Prendre plus de responsabilités" },
-    an4: { titre: getTitre(4, gpsData.an4?.titre || ""), salaire: s4, action: gpsData.an4?.action || "Viser un niveau supérieur" },
-    an5: { titre: getTitre(5, gpsData.an5?.titre || ""), salaire: s5, action: gpsData.an5?.action || "POTENTIEL MAX !" },
-  };
-
-  // Calculer scénario objectif
-  const annee = new Date().getFullYear();
-  let scenario = 1;
-  let delai = "atteignable en 5 ans";
-  let message = "Ton objectif de " + objectifDeclare + " est atteignable ! Ce GPS te montre le chemin.";
-
-  if (!objectifDeclare || objectifDeclare === "non fourni") {
-    scenario = 1;
-    delai = "5 ans";
-    message = "YELMA t'a défini un objectif réaliste selon ton profil et tes compétences révélées.";
-  } else if (!objectifRealisable5ans) {
-    if (isVP || isCEO) {
-      if (exp.includes("moins") || exp.includes("aucune")) { scenario = 3; delai = "18-20 ans"; message = "Ton objectif de " + objectifDeclare + " est excellent à long terme. Tu peux l'atteindre vers " + (annee + 18) + "-" + (annee + 20) + ". En 5 ans, concentre-toi sur " + roleBase + " expert."; }
-      else if (exp.includes("1 à 2")) { scenario = 3; delai = "15-18 ans"; message = "Ton objectif de " + objectifDeclare + " est excellent — compte 15-18 ans. En 5 ans, vise " + roleBase + " senior."; }
-      else if (exp.includes("3 à 5")) { scenario = 3; delai = "10-12 ans"; message = "Ton objectif de " + objectifDeclare + " est réaliste en 10-12 ans."; }
-      else { scenario = 2; delai = "6-8 ans"; message = "Ton objectif de " + objectifDeclare + " est atteignable en 6-8 ans !"; }
-    } else if (isDirecteur) {
-      if (exp.includes("moins") || exp.includes("aucune")) { scenario = 3; delai = "12-15 ans"; message = "Ton objectif de " + objectifDeclare + " est réaliste à long terme — compte 12-15 ans. En 5 ans, vise " + roleBase + " expert."; }
-      else if (exp.includes("1 à 2")) { scenario = 3; delai = "10-12 ans"; message = "Ton objectif de " + objectifDeclare + " est réaliste en 10-12 ans."; }
-      else { scenario = 2; delai = "6-8 ans"; message = "Ton objectif de " + objectifDeclare + " est atteignable en 6-8 ans !"; }
-    } else if (isManagerObj) {
-      if (exp.includes("moins") || exp.includes("aucune")) { scenario = 2; delai = "6-8 ans"; message = "Ton objectif de " + objectifDeclare + " est atteignable en 6-8 ans. En 5 ans, vise " + roleBase + " senior."; }
-      else { scenario = 2; delai = "5-7 ans"; message = "Ton objectif de " + objectifDeclare + " est atteignable en 5-7 ans !"; }
-    }
-  }
-
-  return { gps: validatedGPS, scenario, delai, message, salaireMax: s1 };
-}
-
-// ============================================
-// PARSE DONNÉES EXTRAITES
-// ============================================
-
-
-const nettoyerTitreGPS = (titre: string): string => {
-  if (!titre) return titre;
-  return titre
-    .replace(/^devenir\s+/i, "")
-    .replace(/^ouvrir\s+(ma|mon|une|un|sa|son)?\s*/i, "")
-    .replace(/^diriger\s+(une|un|ma|mon|sa|son)?\s*/i, "")
-    .replace(/^créer\s+(une|un|ma|mon|sa|son)?\s*/i, "")
-    .replace(/^établir\s+(un|une)?\s*/i, "")
-    .replace(/\s+senior\s+senior/gi, " senior")
-    .replace(/\s+confirmé\s+confirmé/gi, " confirmé")
-    .trim();
-};
-
-function parseExtractedData(json: Record<string, unknown>, candidatInfo: {
-  salaire_min?: number;
-  annee_experience?: string;
-  role_actuel?: string;
-  objectif_declare?: string;
-  statut_emploi?: string;
-}) {
-  const parseGPSRaw = (obj: unknown) => {
-
-    if (!obj || typeof obj !== "object") return undefined;
-    const g = obj as Record<string, unknown>;
-    return { titre: String(g.titre || ""), salaire: Number(g.salaire || 0), action: String(g.action || "") };
-  };
-
-  const opportunites = Array.isArray(json.opportunites) ? json.opportunites.map((o: unknown) => {
-    const op = o as Record<string, unknown>;
-    return { titre: String(op.titre || ""), salaire: Number(op.salaire || 0), description: String(op.description || "") };
-  }) : [];
-
-  const formations = Array.isArray(json.formations) ? json.formations.map((f: unknown) => {
-    const fm = f as Record<string, unknown>;
-    return { nom: String(fm.nom || ""), type: String(fm.type || "Formation"), plateforme: String(fm.plateforme || ""), duree: String(fm.duree || "") };
-  }) : [];
-
-  const certifications = Array.isArray(json.certifications) ? json.certifications.map((c: unknown) => {
-    const ct = c as Record<string, unknown>;
-    return { nom: String(ct.nom || ""), organisme: String(ct.organisme || "") };
-  }) : [];
-
-  const salaireMin = candidatInfo.salaire_min || 45000;
-  const objectifDeclare = String(json.objectif_final || candidatInfo.objectif_declare || "");
-  const isReconversion = candidatInfo.statut_emploi?.toLowerCase().includes("reconversion") || false;
-
-  const validated = validateGPS(
-    { an1: parseGPSRaw(json.an1), an2: parseGPSRaw(json.an2), an3: parseGPSRaw(json.an3), an4: parseGPSRaw(json.an4), an5: parseGPSRaw(json.an5) },
-    salaireMin, candidatInfo.annee_experience || "", candidatInfo.role_actuel || "", objectifDeclare, isReconversion
-  );
-
-  return {
-    niveau_education: String(json.niveau || "JUNIOR"),
-    force1: String(json.force1 || ""), force1_desc: String(json.force1_desc || ""),
-    force2: String(json.force2 || ""), force2_desc: String(json.force2_desc || ""),
-    force3: String(json.force3 || ""), force3_desc: String(json.force3_desc || ""),
-    axe1: String(json.axe1 || ""), axe1_desc: String(json.axe1_desc || ""),
-    axe2: String(json.axe2 || ""), axe2_desc: String(json.axe2_desc || ""),
-    salaire_min: salaireMin,
-    salaire_max: validated.salaireMax,
-    role_actuel: String(json.role_actuel || candidatInfo.role_actuel || ""),
-    ville: String(json.ville || "Montréal"),
-    objectif_carriere: objectifDeclare,
-    scenario_objectif: validated.scenario,
-    message_objectif: validated.message,
-    delai_objectif: validated.delai,
-    analyse_comparative: String(json.analyse || ""),
-    gps_an1: validated.gps.an1 ? { ...validated.gps.an1, titre: nettoyerTitreGPS(validated.gps.an1.titre) } : undefined,
-    gps_an2: validated.gps.an2 ? { ...validated.gps.an2, titre: nettoyerTitreGPS(validated.gps.an2.titre) } : undefined,
-    gps_an3: validated.gps.an3 ? { ...validated.gps.an3, titre: nettoyerTitreGPS(validated.gps.an3.titre) } : undefined,
-    gps_an4: validated.gps.an4 ? { ...validated.gps.an4, titre: nettoyerTitreGPS(validated.gps.an4.titre) } : undefined,
-    gps_an5: validated.gps.an5 ? {
-      ...validated.gps.an5,
-      titre: (() => {
-        const objectif = candidatInfo?.objectif_declare?.trim();
-        const titreGPT = nettoyerTitreGPS(validated.gps.an5.titre);
-        if (!objectif) return titreGPT;
-        // Si le titre GPT ne contient pas les mots clés de l'objectif → forcer l'objectif
-        const motsObjectif = objectif.toLowerCase().split(" ").filter(m => m.length > 3);
-        const titreContientObjectif = motsObjectif.some(m => titreGPT.toLowerCase().includes(m));
-        if (!titreContientObjectif) return objectif + " senior";
-        return titreGPT;
-      })()
-    } : undefined,
-
-    opportunites, formations, certifications,
-  };
-}
-
-// ============================================
 // DÉTECTION RAPPORT FINAL
 // ============================================
 function isRapportFinal(text: string): boolean {
   const t = text.toUpperCase();
   return (
     (t.includes("COMPÉTENCES") || t.includes("COMPETENCES") || t.includes("FORCES")) &&
-    (t.includes("GPS") || t.includes("AN 1:") || t.includes("AN 1 :")) &&
     (t.includes("FORMATION") || t.includes("OPPORTUNIT"))
   );
 }
@@ -746,28 +474,23 @@ function buildSystemPrompt(
   profil: number,
   historiqueAnalyse: { type: string; score: number; mode: string }[],
   professionReglementee?: {
-    profession: string;
-    ordre: string;
-    diplome_minimum: string;
+    profession: string; ordre: string; diplome_minimum: string;
     annees_etudes: number;
     etapes_parcours: { etape: string; duree: string; salaire: number }[];
-    salaire_debutant: number;
-    salaire_intermediaire: number;
-    salaire_senior: number;
+    salaire_debutant: number; salaire_intermediaire: number; salaire_senior: number;
   } | null,
   gpsDeterm?: {
     etapes: { annee: number; titre: string; salaire_min: number; salaire_max: number; actions: string[] }[];
+    score_faisabilite?: number;
+    message_faisabilite?: string;
   } | null
 ) {
-  const niveauInfo = getNiveauGPS(candidatInfo?.annee_experience || "", candidatInfo?.role_actuel || "");
   const isReconversion = candidatInfo?.statut_emploi?.toLowerCase().includes("reconversion") || false;
   const nbEchanges = historiqueAnalyse.length;
   const scoresMoyen = historiqueAnalyse.length > 0
     ? historiqueAnalyse.reduce((acc, h) => acc + (h.score || 2), 0) / historiqueAnalyse.length
     : 0;
   const dernierMode = historiqueAnalyse.length > 0 ? historiqueAnalyse[historiqueAnalyse.length - 1].mode : "creuser";
-
-  // Seuil rapport : entre 8 et 10 échanges
   const SEUIL_MIN_RAPPORT = 8;
   const SEUIL_MAX_RAPPORT = 10;
 
@@ -784,85 +507,46 @@ PROFIL CONNU - NE JAMAIS REDEMANDER :
 - Objectif déclaré: ${candidatInfo?.objectif_declare || "non fourni"}
 - Fourchette salariale: ${candidatInfo?.salaire_min || 40000}$ — ${candidatInfo?.salaire_max || 60000}$
 - PROFIL DÉTECTÉ: ${profil}
-- Niveau actuel: ${niveauInfo.niveauActuel}
 - Reconversion: ${isReconversion ? "OUI" : "NON"}
 - Échanges complétés: ${nbEchanges}/${SEUIL_MAX_RAPPORT}
 - Score comportemental moyen: ${scoresMoyen.toFixed(1)}/5
 - Mode actuel: ${dernierMode}
-
-MISSION YELMA :
 
 ${professionReglementee ? `
 ⚠️ PROFESSION RÉGLEMENTÉE DÉTECTÉE : ${professionReglementee.profession}
 - Ordre obligatoire : ${professionReglementee.ordre}
 - Diplôme minimum requis : ${professionReglementee.diplome_minimum}
 - Durée totale du parcours : ${professionReglementee.annees_etudes} ans
-- Statut ordre candidat : ${(candidatInfo as { ordre_professionnel_statut?: string })?.ordre_professionnel_statut || "non fourni"}
-- Ordre déclaré : ${(candidatInfo as { ordre_professionnel_nom?: string })?.ordre_professionnel_nom || "non fourni"}
-
-RÈGLES SPÉCIALES PROFESSION RÉGLEMENTÉE :
-1. Salaires GPS basés sur la grille réelle : débutant ${professionReglementee.salaire_debutant}$ / intermédiaire ${professionReglementee.salaire_intermediaire}$ / senior ${professionReglementee.salaire_senior}$
-2. Si candidat PAS encore membre ordre → GPS An 1 inclut l'étape d'admission à l'ordre
-3. Si diplôme déclaré insuffisant → alerter honnêtement et inclure parcours académique dans formations
-4. Formations recommandées incluent les formations continues obligatoires de l'ordre
-5. GPS suit les étapes réelles du parcours professionnel réglementé
+- Salaires : débutant ${professionReglementee.salaire_debutant}$ / intermédiaire ${professionReglementee.salaire_intermediaire}$ / senior ${professionReglementee.salaire_senior}$
 ` : ""}
 
-Révéler 3 à 5 compétences PROFESSIONNELLES OPÉRATIONNELLES reconnues dans les offres d'emploi.
-
-EXEMPLES DE BONNES COMPÉTENCES (matchables avec offres d'emploi) :
-✅ "Suivi et contrôle de l'avancement de projet"
-✅ "Analyse des écarts budgétaires"
-✅ "Coordination inter-équipes et parties prenantes"
-✅ "Gestion des risques et des délais"
-✅ "Reporting et communication de la performance"
-
-EXEMPLES DE MAUVAISES COMPÉTENCES (trop vagues ou soft) :
-❌ "Écoute active", "Patience", "Résilience", "Communication"
-❌ Ces soft skills doivent être TRADUITS en compétences métier + 2 axes de développement
-en analysant IMPLICITEMENT les comportements — jamais en demandant directement.
-
 RÈGLES ABSOLUES :
-PREMIER MESSAGE OBLIGATOIRE :
-Saluer ${candidatInfo?.prenom || ""} par son prénom + mentionner son rôle de ${candidatInfo?.role_actuel || ""} + poser UNE question d'ouverture sur une réalisation concrète récente. Maximum 2 phrases. JAMAIS une question de relance comme première question.
+PREMIER MESSAGE : Saluer ${candidatInfo?.prenom || ""} par son prénom + mentionner son rôle de ${candidatInfo?.role_actuel || ""} + poser UNE question d'ouverture sur une réalisation concrète récente. Maximum 2 phrases.
 1. NE JAMAIS redemander les infos du profil
 2. NE JAMAIS répéter ce que le candidat dit
 3. UNE seule question par échange — courte et directe
 4. Générer le rapport entre ${SEUIL_MIN_RAPPORT} et ${SEUIL_MAX_RAPPORT} échanges
-   - À partir de ${SEUIL_MIN_RAPPORT} échanges : générer le rapport si tu as assez de matière
-   - À ${SEUIL_MAX_RAPPORT} échanges : générer le rapport OBLIGATOIREMENT
 5. JAMAIS de "je vais générer" — écrire le rapport directement
-6. Questions formulées DIFFÉREMMENT à chaque conversation
-
-LOGIQUE DE PROGRESSION DES QUESTIONS :
-- Échanges 1-3 : Questions de découverte — explorer les domaines, intérêts, réalisations
-- Échanges 4-6 : Questions d'approfondissement — détails, résultats, impact mesurable
-- Échanges 7-8 : Questions de complexification — obstacles, décisions, valeurs, vision
-- Échanges 9-10 : Synthèse ou rapport si assez de matière
 
 MODE ACTUEL — ${dernierMode.toUpperCase()} :
-${dernierMode === "creuser" ? "→ Réponse vague détectée. Approfondir avec une question concrète sur les actions ou les résultats." : ""}
-${dernierMode === "complexifier" ? "→ Bonne réponse détectée. Monter en complexité — obstacles, décisions difficiles, impact." : ""}
-${dernierMode === "contourner" ? "→ Évitement détecté. Contourner avec une question indirecte sur une situation vécue." : ""}
+${dernierMode === "creuser" ? "→ Approfondir avec une question concrète sur les actions ou les résultats." : ""}
+${dernierMode === "complexifier" ? "→ Monter en complexité — obstacles, décisions difficiles, impact." : ""}
+${dernierMode === "contourner" ? "→ Contourner avec une question indirecte sur une situation vécue." : ""}
 
-${nbEchanges >= SEUIL_MIN_RAPPORT ? `⚡ TU AS ASSEZ DE MATIÈRE — Génère le rapport maintenant si les compétences sont claires.` : ""}
+${nbEchanges >= SEUIL_MIN_RAPPORT ? `⚡ TU AS ASSEZ DE MATIÈRE — Génère le rapport maintenant.` : ""}
 ${nbEchanges >= SEUIL_MAX_RAPPORT ? `🚨 RAPPORT OBLIGATOIRE — Tu dois générer le rapport final maintenant.` : ""}
-
-PROGRESSION GPS — RÉALISTE :
-Niveau: ${niveauInfo.niveauActuel} — Max ${niveauInfo.maxNiveaux} niveau(x) en 5 ans
-${isReconversion ? "RECONVERSION: An 1 = baisse temporaire de salaire (-15%) à mentionner honnêtement" : ""}
 
 RAPPORT FINAL — écrire DIRECTEMENT sans annonce :
 
 TES 3 COMPÉTENCES CLÉS
 
-1. **[Compétence générique]**
+1. **[Compétence opérationnelle]**
 [1 phrase valeur marché]
 
-2. **[Compétence générique]**
+2. **[Compétence opérationnelle]**
 [1 phrase valeur marché]
 
-3. **[Compétence générique]**
+3. **[Compétence opérationnelle]**
 [1 phrase valeur marché]
 
 TES 2 AXES DE DÉVELOPPEMENT
@@ -882,28 +566,16 @@ OPPORTUNITÉS
 [Description 5 mots max]
 
 GPS DE CARRIÈRE — 5 ANS
-${gpsDeterm ? `⚠️ UTILISE EXACTEMENT CES DONNÉES — NE PAS MODIFIER :
-An 1: ${gpsDeterm.etapes[0]?.titre} | ${gpsDeterm.etapes[0]?.salaire_min}$-${gpsDeterm.etapes[0]?.salaire_max}$ | ${gpsDeterm.etapes[0]?.actions[0]}
-An 2: ${gpsDeterm.etapes[1]?.titre} | ${gpsDeterm.etapes[1]?.salaire_min}$-${gpsDeterm.etapes[1]?.salaire_max}$ | ${gpsDeterm.etapes[1]?.actions[0]}
-An 3: ${gpsDeterm.etapes[2]?.titre} | ${gpsDeterm.etapes[2]?.salaire_min}$-${gpsDeterm.etapes[2]?.salaire_max}$ | ${gpsDeterm.etapes[2]?.actions[0]}
-An 4: ${gpsDeterm.etapes[3]?.titre} | ${gpsDeterm.etapes[3]?.salaire_min}$-${gpsDeterm.etapes[3]?.salaire_max}$ | ${gpsDeterm.etapes[3]?.actions[0]}
-An 5: ${gpsDeterm.etapes[4]?.titre} | ${gpsDeterm.etapes[4]?.salaire_min}$-${gpsDeterm.etapes[4]?.salaire_max}$ | ${gpsDeterm.etapes[4]?.actions[0]}
-RÈGLE : Copie ces titres et salaires EXACTEMENT — ne pas inventer` : `
-An 1: [Vrai titre de poste] | [Salaire] | [Action courte]
-An 2: [Vrai titre de poste] | [Salaire] | [Action courte]
-An 3: [Vrai titre de poste] | [Salaire] | [Action courte]
-An 4: [Vrai titre de poste] | [Salaire] | [Action courte]
-An 5: [Vrai titre aligné avec objectif : "${candidatInfo?.objectif_declare || "non déclaré"}"] | [Salaire] | [Action courte]
-RÈGLE : JAMAIS "Devenir X", "Ouvrir X", "Diriger X"`}
+[Sera généré automatiquement par le moteur YELMA — ne pas inclure dans ta réponse]
 
-OBJECTIF: [objectif déclaré ou proposé]
-SCENARIO: [1/2/3]
-MESSAGE_OBJECTIF: [message honnête et motivant]
-DELAI_OBJECTIF: [délai réaliste]
+OBJECTIF: ${candidatInfo?.objectif_declare || "à définir"}
+SCENARIO: 1
+MESSAGE_OBJECTIF: [message honnête et motivant sur l'objectif]
+DELAI_OBJECTIF: atteignable avec un plan structuré
 
 FORMATIONS
 
-1. [Nom] | [Type: Renforcement/Gap marché/Prochain poste/Objectif long terme] | [Plateforme parmi: MIT OCW/Harvard edX/HEC Montréal EDUlib/McGill edX/Polytechnique EDUlib/Coursera/PMI] | [Durée]
+1. [Nom] | [Type: Renforcement/Gap marché/Prochain poste/Objectif long terme] | [Plateforme parmi: MIT OCW/Harvard edX/HEC Montréal EDUlib/McGill edX/Coursera/PMI] | [Durée]
 2. [Nom] | [Type] | [Plateforme] | [Durée]
 3. [Nom] | [Type] | [Plateforme] | [Durée]
 4. [Nom] | [Type] | [Plateforme] | [Durée]
@@ -923,8 +595,6 @@ function buildExtractionPrompt(rapport: string, candidatInfo: {
   salaire_min?: number; salaire_max?: number; role_actuel?: string;
   ville?: string; annee_experience?: string; objectif_declare?: string; statut_emploi?: string;
 }) {
-  const niveauInfo = getNiveauGPS(candidatInfo.annee_experience || "", candidatInfo.role_actuel || "");
-
   return `Extrait les données de ce rapport YELMA et retourne UNIQUEMENT ce JSON valide sans backticks:
 
 ${rapport}
@@ -951,15 +621,10 @@ JSON attendu:
   "salaire_max": ${candidatInfo.salaire_max || 60000},
   "role_actuel": "${candidatInfo.role_actuel || ""}",
   "ville": "${candidatInfo.ville || "Montreal"}",
-  "objectif_final": "objectif en toutes lettres",
+  "objectif_final": "${candidatInfo.objectif_declare || ""}",
   "scenario_objectif": 1,
   "message_objectif": "message honnete et motivant",
-  "delai_objectif": "ex: atteignable en 5 ans",
-  "an1": {"titre": "vrai titre", "salaire": 58000, "action": "action courte"},
-  "an2": {"titre": "vrai titre", "salaire": 64000, "action": "action courte"},
-  "an3": {"titre": "vrai titre", "salaire": 70000, "action": "action courte"},
-  "an4": {"titre": "vrai titre", "salaire": 76000, "action": "action courte"},
-  "an5": {"titre": "vrai titre", "salaire": 83000, "action": "action courte"},
+  "delai_objectif": "atteignable avec un plan structure",
   "analyse": "1 phrase honnete sur objectif",
   "formations": [
     {"nom": "nom", "type": "Renforcement", "plateforme": "plateforme", "duree": "duree"},
@@ -974,13 +639,61 @@ JSON attendu:
 }
 
 REGLES:
-- GPS maximum ${niveauInfo.maxNiveaux} niveaux depuis ${niveauInfo.niveauActuel}
 - formations: exactement 4 avec les 4 types
 - certifications: exactement 2
 - axe1 et axe2: competences NON mentionnees par le candidat mais demandees par le marche
-- force1/2/3 INTERDITS : Communication, Gestion du temps, Competences cliniques, Competences techniques, Esprit critique, Adaptabilite, Creativite, HTML seul, CSS seul, JavaScript seul, Communication des concepts techniques, Travail en equipe, Resolution de problemes, Leadership seul
-- force1/2/3 OBLIGATOIRE : format Verbe + objet + contexte ex: Gestion des protocoles de soins, Supervision equipe clinique, Analyse donnees financieres, Architecture systemes cloud`;
+- force1/2/3 INTERDITS : Communication, Gestion du temps, Esprit critique, Adaptabilite, Creativite, Travail en equipe, Resolution de problemes, Leadership seul
+- force1/2/3 OBLIGATOIRE : format Verbe + objet + contexte ex: Gestion des protocoles de soins, Supervision equipe clinique, Analyse donnees financieres`;
+}
 
+// ============================================
+// PARSE DONNÉES EXTRAITES (simplifié — GPS vient du moteur)
+// ============================================
+function parseExtractedData(json: Record<string, unknown>, candidatInfo: {
+  salaire_min?: number;
+  role_actuel?: string;
+  objectif_declare?: string;
+  statut_emploi?: string;
+}) {
+  const opportunites = Array.isArray(json.opportunites) ? json.opportunites.map((o: unknown) => {
+    const op = o as Record<string, unknown>;
+    return { titre: String(op.titre || ""), salaire: Number(op.salaire || 0), description: String(op.description || "") };
+  }) : [];
+
+  const formations = Array.isArray(json.formations) ? json.formations.map((f: unknown) => {
+    const fm = f as Record<string, unknown>;
+    return { nom: String(fm.nom || ""), type: String(fm.type || "Formation"), plateforme: String(fm.plateforme || ""), duree: String(fm.duree || "") };
+  }) : [];
+
+  const certifications = Array.isArray(json.certifications) ? json.certifications.map((c: unknown) => {
+    const ct = c as Record<string, unknown>;
+    return { nom: String(ct.nom || ""), organisme: String(ct.organisme || "") };
+  }) : [];
+
+  return {
+    niveau_education: String(json.niveau || "JUNIOR"),
+    force1: String(json.force1 || ""), force1_desc: String(json.force1_desc || ""),
+    force2: String(json.force2 || ""), force2_desc: String(json.force2_desc || ""),
+    force3: String(json.force3 || ""), force3_desc: String(json.force3_desc || ""),
+    axe1: String(json.axe1 || ""), axe1_desc: String(json.axe1_desc || ""),
+    axe2: String(json.axe2 || ""), axe2_desc: String(json.axe2_desc || ""),
+    salaire_min: candidatInfo.salaire_min || 45000,
+    salaire_max: candidatInfo.salaire_min ? candidatInfo.salaire_min * 1.3 : 60000,
+    role_actuel: String(json.role_actuel || candidatInfo.role_actuel || ""),
+    ville: String(json.ville || "Montréal"),
+    objectif_carriere: candidatInfo.objectif_declare || String(json.objectif_final || ""),
+    scenario_objectif: Number(json.scenario_objectif || 1),
+    message_objectif: String(json.message_objectif || ""),
+    delai_objectif: String(json.delai_objectif || "atteignable avec un plan structuré"),
+    analyse_comparative: String(json.analyse || ""),
+    // GPS initialisé vide — sera rempli par le moteur déterministe
+    gps_an1: undefined as { titre: string; salaire: number; action: string } | undefined,
+    gps_an2: undefined as { titre: string; salaire: number; action: string } | undefined,
+    gps_an3: undefined as { titre: string; salaire: number; action: string } | undefined,
+    gps_an4: undefined as { titre: string; salaire: number; action: string } | undefined,
+    gps_an5: undefined as { titre: string; salaire: number; action: string } | undefined,
+    opportunites, formations, certifications,
+  };
 }
 
 // ============================================
@@ -992,25 +705,20 @@ export async function POST(req: NextRequest) {
     const { history, lang, email, nom, prenom, candidatInfo, historiqueAnalyse: historiqueAnalyseIn } = body;
 
     const profil = detecterProfil(candidatInfo || {});
+
     // Détecter profession réglementée
     let professionReglementee = null;
     const roleActuel = (candidatInfo?.role_actuel || candidatInfo?.domaine_actuel || "").toLowerCase();
     const objectifDeclare = (candidatInfo?.objectif_declare || "").toLowerCase();
 
     try {
-      const { data: professions } = await supabaseAdmin
-        .from("professions_reglementees")
-        .select("*");
-
+      const { data: professions } = await supabaseAdmin.from("professions_reglementees").select("*");
       if (professions) {
         for (const p of professions) {
           const mots = p.mots_cles || [];
           const matchRole = mots.some((m: string) => roleActuel.includes(m.toLowerCase()));
           const matchObjectif = mots.some((m: string) => objectifDeclare.includes(m.toLowerCase()));
-          if (matchRole || matchObjectif) {
-            professionReglementee = p;
-            break;
-          }
+          if (matchRole || matchObjectif) { professionReglementee = p; break; }
         }
       }
     } catch (e) {
@@ -1039,8 +747,6 @@ export async function POST(req: NextRequest) {
       historiqueAnalyse = [...historiqueAnalyse, { type: analyse.type, score: analyse.score, mode: modeActuel }];
     }
 
-    const nbEchanges = history.filter((m: { role: string }) => m.role === "user").length;
-
     // ── MOTEUR DÉTERMINISTE — calculé avant le prompt ──
     const signauxBruts = {
       signaux_comportementaux: historiqueAnalyse.map(h => h.type),
@@ -1049,7 +755,11 @@ export async function POST(req: NextRequest) {
       role_actuel: candidatInfo?.role_actuel || "",
       objectif_declare: candidatInfo?.objectif_declare || "",
       diplome: candidatInfo?.diplome || "",
-      annees_experience: parseInt(candidatInfo?.annee_experience || "0") || 0,
+      annees_experience: candidatInfo?.annee_experience?.includes("plus de 10") ? 12 :
+        candidatInfo?.annee_experience?.includes("6 à 10") ? 8 :
+          candidatInfo?.annee_experience?.includes("3 à 5") ? 4 :
+            candidatInfo?.annee_experience?.includes("1 à 2") ? 2 :
+              candidatInfo?.annee_experience?.includes("moins") ? 0.5 : 0,
       niveau_detail: historiqueAnalyse.length > 0
         ? historiqueAnalyse.reduce((a: number, h: { score: number }) => a + (h.score || 2), 0) / historiqueAnalyse.length
         : 2,
@@ -1062,22 +772,21 @@ export async function POST(req: NextRequest) {
       : null;
     // ── FIN MOTEUR DÉTERMINISTE ──
 
+    const nbEchanges = history.filter((m: { role: string }) => m.role === "user").length;
     let systemPrompt = buildSystemPrompt(candidatInfo, profil, historiqueAnalyse, professionReglementee, gpsDeterm);
 
-    // Injecter prochaine question si moins de 8 échanges
-    // À 8 échanges ou plus — forcer le rapport directement
     if (nbEchanges >= 6) {
       const gpsPrompt = gpsDeterm ? `
 
-⚠️ GPS CALCULÉ PAR LE MOTEUR YELMA — COPIE EXACTEMENT CES DONNÉES :
-An 1: ${gpsDeterm.etapes[0]?.titre} | ${gpsDeterm.etapes[0]?.salaire_min}$-${gpsDeterm.etapes[0]?.salaire_max}$ | ${gpsDeterm.etapes[0]?.actions[0]}
-An 2: ${gpsDeterm.etapes[1]?.titre} | ${gpsDeterm.etapes[1]?.salaire_min}$-${gpsDeterm.etapes[1]?.salaire_max}$ | ${gpsDeterm.etapes[1]?.actions[0]}
-An 3: ${gpsDeterm.etapes[2]?.titre} | ${gpsDeterm.etapes[2]?.salaire_min}$-${gpsDeterm.etapes[2]?.salaire_max}$ | ${gpsDeterm.etapes[2]?.actions[0]}
-An 4: ${gpsDeterm.etapes[3]?.titre} | ${gpsDeterm.etapes[3]?.salaire_min}$-${gpsDeterm.etapes[3]?.salaire_max}$ | ${gpsDeterm.etapes[3]?.actions[0]}
-An 5: ${gpsDeterm.etapes[4]?.titre} | ${gpsDeterm.etapes[4]?.salaire_min}$-${gpsDeterm.etapes[4]?.salaire_max}$ | ${gpsDeterm.etapes[4]?.actions[0]}
-RÈGLE ABSOLUE : Utilise EXACTEMENT ces titres et salaires — ne pas inventer, ne pas modifier.` : "";
+⚠️ GPS CALCULÉ PAR LE MOTEUR YELMA — NE PAS INCLURE DANS TA RÉPONSE :
+An 1: ${gpsDeterm.etapes[0]?.titre} | ${gpsDeterm.etapes[0]?.salaire_min}$-${gpsDeterm.etapes[0]?.salaire_max}$
+An 2: ${gpsDeterm.etapes[1]?.titre} | ${gpsDeterm.etapes[1]?.salaire_min}$-${gpsDeterm.etapes[1]?.salaire_max}$
+An 3: ${gpsDeterm.etapes[2]?.titre} | ${gpsDeterm.etapes[2]?.salaire_min}$-${gpsDeterm.etapes[2]?.salaire_max}$
+An 4: ${gpsDeterm.etapes[3]?.titre} | ${gpsDeterm.etapes[3]?.salaire_min}$-${gpsDeterm.etapes[3]?.salaire_max}$
+An 5: ${gpsDeterm.etapes[4]?.titre} | ${gpsDeterm.etapes[4]?.salaire_min}$-${gpsDeterm.etapes[4]?.salaire_max}$
+Score faisabilité : ${resultatMatching.score_faisabilite}%` : "";
 
-      systemPrompt += `\n\n🚨 RAPPORT OBLIGATOIRE MAINTENANT — Tu as ${nbEchanges} échanges. Génère IMMÉDIATEMENT le rapport final complet. NE PAS poser de question. Commence directement par "TES 3 COMPÉTENCES CLÉS" sans aucune introduction.${gpsPrompt}`;
+      systemPrompt += `\n\n🚨 RAPPORT OBLIGATOIRE MAINTENANT — Tu as ${nbEchanges} échanges. Génère IMMÉDIATEMENT le rapport final. NE PAS poser de question. Commence directement par "TES 3 COMPÉTENCES CLÉS".${gpsPrompt}`;
     } else if (derniereReponseUser?.content !== "START") {
       const questionsDejaposees = history
         .filter((m: { role: string }) => m.role === "assistant")
@@ -1102,7 +811,6 @@ RÈGLE ABSOLUE : Utilise EXACTEMENT ces titres et salaires — ne pas inventer, 
     if (!response.ok) throw new Error(data.error?.message || "Erreur OpenAI");
 
     const reply = data.choices[0].message.content;
-    if (nbEchanges >= 8) console.log("REPLY ÉCHANGE", nbEchanges, ":", reply.substring(0, 300));
     console.log("PROFIL:", profil, "| MODE:", modeActuel, "| ÉCHANGES:", nbEchanges, "| IS RAPPORT:", isRapportFinal(reply));
 
     if ((isRapportFinal(reply) || nbEchanges >= 8) && email) {
@@ -1126,8 +834,19 @@ RÈGLE ABSOLUE : Utilise EXACTEMENT ces titres et salaires — ne pas inventer, 
 
         if (jsonMatch) {
           const parsed = JSON.parse(jsonMatch[0]);
-
           const rapportData = parseExtractedData(parsed, candidatInfo || {});
+
+          // ── GPS 100% DÉTERMINISTE — notre moteur décide tout ──
+          if (gpsDeterm && gpsDeterm.etapes.length === 5) {
+            rapportData.gps_an1 = { titre: gpsDeterm.etapes[0].titre, salaire: gpsDeterm.etapes[0].salaire_min, action: gpsDeterm.etapes[0].actions[0] }
+            rapportData.gps_an2 = { titre: gpsDeterm.etapes[1].titre, salaire: gpsDeterm.etapes[1].salaire_min, action: gpsDeterm.etapes[1].actions[0] }
+            rapportData.gps_an3 = { titre: gpsDeterm.etapes[2].titre, salaire: gpsDeterm.etapes[2].salaire_min, action: gpsDeterm.etapes[2].actions[0] }
+            rapportData.gps_an4 = { titre: gpsDeterm.etapes[3].titre, salaire: gpsDeterm.etapes[3].salaire_min, action: gpsDeterm.etapes[3].actions[0] }
+            rapportData.gps_an5 = { titre: gpsDeterm.etapes[4].titre, salaire: gpsDeterm.etapes[4].salaire_min, action: gpsDeterm.etapes[4].actions[0] }
+            rapportData.salaire_min = gpsDeterm.salaire_actuel
+            rapportData.salaire_max = gpsDeterm.salaire_cible
+            rapportData.objectif_carriere = signauxNormalises.objectif_normalise
+          }
 
           await supabaseAdmin.from("candidats").upsert({
             email, nom, prenom,
@@ -1175,16 +894,12 @@ RÈGLE ABSOLUE : Utilise EXACTEMENT ces titres et salaires — ne pas inventer, 
               force2: { nom: rapportData.force2, desc: rapportData.force2_desc },
               force3: { nom: rapportData.force3, desc: rapportData.force3_desc },
             },
+            matching_score: resultatMatching.score_faisabilite,
+            top_metiers: resultatMatching.top_metiers.slice(0, 3).map(m => ({
+              titre: m.titre_fr, score: m.score_total, cnp: m.code_cnp
+            })),
           });
 
-          // Forcer les titres GPS depuis le moteur déterministe
-          if (gpsDeterm && gpsDeterm.etapes.length === 5) {
-            rapportData.gps_an1 = { titre: gpsDeterm.etapes[0].titre, salaire: rapportData.gps_an1?.salaire ?? 0, action: rapportData.gps_an1?.action ?? "" }
-            rapportData.gps_an2 = { titre: gpsDeterm.etapes[1].titre, salaire: rapportData.gps_an2?.salaire ?? 0, action: rapportData.gps_an2?.action ?? "" }
-            rapportData.gps_an3 = { titre: gpsDeterm.etapes[2].titre, salaire: rapportData.gps_an3?.salaire ?? 0, action: rapportData.gps_an3?.action ?? "" }
-            rapportData.gps_an4 = { titre: gpsDeterm.etapes[3].titre, salaire: rapportData.gps_an4?.salaire ?? 0, action: rapportData.gps_an4?.action ?? "" }
-            rapportData.gps_an5 = { titre: gpsDeterm.etapes[4].titre, salaire: rapportData.gps_an5?.salaire ?? 0, action: rapportData.gps_an5?.action ?? "" }
-          }
           return NextResponse.json({
             reply,
             rapportData,

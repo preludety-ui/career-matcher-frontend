@@ -185,6 +185,10 @@ export default function Home() {
       setFormError(lang === "fr" ? "Email invalide" : "Invalid email");
       return;
     }
+    if (!formData.objectif_declare.trim()) {
+      setFormError(lang === "fr" ? "Veuillez indiquer votre objectif de carrière" : "Please indicate your career goal");
+      return;
+    }
 
     setFormLoading(true);
     setFormError("");
@@ -222,7 +226,7 @@ export default function Home() {
 
       setUserInfo({ ...formData, plan, salaire_min, salaire_max });
       // Sauvegarder email pour mon-espace
-       localStorage.setItem("yelma_email", formData.email);
+      localStorage.setItem("yelma_email", formData.email);
       setMessages([]);
       setRapportGenere(false);
 
@@ -274,9 +278,9 @@ export default function Home() {
             objectif_declare: userInfo?.objectif_declare,
             salaire_min: userInfo?.salaire_min,
             salaire_max: userInfo?.salaire_max,
-                      },
+          },
           historiqueAnalyse: (messages.filter(m => m.role === "bot").slice(-1)[0] as Message)?.historiqueAnalyse || [],
-       
+
         }),
       });
       const data = await res.json();
@@ -526,7 +530,7 @@ export default function Home() {
                   <select className="w-full border rounded-xl px-3 py-2 text-sm focus:outline-none bg-white" style={{ borderColor: "#E8E8F0" }} value={formData.annee_diplome} onChange={(e) => setFormData({ ...formData, annee_diplome: e.target.value })}>
                     <option value="">{lang === "fr" ? "Année" : "Year"}</option>
                     <option>En cours</option>
-                    {[2025,2024,2023,2022,2021,2020,2019,2018,2017,2016,2015].map(y => <option key={y}>{y}</option>)}
+                    {[2025, 2024, 2023, 2022, 2021, 2020, 2019, 2018, 2017, 2016, 2015].map(y => <option key={y}>{y}</option>)}
                     <option>Avant 2015</option>
                   </select>
                 </div>
@@ -585,19 +589,19 @@ export default function Home() {
                 </select>
               </div>
               <div>
-                <label className="text-xs font-semibold mb-1 block" style={{ color: "#1A1A2E" }}>{lang === "fr" ? "Objectif de carrière (optionnel)" : "Career goal (optional)"}</label>
-                <input className="w-full border rounded-xl px-3 py-2 text-sm focus:outline-none" style={{ borderColor: "#E8E8F0" }} placeholder={lang === "fr" ? "ex: Devenir directeur de projet..." : "ex: Become a project manager..."} value={formData.objectif_declare} onChange={(e) => setFormData({ ...formData, objectif_declare: e.target.value })} />
+                <label className="text-xs font-semibold mb-1 block" style={{ color: "#1A1A2E" }}>{lang === "fr" ? "Objectif de carrière *" : "Career goal (optional)"}</label>
+                <input className="w-full border rounded-xl px-3 py-2 text-sm focus:outline-none" style={{ borderColor: "#E8E8F0" }} placeholder={lang === "fr" ? "ex: Devenir gestionnaire de projet, infirmière praticienne..." : "ex: ex: Become a nurse practitioner, project manager..."} value={formData.objectif_declare} onChange={(e) => setFormData({ ...formData, objectif_declare: e.target.value })} />
               </div>
-              
-                <label className="text-xs font-semibold mb-1 block" style={{ color: "#1A1A2E" }}>{lang === "fr" ? "Membre d'un ordre professionnel ?" : "Member of a professional order?"}</label>
-                <select className="w-full border rounded-xl px-3 py-2 text-sm focus:outline-none bg-white" style={{ borderColor: "#E8E8F0" }} value={formData.ordre_professionnel_statut} onChange={(e) => setFormData({ ...formData, ordre_professionnel_statut: e.target.value })}>
-                  <option value="">{lang === "fr" ? "Sélectionnez" : "Select"}</option>
-                  <option value="non">Non</option>
-                  <option value="en_cours">En cours d&apos;admission</option>
-                  <option value="membre_actif">Oui — membre actif</option>
-                </select>
-              </div>
-              {formData.ordre_professionnel_statut && formData.ordre_professionnel_statut !== "non" && (
+
+              <label className="text-xs font-semibold mb-1 block" style={{ color: "#1A1A2E" }}>{lang === "fr" ? "Membre d'un ordre professionnel ?" : "Member of a professional order?"}</label>
+              <select className="w-full border rounded-xl px-3 py-2 text-sm focus:outline-none bg-white" style={{ borderColor: "#E8E8F0" }} value={formData.ordre_professionnel_statut} onChange={(e) => setFormData({ ...formData, ordre_professionnel_statut: e.target.value })}>
+                <option value="">{lang === "fr" ? "Sélectionnez" : "Select"}</option>
+                <option value="non">Non</option>
+                <option value="en_cours">En cours d&apos;admission</option>
+                <option value="membre_actif">Oui — membre actif</option>
+              </select>
+            </div>
+            {formData.ordre_professionnel_statut && formData.ordre_professionnel_statut !== "non" && (
               <div>
                 <label className="text-xs font-semibold mb-1 block" style={{ color: "#1A1A2E" }}>{lang === "fr" ? "Quel ordre professionnel ?" : "Which professional order?"}</label>
                 <select className="w-full border rounded-xl px-3 py-2 text-sm focus:outline-none bg-white" style={{ borderColor: "#E8E8F0" }} value={formData.ordre_professionnel_nom} onChange={(e) => setFormData({ ...formData, ordre_professionnel_nom: e.target.value })}>
@@ -621,26 +625,26 @@ export default function Home() {
                   <option>Autre</option>
                 </select>
               </div>
-              )}
+            )}
 
-            </div>
-
-            {formError && <p className="text-xs text-center" style={{ color: "#FF7043" }}>{formError}</p>}
-
-            <button onClick={handleFormSubmit} disabled={formLoading} className="w-full py-4 rounded-2xl text-sm font-bold text-white disabled:opacity-50" style={{ background: "#FF7043" }}>
-              {formLoading ? (lang === "fr" ? "Calcul de votre profil..." : "Calculating your profile...") : (lang === "fr" ? "Commencer mon entretien YELMA →" : "Start my YELMA interview →")}
-            </button>
-
-            <div style={{ textAlign: "center", fontSize: "10px", color: "#888" }}>
-              🔒 {lang === "fr" ? "Vos informations sont confidentielles et sécurisées" : "Your information is private and secure"}
-            </div>
-
-            <button onClick={() => setLang(null)} className="text-xs text-center" style={{ color: "#888", background: "none", border: "none", cursor: "pointer" }}>
-              {lang === "fr" ? "← Retour" : "← Back"}
-            </button>
           </div>
+
+          {formError && <p className="text-xs text-center" style={{ color: "#FF7043" }}>{formError}</p>}
+
+          <button onClick={handleFormSubmit} disabled={formLoading} className="w-full py-4 rounded-2xl text-sm font-bold text-white disabled:opacity-50" style={{ background: "#FF7043" }}>
+            {formLoading ? (lang === "fr" ? "Calcul de votre profil..." : "Calculating your profile...") : (lang === "fr" ? "Commencer mon entretien YELMA →" : "Start my YELMA interview →")}
+          </button>
+
+          <div style={{ textAlign: "center", fontSize: "10px", color: "#888" }}>
+            🔒 {lang === "fr" ? "Vos informations sont confidentielles et sécurisées" : "Your information is private and secure"}
+          </div>
+
+          <button onClick={() => setLang(null)} className="text-xs text-center" style={{ color: "#888", background: "none", border: "none", cursor: "pointer" }}>
+            {lang === "fr" ? "← Retour" : "← Back"}
+          </button>
         </div>
-        );
+      </div>
+    );
   }
 
   return (
@@ -661,13 +665,13 @@ export default function Home() {
           <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
             <div className={`max-w-[85%] px-4 py-3 rounded-2xl text-sm leading-relaxed ${m.role === "user" ? "text-white rounded-br-sm" : "bg-white text-gray-800 rounded-bl-sm shadow-sm"}`} style={m.role === "user" ? { background: "#1A1A2E" } : {}}>
               {m.rapport ? (
-               <RapportGPSComponent
-  data={m.rapport}
-  plan={userInfo?.plan || "propulse"}
-  ville={userInfo?.ville}
-  roleActuel={userInfo?.role_actuel}
-  email={userInfo?.email}
-/> 
+                <RapportGPSComponent
+                  data={m.rapport}
+                  plan={userInfo?.plan || "propulse"}
+                  ville={userInfo?.ville}
+                  roleActuel={userInfo?.role_actuel}
+                  email={userInfo?.email}
+                />
               ) : (
                 m.text.split("\n").map((line, j) => (<span key={j}>{line}<br /></span>))
               )}
@@ -705,7 +709,7 @@ export default function Home() {
         <div className="bg-white px-4 py-3 border-t border-gray-100 flex-shrink-0">
           <div style={{ display: "flex", gap: "8px" }}>
             <a href={`/mon-espace?email=${encodeURIComponent(userInfo?.email || "")}&tab=offres`}
-               onClick={() => localStorage.setItem("yelma_email", userInfo?.email || "")} style={{ flex: 1, background: "#1A1A2E", color: "white", borderRadius: "12px", padding: "12px", fontSize: "13px", fontWeight: 700, textDecoration: "none", textAlign: "center" }}>
+              onClick={() => localStorage.setItem("yelma_email", userInfo?.email || "")} style={{ flex: 1, background: "#1A1A2E", color: "white", borderRadius: "12px", padding: "12px", fontSize: "13px", fontWeight: 700, textDecoration: "none", textAlign: "center" }}>
               📊 Accéder à mon espace →
             </a>
             <button

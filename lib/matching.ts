@@ -296,14 +296,15 @@ export async function scoreMetiers(
     code: string; poids: number; est_essentielle: boolean
   }>> = {}
 
-  for (const lien of liens) {
+ for (const lien of liens) {
     const mid = lien.metier_id
     if (!competencesParMetier[mid]) competencesParMetier[mid] = []
     competencesParMetier[mid].push({
-      code:            (lien.competences as { code: string })?.code ?? '',
+      code:            (lien.competences as unknown as { code: string })?.code ?? '',
       poids:           lien.poids,
       est_essentielle: lien.est_essentielle,
     })
+  
   }
 
   // 4. Scorer chaque métier
