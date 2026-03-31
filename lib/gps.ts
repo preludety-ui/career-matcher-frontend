@@ -34,9 +34,6 @@ export interface GPSDeterm {
 
 // ─────────────────────────────────────────────────
 // SALAIRES PAR ANCIENNETÉ
-// Low    = débutant   (An 1-2)
-// Median = intermédiaire (An 3)
-// High   = senior     (An 4-5)
 // ─────────────────────────────────────────────────
 
 interface SalairesMetier {
@@ -144,7 +141,7 @@ async function chercherSalaires(
     code_cnp: string,
     province: string = 'QC'
 ): Promise<SalairesMetier> {
-    const codeNettoye = code_cnp.replace(/\D/g, '') // garder seulement les chiffres
+    const codeNettoye = code_cnp.replace(/\D/g, '')
 
     const { data } = await supabaseAdmin
         .from('salaires_cnp')
@@ -160,7 +157,6 @@ async function chercherSalaires(
         const median = Number(data.Median_Wage_Salaire_Median) || 0
         const high = Number(data.High_Wage_Salaire_Maximal) || 0
 
-        // Si taux horaire (< 200$) → convertir en annuel (37.5h × 52 semaines)
         const isHoraire = median > 0 && median < 200
         const facteur = isHoraire ? 1950 : 1
 
@@ -171,7 +167,6 @@ async function chercherSalaires(
         }
     }
 
-    // Fallback si pas de données
     return {
         salaire_low: 45000,
         salaire_median: 60000,
@@ -187,7 +182,7 @@ export async function construireGPS(
     signaux: SignauxNormalises,
     top_metier: MetierScore
 ): Promise<GPSDeterm> {
-
+    console.log('GPS CALLED avec:', signaux.role_actuel_normalise, signaux.objectif_normalise)
     // 1. Chercher le métier actuel dans Supabase
     const motCle = signaux.role_actuel_normalise.split(' ')[0]
     const { data: metierActuelData } = await supabaseAdmin
@@ -196,16 +191,16 @@ export async function construireGPS(
         .or(`titre_fr.ilike.%${motCle}%,alias.cs.{${motCle}}`)
         .limit(1)
         .single()
-
+    console.log('METIER ACTUEL:', metierActuelData)
     const metier_actuel = metierActuelData ?? {
-        id: null,
+        id: null as string | null,
         titre_fr: signaux.role_actuel_normalise,
         code_cnp: '00000',
         secteur: signaux.domaine_code,
     }
 
     // 2. Chercher le métier cible via metier_evolution (source de vérité)
-    let metier_cible = null
+    let metier_cible: { id: string | null; titre_fr: string; code_cnp: string; secteur: string } | null = null
     let type_evolution = 'progression'
     let annees_evolution_min = 2
     let annees_evolution_max = 5
@@ -214,27 +209,37 @@ export async function construireGPS(
         const { data: evolutions } = await supabaseAdmin
             .from('metier_evolution')
             .select(`
-        type_evolution, annees_min, annees_max,
-        diplome_requis, ordre_requis, nom_ordre,
-        metier_cible:metier_id_cible (id, titre_fr, code_cnp, secteur)
-      `)
+                type_evolution, annees_min, annees_max,
+                diplome_requis, ordre_requis, nom_ordre,
+                metier_cible:metier_id_cible (id, titre_fr, code_cnp, secteur)
+            `)
             .eq('metier_id_source', metier_actuel.id)
             .order('annees_min', { ascending: true })
+        const normalize = (s: string) =>
+            s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
 
-        // Prendre la progression en priorité, sinon la première évolution
-        const objectif = signaux.objectif_normalise.toLowerCase()
+        const objectif = normalize(signaux.objectif_normalise || '')
+        console.log('EVOLUTIONS TROUVÉES:', evolutions?.length, evolutions?.map(e => (e.metier_cible as unknown as { titre_fr: string })?.titre_fr))
+
         const evolution = evolutions?.find(e => {
-            const cible = (e.metier_cible as unknown as { titre_fr: string })?.titre_fr?.toLowerCase() || ''
-            return objectif.split(' ').some(mot => mot.length > 3 && cible.includes(mot))
+            const titreCible = (e.metier_cible as unknown as { titre_fr: string })?.titre_fr || ''
+            const cible = normalize(titreCible)
+            const match = cible.includes(objectif) || objectif.includes(cible) || cible.split(' ').some(mot => mot.length > 3 && objectif.includes(mot))
+            console.log('MATCH CHECK:', cible, '|', objectif, '|', match)
+            return match
         }) ?? evolutions?.find(e => e.type_evolution === 'progression')
             ?? evolutions?.[0]
             ?? null
+        console.log('EVOLUTION SELECTIONNEE:', JSON.stringify(evolution))
 
         if (evolution?.metier_cible) {
-            metier_cible = evolution.metier_cible as unknown as { id: string; titre_fr: string; code_cnp: string; secteur: string }
+            const cibleRaw = evolution.metier_cible as unknown as { id: string; titre_fr: string; code_cnp: string; secteur: string } | { id: string; titre_fr: string; code_cnp: string; secteur: string }[]
+            const cibleData = Array.isArray(cibleRaw) ? cibleRaw[0] : cibleRaw
+            metier_cible = cibleData
             type_evolution = evolution.type_evolution
             annees_evolution_min = evolution.annees_min
             annees_evolution_max = evolution.annees_max
+            console.log('METIER CIBLE ASSIGNE:', metier_cible)
         }
     }
 
@@ -256,7 +261,7 @@ export async function construireGPS(
         }
     }
 
-    // 4. Chercher les salaires réels Low/Median/High depuis salaires_cnp
+    // 4. Chercher les salaires réels
     const salairesActuel = await chercherSalaires(metier_actuel.code_cnp)
     const salairesCible = await chercherSalaires(metier_cible.code_cnp)
 
@@ -273,11 +278,12 @@ export async function construireGPS(
     )
     const objectif_atteignable = annees_necessaires <= 5
 
-    // 6. Construire les 5 étapes avec salaires réels par ancienneté
+    // 6. Construire les 5 étapes
     const etapes: EtapeGPS[] = []
 
     for (let annee = 1; annee <= 5; annee++) {
-        const est_objectif = annee >= annees_necessaires && ecart > 0
+        const annees_effectives = Math.min(annees_necessaires, 5)
+        const est_objectif = annee >= annees_effectives && metier_cible.code_cnp !== metier_actuel.code_cnp
         const salairesEtape = est_objectif ? salairesCible : salairesActuel
         const { salaire_min, salaire_max } = getSalaireParAnnee(salairesEtape, annee)
 
@@ -292,7 +298,6 @@ export async function construireGPS(
         })
     }
 
-    // 6. Message GPS
     const message_gps = objectif_atteignable
         ? `Votre objectif "${metier_cible.titre_fr}" est atteignable en ${annees_necessaires} an${annees_necessaires > 1 ? 's' : ''} avec un plan structuré.`
         : `Votre objectif "${metier_cible.titre_fr}" nécessite plus de 5 ans. Voici un plan réaliste pour maximiser votre progression.`

@@ -768,8 +768,9 @@ export async function POST(req: NextRequest) {
     const signauxNormalises = normaliserSignaux(signauxBruts);
     const resultatMatching = await scoreMetiers(signauxNormalises);
     const gpsDeterm = resultatMatching.top_metiers.length > 0
-      ? await construireGPS(signauxNormalises, resultatMatching.top_metiers[0])
-      : null;
+  ? await construireGPS(signauxNormalises, resultatMatching.top_metiers[0])
+  : null
+console.log('GPS DETERM:', JSON.stringify(gpsDeterm?.etapes?.map(e => e.titre)))
     // ── FIN MOTEUR DÉTERMINISTE ──
 
     const nbEchanges = history.filter((m: { role: string }) => m.role === "user").length;
