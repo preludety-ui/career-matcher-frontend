@@ -281,6 +281,38 @@ const PROFILS: ProfilTest[] = [
     ordre_requis: true,
     nom_ordre: 'Transport Canada',
   },
+
+  // COMPTABILITÉ
+  {
+    nom: 'Stagiaire comptable',
+    role_actuel: 'Stagiaire comptable',
+    objectif: 'Comptable professionnel agréé (CPA)',
+    secteur: 'Finance et affaires',
+    code_cnp_source: '11099',
+    code_cnp_cible: '11100',
+    type_evolution: 'progression',
+    annees_min: 3,
+    annees_max: 5,
+    diplome_requis: 'BAC comptabilité + examen CPA',
+    ordre_requis: true,
+    nom_ordre: 'CPA Québec',
+  },
+
+  // ÉDUCATION
+  {
+    nom: 'Professeur université',
+    role_actuel: 'Professeur d\'université',
+    objectif: 'Professeur(e) de cégep / université',
+    secteur: 'Éducation',
+    code_cnp_source: '41200',
+    code_cnp_cible: '41200',
+    type_evolution: 'progression',
+    annees_min: 3,
+    annees_max: 6,
+    diplome_requis: 'Doctorat + publications scientifiques',
+    ordre_requis: false,
+  },
+
 ]
 
 // ─────────────────────────────────────────────────
