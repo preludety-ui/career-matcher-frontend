@@ -182,7 +182,7 @@ export async function construireGPS(
     signaux: SignauxNormalises,
     top_metier: MetierScore
 ): Promise<GPSDeterm> {
-    console.log('GPS CALLED avec:', signaux.role_actuel_normalise, signaux.objectif_normalise)
+    
     // 1. Chercher le métier actuel dans Supabase
     const motCle = signaux.role_actuel_normalise.trim()
     const { data: metierActuelData } = await supabaseAdmin
@@ -192,8 +192,7 @@ export async function construireGPS(
         .limit(1)
         .single()
 
-    console.log('METIER ACTUEL:', metierActuelData)
-
+   
     const metier_actuel = metierActuelData ?? {
         id: null as string | null,
         titre_fr: signaux.role_actuel_normalise,
@@ -209,7 +208,7 @@ export async function construireGPS(
     let annees_evolution_max = 5
 
     if (metier_actuel.id) {
-        console.log('RECHERCHE EVOLUTIONS POUR ID:', metier_actuel.id)
+       
         const { data: evolutions } = await supabaseAdmin
             .from('metier_evolution')
             .select(`
@@ -223,8 +222,7 @@ export async function construireGPS(
             s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
 
         const objectif = normalize(signaux.objectif_normalise || '')
-        console.log('EVOLUTIONS TROUVÉES:', evolutions?.length, evolutions?.map(e => (e.metier_cible as unknown as { titre_fr: string })?.titre_fr))
-
+        
         const evolution = evolutions?.find(e => {
             const titreCible = (e.metier_cible as unknown as { titre_fr: string })?.titre_fr || ''
             const cible = normalize(titreCible)
@@ -233,13 +231,12 @@ export async function construireGPS(
             const match = (
                 cible.includes(objectif) || objectif.includes(cible) || motsObjectif.every(mot => cible.includes(mot)) || motsCible.every(mot => objectif.includes(mot))
             )
-            console.log('MATCH CHECK:', cible, '|', objectif, '|', match)
+            
             return match
         }) ?? evolutions?.find(e => e.type_evolution === 'progression')
             ?? evolutions?.[0]
             ?? null
-        console.log('EVOLUTION SELECTIONNEE:', JSON.stringify(evolution))
-
+       
         if (evolution?.metier_cible) {
             const cibleRaw = evolution.metier_cible as unknown as { id: string; titre_fr: string; code_cnp: string; secteur: string } | { id: string; titre_fr: string; code_cnp: string; secteur: string }[]
             const cibleData = Array.isArray(cibleRaw) ? cibleRaw[0] : cibleRaw
@@ -247,7 +244,7 @@ export async function construireGPS(
             type_evolution = evolution.type_evolution
             annees_evolution_min = evolution.annees_min
             annees_evolution_max = evolution.annees_max
-            console.log('METIER CIBLE ASSIGNE:', metier_cible)
+            
         }
     }
 
