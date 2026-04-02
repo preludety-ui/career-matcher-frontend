@@ -28,6 +28,11 @@ type Candidat = {
   dernier_entretien?: string;
   diplome_max?: string; duree_experience?: string;
   domaine_actuel?: string; statut_emploi?: string; objectif_declare?: string;
+  score_propulse?: number;
+  score_cible_pct?: number;
+  score_cible_5ans_pct?: number;
+  verdict?: string;
+  message_analyse?: string;
 };
 
 function EntretienDansMonEspace({ candidat, onRapportGenere }: {
@@ -308,43 +313,43 @@ export default function MonEspace() {
       fetch(`/api/auth?token=${token}`)
         .then(r => r.json())
         .then(data => {
-          if (data.success) { 
-  setCandidat(data.candidat); 
-  localStorage.setItem("yelma_email", data.candidat.email);
-  window.history.replaceState({}, "", "/mon-espace"); 
-}
+          if (data.success) {
+            setCandidat(data.candidat);
+            localStorage.setItem("yelma_email", data.candidat.email);
+            window.history.replaceState({}, "", "/mon-espace");
+          }
           else setError(data.error || "Lien invalide ou expiré");
         })
         .catch(() => setError("Erreur de connexion"))
         .finally(() => setTokenLoading(false));
     }
   }, []);
-      
+
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const tab = params.get("tab");
     const emailParam = params.get("email") || localStorage.getItem("yelma_email") || "";
     if (tab) setActiveTab(tab);
     if (emailParam) {
-  // Essayer de charger directement depuis Supabase
-  fetch(`/api/candidats?email=${encodeURIComponent(emailParam)}`)
-    .then(r => r.json())
-    .then(data => {
-  const candidatData = data.candidat || data.data;
-  if (candidatData) {
-    setCandidat(candidatData);
-   localStorage.setItem("yelma_email", emailParam);
-      } else {
+      // Essayer de charger directement depuis Supabase
+      fetch(`/api/candidats?email=${encodeURIComponent(emailParam)}`)
+        .then(r => r.json())
+        .then(data => {
+          const candidatData = data.candidat || data.data;
+          if (candidatData) {
+            setCandidat(candidatData);
+            localStorage.setItem("yelma_email", emailParam);
+          } else {
             setEmail(emailParam);
           }
-      })
-      .catch(() => setEmail(emailParam))
-      .finally(() => setAutoLoading(false));
+        })
+        .catch(() => setEmail(emailParam))
+        .finally(() => setAutoLoading(false));
     } else {
       setAutoLoading(false);
     }
 
-   }, []);
+  }, []);
 
   // Charger candidatures et inscriptions
   useEffect(() => {
@@ -361,7 +366,7 @@ export default function MonEspace() {
 
   const sendMagicLink = async () => {
     if (!email.includes("@")) { setError("Email invalide"); return; }
-    
+
     // Accès admin direct en développement
     if (process.env.NODE_ENV === "development" && email === "preludety@gmail.com") {
       const res = await fetch(`/api/auth`, {
@@ -523,7 +528,7 @@ export default function MonEspace() {
     if (candidat && (activeTab === "formations" || activeTab === "evenements") && formations.renforcement.length === 0) chargerFormations();
   }, [activeTab, candidat]);
 
-    if (autoLoading) return (
+  if (autoLoading) return (
     <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#FAFBFF" }}>
       <div style={{ textAlign: "center" }}>
         <div style={{ fontSize: "32px", marginBottom: "12px" }}>⏳</div>
@@ -559,7 +564,7 @@ export default function MonEspace() {
             </button>
             <div style={{ textAlign: "center", marginTop: "12px" }}>
               <a href="/" style={{ fontSize: "11px", color: "#888", textDecoration: "none" }}>← Retour à l'accueil</a>
-       </div>
+            </div>
           </div>
         ) : (
           <div style={{ background: "white", borderRadius: "16px", padding: "24px", border: "0.5px solid #E8E8F0", textAlign: "center" }}>
@@ -628,15 +633,15 @@ export default function MonEspace() {
           <div style={{ fontSize: "10px", color: "#aaa" }}>Mon Espace Personnel</div>
         </div>
         <div style={{ textAlign: "right" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-         <div style={{ fontSize: "12px", color: "white", fontWeight: 600 }}>{candidat.prenom} {candidat.nom}</div>
-         <button
-           onClick={() => { setCandidat(null); localStorage.removeItem("yelma_email"); window.location.href = "/"; }}
-           style={{ background: "#FF7043", color: "white", border: "none", borderRadius: "20px", padding: "4px 10px", fontSize: "10px", fontWeight: 600, cursor: "pointer" }}
-         >
-           Déconnexion
-         </button>
-        </div>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <div style={{ fontSize: "12px", color: "white", fontWeight: 600 }}>{candidat.prenom} {candidat.nom}</div>
+            <button
+              onClick={() => { setCandidat(null); localStorage.removeItem("yelma_email"); window.location.href = "/"; }}
+              style={{ background: "#FF7043", color: "white", border: "none", borderRadius: "20px", padding: "4px 10px", fontSize: "10px", fontWeight: 600, cursor: "pointer" }}
+            >
+              Déconnexion
+            </button>
+          </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: "6px", justifyContent: "flex-end", marginTop: "2px" }}>
             <span style={{ background: isPropulse ? "#FF7043" : "#555", borderRadius: "20px", padding: "1px 8px", fontSize: "9px", color: "white", fontWeight: 600 }}>
@@ -669,7 +674,22 @@ export default function MonEspace() {
         {activeTab === "rapport" && (
           <div>
             {candidat.force1 ? (
-              <RapportGPS data={candidat} plan={candidat.plan} ville={candidat.ville} roleActuel={candidat.role_actuel} />
+              <RapportGPS
+                data={{
+                  ...candidat,
+                  prenom: candidat.prenom,
+                  nom: candidat.nom,
+                  score_propulse: candidat.score_propulse,
+                  score_cible_pct: candidat.score_cible_pct,
+                  score_cible_5ans_pct: candidat.score_cible_5ans_pct,
+                  verdict: candidat.verdict,
+                  message_analyse: candidat.message_analyse,
+                }}
+                plan={candidat.plan}
+                ville={candidat.ville}
+                roleActuel={candidat.role_actuel}
+                email={candidat.email}
+              />
             ) : (
               <div style={{ background: "white", borderRadius: "12px", padding: "24px", textAlign: "center", border: "0.5px solid #E8E8F0" }}>
                 <div style={{ fontSize: "32px", marginBottom: "12px" }}>📊</div>
@@ -849,17 +869,17 @@ export default function MonEspace() {
                 <div style={{ fontSize: "10px", color: "#888" }}>{e.organisateur}</div>
                 <div style={{ fontSize: "10px", color: "#aaa", marginTop: "2px" }}>📅 {e.date} · 📍 {e.lieu}</div>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "8px" }}>
-  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "8px" }}>
-  {e.lien && <a href={e.lien} target="_blank" rel="noopener noreferrer" style={{ background: "#FF7043", color: "white", borderRadius: "20px", padding: "5px 12px", fontSize: "10px", fontWeight: 700, textDecoration: "none" }}>S'inscrire →</a>}
-  <button onClick={() => marquerInscrit({ nom: e.nom, type: e.type, plateforme: e.organisateur, lien: e.lien, duree: "" })} style={{ background: "#D6FFE8", color: "#085041", border: "none", borderRadius: "20px", padding: "5px 10px", fontSize: "10px", fontWeight: 600, cursor: "pointer" }}>
-    ✅ Inscrit
-  </button>
-</div>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "8px" }}>
+                    {e.lien && <a href={e.lien} target="_blank" rel="noopener noreferrer" style={{ background: "#FF7043", color: "white", borderRadius: "20px", padding: "5px 12px", fontSize: "10px", fontWeight: 700, textDecoration: "none" }}>S'inscrire →</a>}
+                    <button onClick={() => marquerInscrit({ nom: e.nom, type: e.type, plateforme: e.organisateur, lien: e.lien, duree: "" })} style={{ background: "#D6FFE8", color: "#085041", border: "none", borderRadius: "20px", padding: "5px 10px", fontSize: "10px", fontWeight: 600, cursor: "pointer" }}>
+                      ✅ Inscrit
+                    </button>
+                  </div>
 
-  <button onClick={() => marquerInscrit({ nom: e.nom, type: e.type, plateforme: e.organisateur, lien: e.lien, duree: "" })} style={{ background: "#D6FFE8", color: "#085041", border: "none", borderRadius: "20px", padding: "5px 10px", fontSize: "10px", fontWeight: 600, cursor: "pointer" }}>
-    ✅ Je m'inscris
-  </button>
-</div>
+                  <button onClick={() => marquerInscrit({ nom: e.nom, type: e.type, plateforme: e.organisateur, lien: e.lien, duree: "" })} style={{ background: "#D6FFE8", color: "#085041", border: "none", borderRadius: "20px", padding: "5px 10px", fontSize: "10px", fontWeight: 600, cursor: "pointer" }}>
+                    ✅ Je m'inscris
+                  </button>
+                </div>
               </div>
             ))}
           </div>
@@ -972,7 +992,7 @@ export default function MonEspace() {
         )}
 
         {/* PROFIL */}
-      
+
         {activeTab === "entretien" && (
           <EntretienDansMonEspace
             candidat={candidat}
