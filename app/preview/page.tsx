@@ -523,6 +523,10 @@ type ResultatTest = {
   nb_questions?: number;
   erreur?: string;
   duree?: number;
+  score_propulse?: number;
+  score_cible_pct?: number;
+  verdict?: string;
+  message_analyse?: string;
 };
 
 export default function Preview() {
@@ -652,6 +656,10 @@ export default function Preview() {
       questions_posees: questions,
       nb_questions,
       duree,
+      score_propulse: rapportData.score_propulse,
+      score_cible_pct: rapportData.score_cible_pct,
+      verdict: rapportData.verdict,
+      message_analyse: rapportData.message_analyse,
     };
   };
 
@@ -828,7 +836,21 @@ export default function Preview() {
                       ))}
                     </div>
 
-                    <div style={{ fontSize: "9px", color: "#888", textAlign: "right" }}>⏱ {resultat.duree}s</div>
+                    {/* Scores PROPULSE */}
+                    {resultat.score_propulse && (
+                      <div style={{ background: "#FFF7ED", borderRadius: "8px", padding: "8px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <div>
+                          <div style={{ fontSize: "9px", fontWeight: 700, color: "#FF6B35", marginBottom: "2px" }}>🧠 SCORE PROPULSE</div>
+                          <div style={{ fontSize: "9px", color: "#888" }}>Cible: {resultat.score_cible_pct}% · {resultat.verdict}</div>
+                        </div>
+                       <div>
+                          <div style={{ fontSize: "8px", color: "#888", textAlign: "center", marginBottom: "4px" }}>SCORE PROPULSE</div>
+                          <div style={{ fontSize: "24px", fontWeight: 700, color: resultat.verdict === 'atteignable' ? "#FF6B35" : "#B8860B", textAlign: "center", marginTop: "8px" }}>
+                            {resultat.score_propulse}
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
 

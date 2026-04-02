@@ -88,6 +88,7 @@ export interface SignauxNormalises {
   diplome_niveau:        number
   annees_experience:     number
   est_reconversion:      boolean
+  prenom?:                string
 }
 
 export interface SignauxBruts {
@@ -100,6 +101,7 @@ export interface SignauxBruts {
   annees_experience:       number
   niveau_detail:           number
   structure_logique:       number
+  prenom?:                 string
 }
 
 // ─────────────────────────────────────────────────
@@ -435,5 +437,6 @@ export function normaliserSignaux(bruts: SignauxBruts): SignauxNormalises {
     diplome_niveau:        getNiveauDiplome(bruts.diplome),
     annees_experience:     bruts.annees_experience,
     est_reconversion,
+    prenom:                bruts.prenom?.trim() ?? '',
   }
 }

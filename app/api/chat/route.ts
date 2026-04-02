@@ -635,7 +635,10 @@ JSON attendu:
   "certifications": [
     {"nom": "nom", "organisme": "organisme"},
     {"nom": "nom", "organisme": "organisme"}
-  ]
+  ],
+  "capacite_adaptation": 0.7,
+  "capacite_apprentissage": 0.8,
+  "transferabilite": 0.6
 }
 
 REGLES:
@@ -643,7 +646,10 @@ REGLES:
 - certifications: exactement 2
 - axe1 et axe2: competences NON mentionnees par le candidat mais demandees par le marche
 - force1/2/3 INTERDITS : Communication, Gestion du temps, Esprit critique, Adaptabilite, Creativite, Travail en equipe, Resolution de problemes, Leadership seul
-- force1/2/3 OBLIGATOIRE : format Verbe + objet + contexte ex: Gestion des protocoles de soins, Supervision equipe clinique, Analyse donnees financieres`;
+- force1/2/3 OBLIGATOIRE : format Verbe + objet + contexte ex: Gestion des protocoles de soins, Supervision equipe clinique, Analyse donnees financieres
+- capacite_adaptation: score 0 à 1 basé sur les exemples de changement, flexibilité, nouveaux contextes mentionnés
+- capacite_apprentissage: score 0 à 1 basé sur la vitesse de progression, formations autodidactes, nouvelles compétences acquises
+- transferabilite: score 0 à 1 basé sur les compétences actuelles utiles pour la cible déclarée`;
 }
 
 // ============================================
@@ -686,12 +692,19 @@ function parseExtractedData(json: Record<string, unknown>, candidatInfo: {
     message_objectif: String(json.message_objectif || ""),
     delai_objectif: String(json.delai_objectif || "atteignable avec un plan structuré"),
     analyse_comparative: String(json.analyse || ""),
-    // GPS initialisé vide — sera rempli par le moteur déterministe
+    capacite_adaptation: Number(json.capacite_adaptation || 0),
+    capacite_apprentissage: Number(json.capacite_apprentissage || 0),
+    transferabilite: Number(json.transferabilite || 0),
     gps_an1: undefined as { titre: string; salaire: number; action: string } | undefined,
     gps_an2: undefined as { titre: string; salaire: number; action: string } | undefined,
     gps_an3: undefined as { titre: string; salaire: number; action: string } | undefined,
     gps_an4: undefined as { titre: string; salaire: number; action: string } | undefined,
     gps_an5: undefined as { titre: string; salaire: number; action: string } | undefined,
+    score_propulse: undefined as number | undefined,
+    score_cible_pct: undefined as number | undefined,
+    score_cible_5ans_pct: undefined as number | undefined,
+    verdict: undefined as string | undefined,
+    message_analyse: undefined as string | undefined,
     opportunites, formations, certifications,
   };
 }
@@ -764,12 +777,14 @@ export async function POST(req: NextRequest) {
         ? historiqueAnalyse.reduce((a: number, h: { score: number }) => a + (h.score || 2), 0) / historiqueAnalyse.length
         : 2,
       structure_logique: 3,
+      prenom: candidatInfo?.prenom || "",
     };
     const signauxNormalises = normaliserSignaux(signauxBruts);
     const resultatMatching = await scoreMetiers(signauxNormalises);
     const gpsDeterm = resultatMatching.top_metiers.length > 0
-  ? await construireGPS(signauxNormalises, resultatMatching.top_metiers[0])
-  : null
+      ? await construireGPS(signauxNormalises, resultatMatching.top_metiers[0])
+      : null
+    console.log('SCORES:', gpsDeterm?.score_propulse, gpsDeterm?.score_cible_pct, gpsDeterm?.verdict)
 
     // ── FIN MOTEUR DÉTERMINISTE ──
 
@@ -847,6 +862,23 @@ Score faisabilité : ${resultatMatching.score_faisabilite}%` : "";
             rapportData.salaire_min = gpsDeterm.salaire_actuel
             rapportData.salaire_max = gpsDeterm.salaire_cible
             rapportData.objectif_carriere = signauxNormalises.objectif_normalise
+            
+            // ── Score PROPULSE avec les scores IA ──
+            const variable_experience = Math.min(1, signauxBruts.annees_experience / (gpsDeterm.annees_necessaires || 5))
+            const score_propulse_final = Math.min(99, Math.round(
+              100 * (
+                0.30 * variable_experience +
+                0.25 * (rapportData.transferabilite || 0) +
+                0.20 * (rapportData.capacite_adaptation || 0) +
+                0.15 * (rapportData.capacite_apprentissage || 0) +
+                0.10 * 0  // formations = 0 à T=0
+              )
+            ))
+            rapportData.score_propulse = score_propulse_final
+            rapportData.score_cible_pct = gpsDeterm.score_cible_pct
+            rapportData.score_cible_5ans_pct = gpsDeterm.score_cible_5ans_pct
+            rapportData.verdict = gpsDeterm.verdict
+            rapportData.message_analyse = gpsDeterm.message_analyse
           }
 
           await supabaseAdmin.from("candidats").upsert({

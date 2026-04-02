@@ -30,7 +30,14 @@ export interface GPSDeterm {
     message_gps: string
     salaire_actuel: number
     salaire_cible: number
+    // ── Nouveaux champs PROPULSE ──
+    score_propulse: number        // Score global 0-100
+    score_cible_pct: number       // % progression vers objectif
+    score_cible_5ans_pct: number  // % atteint dans 5 ans si > 5 ans
+    message_analyse: string       // "Ce que YELMA a vu en toi"
+    verdict: 'atteignable' | 'ambitieux' | 'defi' // Type de profil
 }
+
 
 // ─────────────────────────────────────────────────
 // SALAIRES PAR ANCIENNETÉ
@@ -307,6 +314,34 @@ export async function construireGPS(
         ? `Votre objectif "${metier_cible.titre_fr}" est atteignable en ${annees_necessaires} an${annees_necessaires > 1 ? 's' : ''} avec un plan structuré.`
         : `Votre objectif "${metier_cible.titre_fr}" nécessite plus de 5 ans. Voici un plan réaliste pour maximiser votre progression.`
 
+    // ── Calculer Score CIBLE % ──
+    const annees_experience = signaux.annees_experience ?? 1
+    const score_cible_pct = Math.min(100, Math.round((annees_experience / annees_necessaires) * 100))
+    const score_cible_5ans_pct = annees_necessaires > 5
+        ? Math.min(100, Math.round((5 / annees_necessaires) * 100))
+        : 100
+
+    // ── Calculer Score PROPULSE ──
+    const niveau_competences = signaux.niveau_actuel * 20  // 1-5 → 20-100
+    const exp_score = Math.min(100, annees_experience * 15) // expérience
+    const marche_score = 80 // base marché
+    const score_propulse = Math.min(99, Math.round(
+        niveau_competences * 0.5 +
+        exp_score * 0.3 +
+        marche_score * 0.2
+    ))
+
+    // ── Verdict ──
+    const verdict = annees_necessaires <= 5 ? 'atteignable'
+        : annees_necessaires <= 8 ? 'ambitieux'
+        : 'defi'
+
+    // ── Message analyse ──
+    const prenom = signaux.prenom ?? 'Toi'
+    const message_analyse = verdict === 'atteignable'
+        ? `${prenom}, tu possèdes des forces que peu de candidats ont. En complétant tes formations et en comblant tes écarts, tu rejoindras l'élite de ton domaine — les professionnels que les employeurs s'arrachent.`
+        : `${prenom}, ton ambition révèle quelque chose d'important sur toi. Ta cible est exigeante — le marché trace ton chemin sur ${annees_necessaires} ans. Dans 5 ans, tu seras déjà à ${score_cible_5ans_pct}% de ton objectif, avec un profil que peu de candidates auront su construire.`
+
     return {
         etapes,
         objectif_atteignable,
@@ -314,5 +349,10 @@ export async function construireGPS(
         message_gps,
         salaire_actuel,
         salaire_cible,
+        score_propulse,
+        score_cible_pct,
+        score_cible_5ans_pct,
+        message_analyse,
+        verdict,
     }
 }
