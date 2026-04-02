@@ -862,7 +862,7 @@ Score faisabilité : ${resultatMatching.score_faisabilite}%` : "";
             rapportData.salaire_min = gpsDeterm.salaire_actuel
             rapportData.salaire_max = gpsDeterm.salaire_cible
             rapportData.objectif_carriere = signauxNormalises.objectif_normalise
-            
+
             // ── Score PROPULSE avec les scores IA ──
             const variable_experience = Math.min(1, signauxBruts.annees_experience / (gpsDeterm.annees_necessaires || 5))
             const score_propulse_final = Math.min(99, Math.round(
@@ -881,6 +881,8 @@ Score faisabilité : ${resultatMatching.score_faisabilite}%` : "";
             rapportData.message_analyse = gpsDeterm.message_analyse
           }
 
+          console.log('UPSERT SCORES:', rapportData.score_propulse, rapportData.score_cible_pct, rapportData.verdict, rapportData.transferabilite, rapportData.capacite_adaptation)
+
           await supabaseAdmin.from("candidats").upsert({
             email, nom, prenom,
             langue: lang || "fr",
@@ -893,9 +895,26 @@ Score faisabilité : ${resultatMatching.score_faisabilite}%` : "";
             statut_emploi: candidatInfo?.statut_emploi,
             objectif_declare: candidatInfo?.objectif_declare,
             ...rapportData,
+            score_propulse: rapportData.score_propulse,
+            score_cible_pct: rapportData.score_cible_pct,
+            score_cible_5ans_pct: rapportData.score_cible_5ans_pct,
+            verdict: rapportData.verdict,
+            message_analyse: rapportData.message_analyse,
             nb_entretiens: 1,
             dernier_entretien: new Date().toISOString(),
-          }, { onConflict: "email" });
+          }, { onConflict: "email", ignoreDuplicates: false })
+
+          // Force update des scores
+          await supabaseAdmin.from("candidats")
+            .update({
+              score_propulse: rapportData.score_propulse,
+              score_cible_pct: rapportData.score_cible_pct,
+              score_cible_5ans_pct: rapportData.score_cible_5ans_pct,
+              verdict: rapportData.verdict,
+              message_analyse: rapportData.message_analyse,
+            })
+            .eq("email", email);
+
 
           const scoresMoyen = historiqueAnalyse.length > 0
             ? historiqueAnalyse.reduce((acc, h) => acc + h.score, 0) / historiqueAnalyse.length

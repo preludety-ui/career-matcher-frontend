@@ -336,9 +336,17 @@ export default function MonEspace() {
         .then(r => r.json())
         .then(data => {
           const candidatData = data.candidat || data.data;
+
           if (candidatData) {
-            setCandidat(candidatData);
+            setCandidat({
+              ...candidatData,
+              score_propulse: candidatData.score_propulse !== null ? candidatData.score_propulse : undefined,
+              score_cible_pct: candidatData.score_cible_pct !== null ? candidatData.score_cible_pct : undefined,
+              verdict: candidatData.verdict || undefined,
+              message_analyse: candidatData.message_analyse || undefined,
+            });
             localStorage.setItem("yelma_email", emailParam);
+
           } else {
             setEmail(emailParam);
           }
@@ -524,6 +532,12 @@ export default function MonEspace() {
   const aInscrit = (nom: string) => inscriptions.some(i => i.formation_nom === nom);
 
   useEffect(() => {
+    if (candidat) {
+      console.log('CANDIDAT SCORES:', candidat.score_propulse, candidat.score_cible_pct, candidat.prenom);
+    }
+  }, [candidat]);
+
+  useEffect(() => {
     if (candidat && activeTab === "offres" && offres.length === 0) chargerOffres();
     if (candidat && (activeTab === "formations" || activeTab === "evenements") && formations.renforcement.length === 0) chargerFormations();
   }, [activeTab, candidat]);
@@ -673,23 +687,19 @@ export default function MonEspace() {
         {/* RAPPORT */}
         {activeTab === "rapport" && (
           <div>
+
+
             {candidat.force1 ? (
+
               <RapportGPS
-                data={{
-                  ...candidat,
-                  prenom: candidat.prenom,
-                  nom: candidat.nom,
-                  score_propulse: candidat.score_propulse,
-                  score_cible_pct: candidat.score_cible_pct,
-                  score_cible_5ans_pct: candidat.score_cible_5ans_pct,
-                  verdict: candidat.verdict,
-                  message_analyse: candidat.message_analyse,
-                }}
+                data={candidat}
                 plan={candidat.plan}
                 ville={candidat.ville}
                 roleActuel={candidat.role_actuel}
                 email={candidat.email}
               />
+
+
             ) : (
               <div style={{ background: "white", borderRadius: "12px", padding: "24px", textAlign: "center", border: "0.5px solid #E8E8F0" }}>
                 <div style={{ fontSize: "32px", marginBottom: "12px" }}>📊</div>

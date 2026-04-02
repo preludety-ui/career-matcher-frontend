@@ -30,6 +30,8 @@ type RapportData = {
   message_analyse?: string;
   prenom?: string;
   nom?: string;
+  // Champs Supabase directs
+  [key: string]: unknown;
 };
 
 export function parseRapport(text: string): RapportData | null {
@@ -92,15 +94,12 @@ function getTypeIcon(type: string): string {
   return "📚";
 }
 
-// ── Jauge arc de cercle SVG ──────────────────────────────
-function JaugeArc({ pct, verdict }: { pct: number; verdict?: string }) {
+function JaugeArc({ pct, verdict }: { pct: number; verdict: string }) {
   const radius = 52;
-  const cx = 70;
-  const cy = 70;
+  const cx = 70; const cy = 70;
   const startAngle = -200;
   const sweepAngle = 220;
-  const endAngle = startAngle + sweepAngle * (pct / 100);
-
+  const endAngle = startAngle + sweepAngle * (Math.min(100, Math.max(0, pct)) / 100);
   const toRad = (deg: number) => (deg * Math.PI) / 180;
   const arcPath = (start: number, end: number, r: number) => {
     const x1 = cx + r * Math.cos(toRad(start));
@@ -110,23 +109,15 @@ function JaugeArc({ pct, verdict }: { pct: number; verdict?: string }) {
     const large = end - start > 180 ? 1 : 0;
     return `M ${x1} ${y1} A ${r} ${r} 0 ${large} 1 ${x2} ${y2}`;
   };
-
-  const color = verdict === 'atteignable' ? '#FF6B35' : verdict === 'ambitieux' ? '#C0842A' : '#888';
-
+  const color = verdict === 'atteignable' ? '#E05C3A' : verdict === 'ambitieux' ? '#C0842A' : '#888';
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
-      <div style={{ fontSize: '9px', letterSpacing: '1.5px', color: '#888', fontWeight: 600 }}>SCORE CIBLE</div>
+      <div style={{ fontSize: '9px', letterSpacing: '1.5px', color: '#888', fontWeight: 600, fontFamily: 'monospace' }}>SCORE CIBLE</div>
       <svg width="140" height="100" viewBox="0 0 140 100">
-        {/* Arc fond */}
         <path d={arcPath(startAngle, startAngle + sweepAngle, radius)} fill="none" stroke="#E8E4DD" strokeWidth="6" strokeLinecap="round" />
-        {/* Arc coloré */}
-        {pct > 0 && (
-          <path d={arcPath(startAngle, endAngle, radius)} fill="none" stroke={color} strokeWidth="6" strokeLinecap="round" />
-        )}
-        {/* Labels 0% et 100% */}
+        {pct > 0 && <path d={arcPath(startAngle, endAngle, radius)} fill="none" stroke={color} strokeWidth="6" strokeLinecap="round" />}
         <text x="18" y="88" fontSize="8" fill="#aaa">0%</text>
         <text x="108" y="88" fontSize="8" fill="#aaa">100%</text>
-        {/* Valeur centrale */}
         <text x="70" y="68" textAnchor="middle" fontSize="22" fontWeight="700" fill={color}>{pct}%</text>
         <text x="70" y="82" textAnchor="middle" fontSize="8" fill="#888">DE TA CIBLE</text>
       </svg>
@@ -134,27 +125,19 @@ function JaugeArc({ pct, verdict }: { pct: number; verdict?: string }) {
   );
 }
 
-// ── Tuile de la grille dashboard ─────────────────────────
-function Tuile({ titre, pct, desc, lien, couleur }: {
-  titre: string; pct: number; desc: string; lien: string; couleur: string;
-}) {
+function Tuile({ titre, pct, desc, onClick }: { titre: string; pct: number; desc: string; onClick?: () => void }) {
   const barColor = pct >= 70 ? '#22A06B' : pct >= 40 ? '#C0842A' : '#E05C3A';
   return (
-    <div style={{
-      background: 'white', borderRadius: '12px', padding: '16px',
-      border: '1px solid #EDEAE3', display: 'flex', flexDirection: 'column', gap: '8px',
-    }}>
+    <div onClick={onClick} style={{ background: 'white', borderRadius: '12px', padding: '16px', border: '1px solid #EDEAE3', display: 'flex', flexDirection: 'column', gap: '8px', cursor: onClick ? 'pointer' : 'default' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div style={{ fontSize: '13px', color: '#2C2C2C', fontWeight: 500 }}>{titre}</div>
         <div style={{ fontSize: '15px', fontWeight: 700, color: barColor }}>{pct}%</div>
       </div>
       <div style={{ height: '3px', background: '#F0EDE6', borderRadius: '2px', overflow: 'hidden' }}>
-        <div style={{ height: '100%', width: `${pct}%`, background: barColor, borderRadius: '2px', transition: 'width 0.8s ease' }} />
+        <div style={{ height: '100%', width: `${pct}%`, background: barColor, borderRadius: '2px' }} />
       </div>
       <div style={{ fontSize: '11px', color: '#666', lineHeight: 1.5 }}>{desc}</div>
-      <a href={lien} style={{ fontSize: '11px', color: '#E05C3A', textDecoration: 'none', fontWeight: 500 }}>
-        Voir {titre.toLowerCase()} →
-      </a>
+      {onClick && <div style={{ fontSize: '11px', color: '#E05C3A', fontWeight: 500 }}>Voir →</div>}
     </div>
   );
 }
@@ -174,20 +157,33 @@ export default function RapportGPS({
   const [conseillerMessages, setConseillerMessages] = useState<{ role: 'user' | 'bot'; text: string }[]>([]);
   const [conseillerLoading, setConseillerLoading] = useState(false);
 
+  // ── Extraire toutes les valeurs directement depuis data ──
   const isPropulse = plan === "propulse";
-  const salaireMin = data.salaire_min || 40000;
-  const salaireMax = data.salaire_max || 60000;
-  const scorePropulse = data.score_propulse || 0;
-  const scoreCible = data.score_cible_pct || 0;
-  const verdict = data.verdict || 'atteignable';
-  const prenom = data.prenom || '';
-  const nom = data.nom || '';
-  const villeAffichee = ville || data.ville || 'Montréal';
-  const roleAffiche = roleActuel || data.role_actuel || '';
+  const salaireMin = Number(data.salaire_min) || 40000;
+  const salaireMax = Number(data.salaire_max) || 60000;
+  
+  // Score PROPULSE — cherche dans tous les champs possibles
+  const scorePropulse = Number(data.score_propulse) || 0;
+  const scoreCible = Number(data.score_cible_pct) || 0;
+  const verdict = String(data.verdict || 'atteignable');
+  const messageAnalyse = String(data.message_analyse || '');
+  
+  // Prénom/nom — cherche dans tous les champs possibles  
+  const prenom = String(data.prenom || '');
+  const nom = String(data.nom || '');
+  
+  const villeAffichee = ville || String(data.ville || 'Montréal');
+  const roleAffiche = roleActuel || String(data.role_actuel || '');
   const today = new Date().toLocaleDateString('fr-CA', { year: 'numeric', month: 'long', day: 'numeric' });
   const propulseColor = verdict === 'atteignable' ? '#E05C3A' : '#C0842A';
+  const GREEN = '#22A06B';
+  const ORANGE = '#E05C3A';
+  const GOLD = '#C0842A';
+  const DARK = '#1C1C1C';
+  const BG = '#F5F2EC';
+  const BORDER = '#EDEAE3';
+  const CARD = '#FFFFFF';
 
-  // Chart GPS
   useEffect(() => {
     if (!chartRef.current || activeSection !== 'gps') return;
     const loadChart = async () => {
@@ -195,38 +191,24 @@ export default function RapportGPS({
       Chart.register(...registerables);
       const existing = Chart.getChart(chartRef.current!);
       if (existing) existing.destroy();
-      const raw = [salaireMin, data.gps_an1?.salaire || 0, data.gps_an2?.salaire || 0, data.gps_an3?.salaire || 0, data.gps_an4?.salaire || 0, data.gps_an5?.salaire || 0];
+      const raw = [salaireMin, Number(data.gps_an1?.salaire) || 0, Number(data.gps_an2?.salaire) || 0, Number(data.gps_an3?.salaire) || 0, Number(data.gps_an4?.salaire) || 0, Number(data.gps_an5?.salaire) || 0];
       const yelma = ensureCroissant(raw);
       new Chart(chartRef.current!, {
         type: 'line',
         data: {
           labels: ['Auj.', 'An 1', 'An 2', 'An 3', 'An 4', 'An 5'],
-          datasets: [{
-            label: 'Trajectoire YELMA',
-            data: yelma,
-            borderColor: '#E05C3A',
-            backgroundColor: 'rgba(224,92,58,0.06)',
-            borderWidth: 2,
-            pointBackgroundColor: yelma.map((_, i) => i === yelma.length - 1 ? '#22A06B' : '#E05C3A'),
-            pointRadius: 5,
-            fill: true,
-            tension: 0.4,
-          }],
+          datasets: [{ label: 'Trajectoire YELMA', data: yelma, borderColor: '#E05C3A', backgroundColor: 'rgba(224,92,58,0.06)', borderWidth: 2, pointBackgroundColor: yelma.map((_, i) => i === yelma.length - 1 ? '#22A06B' : '#E05C3A'), pointRadius: 5, fill: true, tension: 0.4 }],
         },
         options: {
           responsive: true, maintainAspectRatio: false,
           plugins: { legend: { display: false }, tooltip: { callbacks: { label: (ctx) => '$' + ((ctx.parsed.y ?? 0)).toLocaleString() } } },
-          scales: {
-            y: { min: 0, ticks: { callback: (v) => '$' + Math.round(Number(v) / 1000) + 'k', font: { size: 9 } }, grid: { color: 'rgba(0,0,0,0.04)' } },
-            x: { ticks: { font: { size: 9 } }, grid: { display: false } },
-          },
+          scales: { y: { min: 0, ticks: { callback: (v) => '$' + Math.round(Number(v) / 1000) + 'k', font: { size: 9 } }, grid: { color: 'rgba(0,0,0,0.04)' } }, x: { ticks: { font: { size: 9 } }, grid: { display: false } } },
         },
       });
     };
     loadChart();
   }, [data, salaireMin, activeSection]);
 
-  // Conseiller IA
   const envoyerConseiller = async (messageOverride?: string) => {
     const msg = messageOverride || conseillerInput.trim();
     if (!msg) return;
@@ -243,42 +225,30 @@ export default function RapportGPS({
             { role: 'system', content: `Tu es le Conseiller YELMA. Le candidat s'appelle ${prenom}. Son rôle : ${roleAffiche}. Son objectif : ${data.objectif_carriere}. Son score PROPULSE : ${scorePropulse}. Réponds de façon courte, bienveillante et actionnable.` },
             ...newMessages.map(m => ({ role: m.role === 'bot' ? 'assistant' : 'user', content: m.text })),
           ],
-          lang: 'fr',
-          email,
+          lang: 'fr', email,
         }),
       });
       const d = await res.json();
       setConseillerMessages([...newMessages, { role: 'bot', text: d.reply || "Je suis là pour t'aider!" }]);
     } catch {
       setConseillerMessages([...newMessages, { role: 'bot', text: "Une erreur est survenue. Réessaie!" }]);
-    } finally {
-      setConseillerLoading(false);
-    }
+    } finally { setConseillerLoading(false); }
   };
 
   const sections = [
-    { id: 'resume', label: 'Résumé' },
-    { id: 'competences', label: 'Compétences' },
-    { id: 'marche', label: 'Marché' },
+    { id: 'resume', label: 'RÉSUMÉ' },
+    { id: 'competences', label: 'COMPÉTENCES' },
+    { id: 'marche', label: 'MARCHÉ' },
     { id: 'gps', label: 'GPS' },
-    { id: 'formations', label: 'Formations' },
-    { id: 'parcours', label: 'Parcours' },
-    { id: 'conseiller', label: 'Conseiller' },
+    { id: 'formations', label: 'FORMATIONS' },
+    { id: 'parcours', label: 'PARCOURS' },
+    { id: 'conseiller', label: 'CONSEILLER' },
   ];
-
-  // Couleurs YELMA
-  const BG = '#F5F2EC';
-  const CARD = '#FFFFFF';
-  const BORDER = '#EDEAE3';
-  const DARK = '#1C1C1C';
-  const ORANGE = '#E05C3A';
-  const GOLD = '#C0842A';
-  const GREEN = '#22A06B';
 
   return (
     <div style={{ fontFamily: "'Georgia', serif", background: BG, borderRadius: '16px', overflow: 'hidden', border: `1px solid ${BORDER}` }}>
 
-      {/* ── HEADER ── */}
+      {/* HEADER */}
       <div style={{ background: BG, padding: '24px 24px 16px', borderBottom: `1px solid ${BORDER}` }}>
         <div style={{ fontSize: '9px', letterSpacing: '2px', color: '#888', marginBottom: '12px', fontFamily: 'monospace' }}>
           • YELMA · RAPPORT DE CARRIÈRE · {isPropulse ? 'PROPULSE' : 'DÉCOUVERTE'}
@@ -288,7 +258,7 @@ export default function RapportGPS({
             <div style={{ fontSize: '28px', color: DARK, fontWeight: 400, letterSpacing: '-0.5px', lineHeight: 1.1 }}>
               {prenom} <span style={{ color: ORANGE, fontStyle: 'italic' }}>{nom}</span>
             </div>
-            <div style={{ fontSize: '11px', color: '#888', marginTop: '6px', display: 'flex', gap: '12px', alignItems: 'center' }}>
+            <div style={{ fontSize: '11px', color: '#888', marginTop: '6px', display: 'flex', gap: '12px' }}>
               <span>👤 {roleAffiche || 'Professionnel'} · {villeAffichee}</span>
               <span>🗓 {today}</span>
             </div>
@@ -304,26 +274,22 @@ export default function RapportGPS({
         </div>
       </div>
 
-      {/* ── TABS ── */}
+      {/* TABS */}
       <div style={{ background: BG, borderBottom: `1px solid ${BORDER}`, display: 'flex', overflowX: 'auto', padding: '0 16px' }}>
         {sections.map(s => (
           <button key={s.id} onClick={() => setActiveSection(s.id)} style={{
-            padding: '10px 14px', border: 'none', background: 'none', cursor: 'pointer',
-            fontSize: '11px', fontWeight: activeSection === s.id ? 600 : 400,
+            padding: '10px 12px', border: 'none', background: 'none', cursor: 'pointer',
+            fontSize: '10px', fontWeight: activeSection === s.id ? 600 : 400,
             color: activeSection === s.id ? ORANGE : '#888',
             borderBottom: activeSection === s.id ? `2px solid ${ORANGE}` : '2px solid transparent',
             whiteSpace: 'nowrap', fontFamily: 'monospace', letterSpacing: '0.5px',
-          }}>
-            {s.label.toUpperCase()}
-          </button>
+          }}>{s.label}</button>
         ))}
       </div>
 
       <div style={{ padding: '20px' }}>
 
-        {/* ════════════════════════════════════════
-            SECTION : RÉSUMÉ
-        ════════════════════════════════════════ */}
+        {/* ── RÉSUMÉ ── */}
         {activeSection === 'resume' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
@@ -335,58 +301,37 @@ export default function RapportGPS({
               </div>
 
               <div style={{ background: CARD, borderRadius: '12px', border: `1px solid ${BORDER}`, padding: '20px', display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
-                {/* Jauge */}
                 <div style={{ flexShrink: 0 }}>
                   <JaugeArc pct={scoreCible} verdict={verdict} />
                 </div>
-
-                {/* Message */}
                 <div style={{ flex: 1, minWidth: '200px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  <div style={{ fontSize: '9px', letterSpacing: '1.5px', color: '#888', fontFamily: 'monospace', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    — CE QUE YELMA A VU EN TOI
-                  </div>
-                  {data.message_analyse ? (
-                    <div style={{ fontSize: '12px', color: DARK, lineHeight: 1.7 }}
-                      dangerouslySetInnerHTML={{
-                        __html: data.message_analyse
-                          .replace(/\*(.*?)\*/g, '<span style="color:#E05C3A;font-style:italic;">$1</span>')
-                          .replace(/\*\*(.*?)\*\*/g, '<span style="color:#E05C3A;font-style:italic;">$1</span>')
-                      }}
-                    />
+                  <div style={{ fontSize: '9px', letterSpacing: '1.5px', color: '#888', fontFamily: 'monospace' }}>— CE QUE YELMA A VU EN TOI</div>
+                  {messageAnalyse ? (
+                    <div style={{ fontSize: '11px', color: DARK, lineHeight: 1.7 }}>{messageAnalyse}</div>
                   ) : (
-                    <div style={{ fontSize: '13px', color: DARK, lineHeight: 1.7 }}>
+                    <div style={{ fontSize: '11px', color: DARK, lineHeight: 1.7 }}>
                       {prenom && <span style={{ fontWeight: 500 }}>{prenom}, </span>}
                       tu possèdes des forces que{' '}
-                     
                       <span style={{ color: ORANGE, fontStyle: 'italic' }}>peu de candidats ont.</span>{' '}
-                      En complétant tes formations et en comblant tes écarts,
-                      tu rejoindras{' '}
-
-
-                      <span style={{ color: ORANGE, fontStyle: 'italic' }}>l&apos;élite de ton domaine —</span>
-                      <br />
+                      En complétant tes formations et en comblant tes écarts, tu rejoindras{' '}
+                      <span style={{ color: ORANGE, fontStyle: 'italic' }}>l&apos;élite de ton domaine —</span>{' '}
                       les professionnels que les employeurs{' '}
                       <span style={{ color: ORANGE, fontStyle: 'italic' }}>s&apos;arrachent.</span>
                     </div>
                   )}
-
-                  {/* Badges cible */}
                   <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                     {data.objectif_carriere && (
                       <div style={{ background: '#FFF0EB', borderRadius: '8px', padding: '8px 12px', flex: 1, minWidth: '140px' }}>
-                        <div style={{ fontSize: '9px', color: ORANGE, fontFamily: 'monospace' }}>⊙ {data.objectif_carriere}</div>
+                        <div style={{ fontSize: '9px', color: ORANGE, fontFamily: 'monospace' }}>⊙ {String(data.objectif_carriere)}</div>
                         <div style={{ fontSize: '10px', color: '#888', marginTop: '2px' }}>Ta cible déclarée</div>
                         {salaireMax > 0 && <div style={{ fontSize: '10px', color: ORANGE, fontWeight: 600 }}>· {salaireMax.toLocaleString()} $/an</div>}
                       </div>
                     )}
                     <div style={{ background: verdict === 'atteignable' ? '#F0FFF8' : '#FFF9F0', borderRadius: '8px', padding: '8px 12px', flex: 1, minWidth: '140px', border: `1px solid ${verdict === 'atteignable' ? '#C8EFD8' : '#F0DDB8'}` }}>
-                      <div style={{ fontSize: '10px', color: verdict === 'atteignable' ? GREEN : GOLD, fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        {verdict === 'atteignable' ? '✓' : '○'} {verdict === 'atteignable' ? 'Atteignable en 5 ans' : verdict === 'ambitieux' ? 'Objectif ambitieux' : 'Défi à long terme'}
+                      <div style={{ fontSize: '10px', color: verdict === 'atteignable' ? GREEN : GOLD, fontWeight: 600 }}>
+                        {verdict === 'atteignable' ? '✓ Atteignable en 5 ans' : verdict === 'ambitieux' ? '○ Objectif ambitieux' : '○ Défi à long terme'}
                       </div>
                       <div style={{ fontSize: '9px', color: '#888', marginTop: '2px' }}>Selon ton GPS YELMA</div>
-                      {data.score_cible_5ans_pct && data.score_cible_5ans_pct < 100 && (
-                        <div style={{ fontSize: '9px', color: GOLD, marginTop: '2px' }}>Dans 5 ans → {data.score_cible_5ans_pct}% de ta cible</div>
-                      )}
                     </div>
                   </div>
                 </div>
@@ -400,102 +345,59 @@ export default function RapportGPS({
                 <div style={{ flex: 1, height: '1px', background: BORDER }} />
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
-                <Tuile
-                  titre="Mes compétences"
-                  pct={Math.min(100, Math.round(((data.force1 ? 1 : 0) + (data.force2 ? 1 : 0) + (data.force3 ? 1 : 0)) / 3 * 100))}
-                  desc={`${data.force1 ? '3' : '0'} forces identifiées par YELMA — un avantage réel sur le marché.`}
-                  lien="#"
-                  couleur={GREEN}
-                />
-                <Tuile
-                  titre="Mes formations"
-                  pct={35}
-                  desc={`${(data.formations || []).length} formations clés pour débloquer ton potentiel maximum.`}
-                  lien="#"
-                  couleur={ORANGE}
-                />
-                <Tuile
-                  titre="Mon parcours"
-                  pct={scorePropulse}
-                  desc="Ton parcours analysé par YELMA · À compléter pour affiner ton score."
-                  lien="#"
-                  couleur={GOLD}
-                />
-                <Tuile
-                  titre={`Mon marché · ${villeAffichee}`}
-                  pct={80}
-                  desc={`${salaireMin.toLocaleString()} $ aujourd'hui → ${salaireMax.toLocaleString()} $ en 5 ans.`}
-                  lien="#"
-                  couleur={GREEN}
-                />
-               <Tuile
-                  titre="Mon GPS de carrière"
-                  pct={62}
-                  desc={`${salaireMin.toLocaleString()} $ aujourd'hui → ${salaireMax.toLocaleString()} $ en 5 ans. Chaque étape est tracée.`}
-                  lien="#"
-                  couleur={GOLD}
-                />
-               
-                 {/* Tuile Conseiller */}
-               <div style={{ background: '#FDF6EE', borderRadius: '12px', padding: '16px', border: '1px solid #E05C3A', display: 'flex', flexDirection: 'column', gap: '8px', cursor: 'pointer' }} onClick={() => setActiveSection('conseiller')}>
+                <Tuile titre="Mes compétences" pct={data.force1 ? 100 : 0} desc={`${[data.force1, data.force2, data.force3].filter(Boolean).length} forces identifiées par YELMA.`} onClick={() => setActiveSection('competences')} />
+                <Tuile titre="Mes formations" pct={35} desc={`${(data.formations as Formation[] || []).length} formations clés pour débloquer ton potentiel.`} onClick={() => setActiveSection('formations')} />
+                <Tuile titre="Mon parcours" pct={scorePropulse} desc="Ton parcours analysé par YELMA." onClick={() => setActiveSection('parcours')} />
+                <Tuile titre={`Mon marché · ${villeAffichee}`} pct={80} desc={`${salaireMin.toLocaleString()} $ → ${salaireMax.toLocaleString()} $ en 5 ans.`} onClick={() => setActiveSection('marche')} />
+                <Tuile titre="Mon GPS de carrière" pct={62} desc={`${salaireMin.toLocaleString()} $ → ${salaireMax.toLocaleString()} $ en 5 ans.`} onClick={() => setActiveSection('gps')} />
+                {/* Tuile Conseiller */}
+                <div onClick={() => setActiveSection('conseiller')} style={{ background: '#FDF6EE', borderRadius: '12px', padding: '16px', border: '1px solid #EDEAE3', display: 'flex', flexDirection: 'column', gap: '8px', cursor: 'pointer' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div style={{ fontSize: '13px', color: DARK, fontWeight: 500 }}>Conseiller YELMA</div>
-                    <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#22A06B' }} />
+                    <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: GREEN }} />
                   </div>
                   <div style={{ height: '3px', background: '#E05C3A', borderRadius: '2px', width: '40%' }} />
-                  <div style={{ fontSize: '11px', color: '#888', lineHeight: 1.5, fontStyle: 'italic' }}>Chaque question te rapproche de ta cible. Échange avec Yelma et avance plus vite.</div>
-                  <button style={{ background: ORANGE, color: 'white', border: 'none', borderRadius: '8px', padding: '8px 12px', fontSize: '11px', fontWeight: 600, cursor: 'pointer', marginTop: 'auto' }}>
-                    Parle à YELMA →
+                  <div style={{ fontSize: '11px', color: '#888', lineHeight: 1.5, fontStyle: 'italic' }}>Tu as des questions ? Je suis là.</div>
+                  <button style={{ background: ORANGE, color: 'white', border: 'none', borderRadius: '8px', padding: '8px 12px', fontSize: '11px', fontWeight: 600, cursor: 'pointer' }}>
+                    Parler à YELMA →
                   </button>
                 </div>
-
-              </div>
-              
-                
               </div>
             </div>
-          
+          </div>
         )}
 
-        {/* ════════════════════════════════════════
-            SECTION : COMPÉTENCES
-        ════════════════════════════════════════ */}
+        {/* ── COMPÉTENCES ── */}
         {activeSection === 'competences' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <div style={{ fontSize: '9px', letterSpacing: '2px', color: '#888', fontFamily: 'monospace', display: 'flex', alignItems: 'center', gap: '8px' }}>
               TES FORCES · CE QUE YELMA A RÉVÉLÉ
               <div style={{ flex: 1, height: '1px', background: BORDER }} />
             </div>
-
             {(data.force1 || data.force2 || data.force3) && (
               <div style={{ fontSize: '18px', color: DARK, lineHeight: 1.4 }}>
-                {prenom && <span style={{ fontWeight: 400 }}>{prenom}, </span>}
+                {prenom && <span>{prenom}, </span>}
                 tu possèdes{' '}
                 <span style={{ color: ORANGE, fontStyle: 'italic' }}>
                   {[data.force1, data.force2, data.force3].filter(Boolean).length} compétences rares
-                </span>
-                <br />
-                que le marché recherche activement.
+                </span> que le marché recherche activement.
               </div>
             )}
-
             {[
               { nom: data.force1, desc: data.force1_desc, num: '1', bg: '#FFF5F2', border: '#F9C5B4', badge: 'Top 10% marché', badgeBg: '#FFF0EB', badgeColor: ORANGE, niveau: 92, valeur: '+4 200 $/an', rarete: 'Élevée', rareteColor: ORANGE },
               { nom: data.force2, desc: data.force2_desc, num: '2', bg: '#F2FFF8', border: '#B8EDD0', badge: 'Très demandée', badgeBg: '#E8FFF2', badgeColor: GREEN, niveau: 85, valeur: '+2 800 $/an', rarete: 'Modérée', rareteColor: GREEN },
-              { nom: data.force3, desc: data.force3_desc, num: '3', bg: '#F5F2FF', border: '#C8BFEE', badge: 'Rare en soins', badgeBg: '#EEE8FF', badgeColor: '#7B5EA7', niveau: 78, valeur: '+3 500 $/an', rarete: 'Élevée', rareteColor: '#7B5EA7' },
+              { nom: data.force3, desc: data.force3_desc, num: '3', bg: '#F5F2FF', border: '#C8BFEE', badge: 'Rare', badgeBg: '#EEE8FF', badgeColor: '#7B5EA7', niveau: 78, valeur: '+3 500 $/an', rarete: 'Élevée', rareteColor: '#7B5EA7' },
             ].filter(f => f.nom).map((f, i) => (
               <div key={i} style={{ background: f.bg, borderRadius: '12px', padding: '18px', border: `1px solid ${f.border}` }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px' }}>
                   <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
-                    <div style={{ fontSize: '22px', color: f.badgeColor, fontStyle: 'italic', lineHeight: 1, marginTop: '2px' }}>{f.num}</div>
+                    <div style={{ fontSize: '22px', color: f.badgeColor, fontStyle: 'italic', lineHeight: 1 }}>{f.num}</div>
                     <div>
-                      <div style={{ fontSize: '15px', fontWeight: 600, color: DARK }}>{f.nom}</div>
-                      <div style={{ fontSize: '12px', color: '#555', marginTop: '4px', lineHeight: 1.5 }}>{f.desc}</div>
+                      <div style={{ fontSize: '15px', fontWeight: 600, color: DARK }}>{String(f.nom)}</div>
+                      <div style={{ fontSize: '12px', color: '#555', marginTop: '4px', lineHeight: 1.5 }}>{String(f.desc || '')}</div>
                     </div>
                   </div>
-                  <div style={{ background: f.badgeBg, borderRadius: '20px', padding: '3px 10px', fontSize: '9px', color: f.badgeColor, fontWeight: 600, whiteSpace: 'nowrap', fontFamily: 'monospace' }}>
-                    {f.badge}
-                  </div>
+                  <div style={{ background: f.badgeBg, borderRadius: '20px', padding: '3px 10px', fontSize: '9px', color: f.badgeColor, fontWeight: 600, fontFamily: 'monospace' }}>{f.badge}</div>
                 </div>
                 <div style={{ display: 'flex', gap: '16px', alignItems: 'center', marginTop: '8px' }}>
                   <div>
@@ -512,24 +414,23 @@ export default function RapportGPS({
                       <div style={{ flex: 1, height: '4px', background: '#E8E4DD', borderRadius: '2px', overflow: 'hidden' }}>
                         <div style={{ height: '100%', width: `${f.niveau}%`, background: f.badgeColor, borderRadius: '2px' }} />
                       </div>
-                      <div style={{ fontSize: '11px', color: '#888', fontWeight: 500 }}>{f.niveau}%</div>
+                      <div style={{ fontSize: '11px', color: '#888' }}>{f.niveau}%</div>
                     </div>
                   </div>
                 </div>
               </div>
             ))}
 
-            {/* Axes de développement */}
+            {/* Axes */}
             {(data.axe1 || data.axe2) && (
               <>
                 <div style={{ fontSize: '9px', letterSpacing: '2px', color: '#888', fontFamily: 'monospace', display: 'flex', alignItems: 'center', gap: '8px', marginTop: '8px' }}>
                   AXES DE DÉVELOPPEMENT · CE QUI TE RETIENT
                   <div style={{ flex: 1, height: '1px', background: BORDER }} />
                 </div>
-                <div style={{ fontSize: '18px', color: DARK }}>
-                  {[data.axe1, data.axe2].filter(Boolean).length} lacunes précises bloquent
-                  <br />
-                  <span style={{ color: GOLD, fontStyle: 'italic' }}>80% de ta progression</span> vers la cible.
+                <div style={{ fontSize: '16px', color: DARK }}>
+                  {[data.axe1, data.axe2].filter(Boolean).length} lacunes précises bloquent{' '}
+                  <span style={{ color: GOLD, fontStyle: 'italic' }}>ta progression</span> vers la cible.
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                   {[
@@ -538,15 +439,15 @@ export default function RapportGPS({
                   ].filter(a => a.axe).map((a, i) => (
                     <div key={i} style={{ background: CARD, borderRadius: '12px', padding: '16px', border: `1px solid ${BORDER}`, borderTop: `3px solid ${a.color}` }}>
                       <div style={{ fontSize: '22px', color: a.color, fontStyle: 'italic', marginBottom: '8px' }}>{a.num}</div>
-                      <div style={{ fontSize: '13px', fontWeight: 600, color: DARK, marginBottom: '6px' }}>{a.axe}</div>
-                      <div style={{ fontSize: '11px', color: '#555', lineHeight: 1.5, marginBottom: '10px' }}>{a.desc}</div>
+                      <div style={{ fontSize: '13px', fontWeight: 600, color: DARK, marginBottom: '6px' }}>{String(a.axe)}</div>
+                      <div style={{ fontSize: '11px', color: '#555', lineHeight: 1.5, marginBottom: '10px' }}>{String(a.desc || '')}</div>
                       <div style={{ background: '#F5F2EC', borderRadius: '8px', padding: '8px 10px', marginBottom: '10px' }}>
                         <div style={{ fontSize: '8px', letterSpacing: '1px', color: '#888', fontFamily: 'monospace', marginBottom: '3px' }}>POURQUOI C&apos;EST CRITIQUE</div>
                         <div style={{ fontSize: '11px', color: DARK, lineHeight: 1.5 }}>
-                          {i === 0 ? `Exigé pour progresser vers ${data.objectif_carriere || 'ton objectif'}. Sans ça, ton score reste limité.` : `Demandé dans la majorité des offres compatibles avec ton profil. Te rend immédiatement plus compétitif.`}
+                          {i === 0 ? `Exigé pour progresser vers ${String(data.objectif_carriere || 'ton objectif')}.` : `Demandé dans la majorité des offres compatibles avec ton profil.`}
                         </div>
                       </div>
-                      <a href="#" onClick={() => setActiveSection('formations')} style={{ fontSize: '11px', color: a.color, textDecoration: 'none', fontWeight: 500 }}>Voir les formations →</a>
+                      <button onClick={() => setActiveSection('formations')} style={{ fontSize: '11px', color: a.color, background: 'none', border: 'none', cursor: 'pointer', fontWeight: 500, padding: 0 }}>Voir les formations →</button>
                     </div>
                   ))}
                 </div>
@@ -555,21 +456,15 @@ export default function RapportGPS({
           </div>
         )}
 
-        {/* ════════════════════════════════════════
-            SECTION : MON MARCHÉ
-        ════════════════════════════════════════ */}
+        {/* ── MARCHÉ ── */}
         {activeSection === 'marche' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <div style={{ fontSize: '9px', letterSpacing: '2px', color: '#888', fontFamily: 'monospace', display: 'flex', alignItems: 'center', gap: '8px' }}>
               OPPORTUNITÉS COMPATIBLES
               <div style={{ flex: 1, height: '1px', background: BORDER }} />
             </div>
-
-            {/* Valeur marché */}
             <div style={{ background: CARD, borderRadius: '12px', padding: '16px', border: `1px solid ${BORDER}` }}>
-              <div style={{ fontSize: '9px', letterSpacing: '1px', color: '#888', fontFamily: 'monospace', marginBottom: '4px' }}>
-                💰 TA VALEUR SUR LE MARCHÉ · {roleAffiche} · {villeAffichee}
-              </div>
+              <div style={{ fontSize: '9px', letterSpacing: '1px', color: '#888', fontFamily: 'monospace', marginBottom: '4px' }}>💰 TA VALEUR SUR LE MARCHÉ · {roleAffiche} · {villeAffichee}</div>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
                 <div style={{ fontSize: '24px', fontWeight: 700, color: ORANGE }}>{salaireMin.toLocaleString()} $</div>
                 <div style={{ color: '#888' }}>—</div>
@@ -578,104 +473,74 @@ export default function RapportGPS({
               </div>
               <div style={{ fontSize: '9px', color: '#aaa', marginTop: '3px' }}>Basé sur les données du marché en temps réel</div>
             </div>
-
-            {/* Opportunités */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {(data.opportunites || []).map((o, i) => (
-                <div key={i} style={{ background: CARD, borderRadius: '12px', padding: '14px 16px', border: `1px solid ${BORDER}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                    <div style={{ fontSize: '18px', color: '#aaa', fontStyle: 'italic', minWidth: '20px' }}>{i + 1}</div>
-                    <div>
-                      <div style={{ fontSize: '13px', fontWeight: 500, color: DARK }}>{o.titre}</div>
-                      <div style={{ fontSize: '11px', color: '#888', marginTop: '2px' }}>{o.description}</div>
-                    </div>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <div style={{ fontSize: '14px', fontWeight: 700, color: ORANGE }}>{o.salaire?.toLocaleString()} $</div>
-                    <span style={{ fontSize: '14px', color: '#888' }}>→</span>
+            {((data.opportunites as Opportunite[]) || []).map((o, i) => (
+              <div key={i} style={{ background: CARD, borderRadius: '12px', padding: '14px 16px', border: `1px solid ${BORDER}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                  <div style={{ fontSize: '18px', color: '#aaa', fontStyle: 'italic', minWidth: '20px' }}>{i + 1}</div>
+                  <div>
+                    <div style={{ fontSize: '13px', fontWeight: 500, color: DARK }}>{o.titre}</div>
+                    <div style={{ fontSize: '11px', color: '#888', marginTop: '2px' }}>{o.description}</div>
                   </div>
                 </div>
-              ))}
-            </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <div style={{ fontSize: '14px', fontWeight: 700, color: ORANGE }}>{o.salaire?.toLocaleString()} $</div>
+                  <a href={`/mon-espace?tab=offres&email=${email || ''}`} style={{ fontSize: '14px', color: '#888', textDecoration: 'none' }}>→</a>
+                </div>
+              </div>
+            ))}
           </div>
         )}
 
-        {/* ════════════════════════════════════════
-            SECTION : MON GPS
-        ════════════════════════════════════════ */}
+        {/* ── GPS ── */}
         {activeSection === 'gps' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <div style={{ fontSize: '9px', letterSpacing: '2px', color: '#888', fontFamily: 'monospace', display: 'flex', alignItems: 'center', gap: '8px' }}>
               ÉVOLUTION SALARIALE · GPS DE CARRIÈRE 5 ANS
               <div style={{ flex: 1, height: '1px', background: BORDER }} />
             </div>
-
-            {/* Graphique */}
             <div style={{ background: CARD, borderRadius: '12px', padding: '16px', border: `1px solid ${BORDER}` }}>
               <div style={{ fontSize: '22px', color: DARK, marginBottom: '4px' }}>
                 {salaireMin.toLocaleString()} $ → <span style={{ color: ORANGE }}>{salaireMax.toLocaleString()} $</span> <span style={{ fontSize: '12px', color: '#888' }}>CAD/an</span>
               </div>
-              <div style={{ fontSize: '10px', color: '#888', marginBottom: '16px' }}>Projection sur 5 ans · Données marché temps réel · {villeAffichee}</div>
+              <div style={{ fontSize: '10px', color: '#888', marginBottom: '16px' }}>Projection sur 5 ans · {villeAffichee}</div>
               <div style={{ position: 'relative', width: '100%', height: '180px' }}>
                 <canvas ref={chartRef}></canvas>
               </div>
             </div>
-
-            {/* Étapes GPS */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {[
-                { an: 'Auj.', gps: { titre: roleAffiche || 'Poste actuel', salaire: salaireMin, action: 'Point de départ' }, isActuel: true },
-                { an: 'An 1', gps: data.gps_an1, isActuel: false },
-                { an: 'An 2', gps: data.gps_an2, isActuel: false },
-                { an: 'An 3', gps: data.gps_an3, isActuel: false },
-                { an: 'An 4', gps: data.gps_an4, isActuel: false },
-                { an: 'An 5', gps: data.gps_an5, isActuel: false, isMax: true },
-              ].filter(e => e.gps && e.gps.salaire).map((e, i) => (
-                <div key={i} style={{
-                  background: e.isActuel ? ORANGE : e.isMax ? '#F0FFF8' : CARD,
-                  borderRadius: '10px', padding: '12px 16px',
-                  border: `1px solid ${e.isActuel ? ORANGE : e.isMax ? '#C8EFD8' : BORDER}`,
-                  display: 'flex', gap: '16px', alignItems: 'center',
-                }}>
-                  <div style={{
-                    width: '36px', height: '36px', borderRadius: '50%',
-                    background: e.isActuel ? 'rgba(255,255,255,0.2)' : e.isMax ? '#22A06B' : '#F0EDE6',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: '10px', fontWeight: 600, color: e.isActuel ? 'white' : e.isMax ? 'white' : '#888',
-                    flexShrink: 0,
-                  }}>{e.an}</div>
+            {[
+              { an: 'Auj.', gps: { titre: roleAffiche || 'Poste actuel', salaire: salaireMin, action: 'Point de départ' }, isActuel: true, isMax: false },
+              { an: 'An 1', gps: data.gps_an1, isActuel: false, isMax: false },
+              { an: 'An 2', gps: data.gps_an2, isActuel: false, isMax: false },
+              { an: 'An 3', gps: data.gps_an3, isActuel: false, isMax: false },
+              { an: 'An 4', gps: data.gps_an4, isActuel: false, isMax: false },
+              { an: 'An 5', gps: data.gps_an5, isActuel: false, isMax: true },
+            ].filter(e => e.gps && (e.gps as GPS).salaire).map((e, i) => {
+              const gps = e.gps as GPS;
+              return (
+                <div key={i} style={{ background: e.isActuel ? ORANGE : e.isMax ? '#F0FFF8' : CARD, borderRadius: '10px', padding: '12px 16px', border: `1px solid ${e.isActuel ? ORANGE : e.isMax ? '#C8EFD8' : BORDER}`, display: 'flex', gap: '16px', alignItems: 'center' }}>
+                  <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: e.isActuel ? 'rgba(255,255,255,0.2)' : e.isMax ? '#22A06B' : '#F0EDE6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: 600, color: e.isActuel ? 'white' : e.isMax ? 'white' : '#888', flexShrink: 0 }}>{e.an}</div>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: '10px', letterSpacing: '0.5px', color: e.isActuel ? 'rgba(255,255,255,0.7)' : '#888', fontFamily: 'monospace', textTransform: 'uppercase' }}>
-                      {e.an === 'Auj.' ? 'AUJOURD\'HUI' : `AN ${e.an.replace('An ', '')}`}
-                    </div>
-                    <div style={{ fontSize: '13px', fontWeight: 500, color: e.isActuel ? 'white' : e.isMax ? '#085041' : DARK }}>
-                      {e.gps?.titre}
-                    </div>
-                    {e.gps?.action && <div style={{ fontSize: '10px', color: e.isActuel ? 'rgba(255,255,255,0.7)' : '#888', marginTop: '2px' }}>{e.gps.action}</div>}
+                    <div style={{ fontSize: '13px', fontWeight: 500, color: e.isActuel ? 'white' : e.isMax ? '#085041' : DARK }}>{gps.titre}</div>
+                    {gps.action && <div style={{ fontSize: '10px', color: e.isActuel ? 'rgba(255,255,255,0.7)' : '#888', marginTop: '2px' }}>{gps.action}</div>}
                   </div>
                   <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontSize: '14px', fontWeight: 700, color: e.isActuel ? 'white' : e.isMax ? GREEN : ORANGE }}>
-                      {e.gps?.salaire?.toLocaleString()} $
-                    </div>
+                    <div style={{ fontSize: '14px', fontWeight: 700, color: e.isActuel ? 'white' : e.isMax ? GREEN : ORANGE }}>{gps.salaire?.toLocaleString()} $</div>
                     {e.isMax && <div style={{ fontSize: '9px', color: GREEN, fontFamily: 'monospace' }}>POTENTIEL MAX</div>}
                   </div>
                 </div>
-              ))}
-            </div>
+              );
+            })}
           </div>
         )}
 
-        {/* ════════════════════════════════════════
-            SECTION : FORMATIONS
-        ════════════════════════════════════════ */}
+        {/* ── FORMATIONS ── */}
         {activeSection === 'formations' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <div style={{ fontSize: '9px', letterSpacing: '2px', color: '#888', fontFamily: 'monospace', display: 'flex', alignItems: 'center', gap: '8px' }}>
               FORMATIONS RECOMMANDÉES
               <div style={{ flex: 1, height: '1px', background: BORDER }} />
             </div>
-
-            {(data.formations || []).map((f, i) => (
+            {((data.formations as Formation[]) || []).map((f, i) => (
               <div key={i} style={{ background: CARD, borderRadius: '12px', padding: '14px 16px', border: `1px solid ${BORDER}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
                   <div style={{ fontSize: '20px' }}>{getTypeIcon(f.type)}</div>
@@ -685,18 +550,16 @@ export default function RapportGPS({
                     <div style={{ fontSize: '11px', color: '#888' }}>{f.plateforme} · {f.duree}</div>
                   </div>
                 </div>
-                <a href="#" style={{ fontSize: '11px', color: ORANGE, textDecoration: 'none', fontWeight: 500, whiteSpace: 'nowrap' }}>Détail →</a>
+                <a href={`/mon-espace?tab=formations&email=${email || ''}`} style={{ fontSize: '11px', color: ORANGE, textDecoration: 'none', fontWeight: 500, whiteSpace: 'nowrap' }}>Détail →</a>
               </div>
             ))}
-
-            {/* Certifications */}
-            {(data.certifications || []).length > 0 && (
+            {((data.certifications as Certification[]) || []).length > 0 && (
               <>
                 <div style={{ fontSize: '9px', letterSpacing: '2px', color: '#888', fontFamily: 'monospace', display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
                   CERTIFICATIONS ET ORDRES PROFESSIONNELS
                   <div style={{ flex: 1, height: '1px', background: BORDER }} />
                 </div>
-                {(data.certifications || []).map((c, i) => (
+                {((data.certifications as Certification[]) || []).map((c, i) => (
                   <div key={i} style={{ background: CARD, borderRadius: '12px', padding: '14px 16px', border: `1px solid ${BORDER}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div>
                       <div style={{ fontSize: '13px', fontWeight: 500, color: DARK }}>{c.nom}</div>
@@ -709,48 +572,34 @@ export default function RapportGPS({
             )}
           </div>
         )}
-        
-       {/* ════════════════════════════════════════
-            SECTION : PARCOURS
-        ════════════════════════════════════════ */}
+
+        {/* ── PARCOURS ── */}
         {activeSection === 'parcours' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <div style={{ fontSize: '9px', letterSpacing: '2px', color: '#888', fontFamily: 'monospace', display: 'flex', alignItems: 'center', gap: '8px' }}>
               MON PARCOURS
               <div style={{ flex: 1, height: '1px', background: BORDER }} />
             </div>
-
-            {/* CV */}
             <div style={{ background: CARD, borderRadius: '12px', padding: '20px', border: `1px solid ${BORDER}` }}>
               <div style={{ fontSize: '9px', letterSpacing: '1px', color: '#888', fontFamily: 'monospace', marginBottom: '8px' }}>📄 MON CV YELMA</div>
               <div style={{ fontSize: '13px', color: DARK, marginBottom: '12px' }}>YELMA génère ton CV personnalisé basé sur tes compétences révélées.</div>
-              <a href={`/mon-espace?tab=cv&email=${email || ''}`} style={{ display: 'inline-block', background: DARK, color: 'white', borderRadius: '8px', padding: '10px 20px', fontSize: '12px', fontWeight: 600, textDecoration: 'none' }}>
-                Générer mon CV →
-              </a>
+              <a href={`/mon-espace?tab=cv&email=${email || ''}`} style={{ display: 'inline-block', background: DARK, color: 'white', borderRadius: '8px', padding: '10px 20px', fontSize: '12px', fontWeight: 600, textDecoration: 'none' }}>Générer mon CV →</a>
             </div>
-
-            {/* Lettre */}
             <div style={{ background: CARD, borderRadius: '12px', padding: '20px', border: `1px solid ${BORDER}` }}>
               <div style={{ fontSize: '9px', letterSpacing: '1px', color: '#888', fontFamily: 'monospace', marginBottom: '8px' }}>✉️ MA LETTRE DE MOTIVATION</div>
               <div style={{ fontSize: '13px', color: DARK, marginBottom: '12px' }}>Génère une lettre personnalisée pour chaque offre qui correspond à ton profil.</div>
-              <a href={`/mon-espace?tab=lettre&email=${email || ''}`} style={{ display: 'inline-block', background: ORANGE, color: 'white', borderRadius: '8px', padding: '10px 20px', fontSize: '12px', fontWeight: 600, textDecoration: 'none' }}>
-                Générer ma lettre →
-              </a>
+              <a href={`/mon-espace?tab=lettre&email=${email || ''}`} style={{ display: 'inline-block', background: ORANGE, color: 'white', borderRadius: '8px', padding: '10px 20px', fontSize: '12px', fontWeight: 600, textDecoration: 'none' }}>Générer ma lettre →</a>
             </div>
           </div>
         )}
 
-        {/* ════════════════════════════════════════
-            SECTION : CONSEILLER YELMA
-        ════════════════════════════════════════ */}
+        {/* ── CONSEILLER ── */}
         {activeSection === 'conseiller' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <div style={{ fontSize: '9px', letterSpacing: '2px', color: '#888', fontFamily: 'monospace', display: 'flex', alignItems: 'center', gap: '8px' }}>
               TON CONSEILLER YELMA
               <div style={{ flex: 1, height: '1px', background: BORDER }} />
             </div>
-
-            {/* Profil conseiller */}
             <div style={{ background: CARD, borderRadius: '12px', border: `1px solid ${BORDER}`, overflow: 'hidden' }}>
               <div style={{ padding: '14px 16px', borderBottom: `1px solid ${BORDER}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
@@ -765,71 +614,31 @@ export default function RapportGPS({
                   <div style={{ fontSize: '10px', color: GREEN, fontWeight: 500 }}>Disponible</div>
                 </div>
               </div>
-
-              {/* Messages */}
               {conseillerMessages.length > 0 && (
                 <div style={{ padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '240px', overflowY: 'auto' }}>
                   {conseillerMessages.map((m, i) => (
                     <div key={i} style={{ display: 'flex', justifyContent: m.role === 'user' ? 'flex-end' : 'flex-start' }}>
-                      <div style={{
-                        maxWidth: '80%', padding: '8px 12px', borderRadius: '10px', fontSize: '12px', lineHeight: 1.5,
-                        background: m.role === 'user' ? DARK : '#F5F2EC',
-                        color: m.role === 'user' ? 'white' : DARK,
-                      }}>{m.text}</div>
+                      <div style={{ maxWidth: '80%', padding: '8px 12px', borderRadius: '10px', fontSize: '12px', lineHeight: 1.5, background: m.role === 'user' ? DARK : '#F5F2EC', color: m.role === 'user' ? 'white' : DARK }}>{m.text}</div>
                     </div>
                   ))}
-                  {conseillerLoading && (
-                    <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
-                      <div style={{ background: '#F5F2EC', padding: '8px 12px', borderRadius: '10px', fontSize: '12px', color: '#888' }}>En train de réfléchir...</div>
-                    </div>
-                  )}
+                  {conseillerLoading && <div style={{ display: 'flex', justifyContent: 'flex-start' }}><div style={{ background: '#F5F2EC', padding: '8px 12px', borderRadius: '10px', fontSize: '12px', color: '#888' }}>En train de réfléchir...</div></div>}
                 </div>
               )}
-
-              {/* Question intro si pas de messages */}
               {conseillerMessages.length === 0 && (
-                <div style={{ padding: '14px 16px', borderBottom: `1px solid ${BORDER}` }}>
-                  <div style={{ fontSize: '12px', color: DARK, lineHeight: 1.6 }}>
-                    Tu as des questions sur <strong>ta cible</strong>, <strong>tes formations</strong> ou tu hésites sur la direction à prendre ?
+                <>
+                  <div style={{ padding: '14px 16px', borderBottom: `1px solid ${BORDER}` }}>
+                    <div style={{ fontSize: '12px', color: DARK, lineHeight: 1.6 }}>Tu as des questions sur <strong>ta cible</strong>, <strong>tes formations</strong> ou tu hésites sur la direction à prendre ?</div>
                   </div>
-                </div>
+                  <div style={{ padding: '12px 16px', display: 'flex', flexWrap: 'wrap', gap: '8px', borderBottom: `1px solid ${BORDER}` }}>
+                    {['Je doute de ma cible', 'Quelle formation prioriser ?', 'Améliorer mon score', 'Explorer un autre domaine'].map(q => (
+                      <button key={q} onClick={() => envoyerConseiller(q)} style={{ background: 'white', border: `1px solid ${BORDER}`, borderRadius: '20px', padding: '6px 14px', fontSize: '11px', color: DARK, cursor: 'pointer', fontFamily: 'Georgia, serif' }}>{q}</button>
+                    ))}
+                  </div>
+                </>
               )}
-
-              {/* Boutons rapides */}
-              {conseillerMessages.length === 0 && (
-                <div style={{ padding: '12px 16px', display: 'flex', flexWrap: 'wrap', gap: '8px', borderBottom: `1px solid ${BORDER}` }}>
-                  {[
-                    'Je doute de ma cible',
-                    'Quelle formation prioriser ?',
-                    'Améliorer mon score',
-                    'Explorer un autre domaine',
-                  ].map(q => (
-                    <button key={q} onClick={() => envoyerConseiller(q)} style={{
-                      background: 'white', border: `1px solid ${BORDER}`, borderRadius: '20px',
-                      padding: '6px 14px', fontSize: '11px', color: DARK, cursor: 'pointer',
-                      fontFamily: 'Georgia, serif',
-                    }}>{q}</button>
-                  ))}
-                </div>
-              )}
-
-              {/* Input */}
               <div style={{ padding: '12px 16px', display: 'flex', gap: '8px' }}>
-                <input
-                  value={conseillerInput}
-                  onChange={e => setConseillerInput(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && envoyerConseiller()}
-                  placeholder="Ecris ta question à ton conseiller..."
-                  style={{
-                    flex: 1, border: `1px solid ${BORDER}`, borderRadius: '20px',
-                    padding: '8px 14px', fontSize: '12px', outline: 'none',
-                    fontFamily: 'Georgia, serif', background: '#FAFAF8',
-                  }}
-                />
-                <button onClick={() => envoyerConseiller()} disabled={conseillerLoading} style={{
-                  background: conseillerLoading ? '#ddd' : DARK, color: 'white', border: 'none',
-                  borderRadius: '8px', width: '36px', height: '36px', cursor: 'pointer', fontSize: '14px',
-                }}>→</button>
+                <input value={conseillerInput} onChange={e => setConseillerInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && envoyerConseiller()} placeholder="Ecris ta question à ton conseiller..." style={{ flex: 1, border: `1px solid ${BORDER}`, borderRadius: '20px', padding: '8px 14px', fontSize: '12px', outline: 'none', fontFamily: 'Georgia, serif', background: '#FAFAF8' }} />
+                <button onClick={() => envoyerConseiller()} disabled={conseillerLoading} style={{ background: conseillerLoading ? '#ddd' : DARK, color: 'white', border: 'none', borderRadius: '8px', width: '36px', height: '36px', cursor: 'pointer', fontSize: '14px' }}>→</button>
               </div>
             </div>
           </div>

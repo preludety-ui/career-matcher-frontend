@@ -728,6 +728,54 @@ export default function Preview() {
           {enCours ? `⏳ Tests en cours... ${progression}%` : "🚀 Lancer les 20 tests automatiques"}
         </button>
 
+        <button
+  onClick={async () => {
+    const res = await fetch('/api/candidats', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: 'preludety@gmail.com',
+        langue: 'fr',
+        plan: 'propulse',
+        niveau_education: 'UNIVERSITAIRE',
+        ville: 'Montréal',
+        pays: 'Canada',
+        force1: 'Gestion des protocoles de soins',
+        force2: 'Supervision équipe clinique',
+        force3: 'Analyse données cliniques',
+        gps_an1: { titre: 'Infirmière', salaire: 55000, action: 'Rejoindre OIIQ' },
+        gps_an2: { titre: 'Infirmière', salaire: 63000, action: 'Formation continue' },
+        gps_an3: { titre: 'Infirmière praticienne spécialisée', salaire: 85000, action: 'Début Maîtrise' },
+        gps_an4: { titre: 'Infirmière praticienne spécialisée', salaire: 95000, action: 'Compléter Maîtrise' },
+        gps_an5: { titre: 'Infirmière praticienne spécialisée', salaire: 103000, action: 'IPS autonome' },
+      }),
+    });
+
+    // Injection directe dans Supabase via API
+    await fetch('/api/test-dashboard', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: 'preludety@gmail.com',
+        prenom: 'Sophie',
+        nom: 'Test',
+        score_propulse: 61,
+        score_cible_pct: 67,
+        score_cible_5ans_pct: 100,
+        verdict: 'atteignable',
+        message_analyse: 'Sophie, tu possèdes des forces que peu de candidats ont. En complétant tes formations et en comblant tes écarts, tu rejoindras l\'élite de ton domaine.',
+      }),
+    });
+
+    window.open('/mon-espace?email=preludety@gmail.com', '_blank');
+  }}
+  style={{ width: '100%', padding: '14px', borderRadius: '12px', border: 'none', background: '#1A1A2E', color: 'white', fontSize: '14px', fontWeight: 700, cursor: 'pointer', marginBottom: '12px' }}
+>
+  🧪 Tester le Dashboard →
+</button>
+
+
+
         {/* Barre progression */}
         {enCours && (
           <div style={{ background: "white", borderRadius: "10px", padding: "10px", marginBottom: "12px", border: "0.5px solid #E8E8F0" }}>
