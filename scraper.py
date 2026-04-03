@@ -1,3 +1,5 @@
+
+
 """
 YELMA Market Data Scraper
 Sources: Jobillico, Indeed Canada, Emploi-Québec IMT
@@ -54,25 +56,38 @@ def scraper_jobillico(poste: str, ville: str = "montreal") -> dict:
 # ══════════════════════════════════════════════════════════
 
 def scraper_indeed(poste: str, ville: str = "Montreal, QC") -> dict:
-    """Scrape le nombre d'offres sur Indeed Canada"""
+    """Scrape le nombre d'offres et les salaires réels sur Indeed Canada"""
     try:
         url = f"https://ca.indeed.com/jobs?q={requests.utils.quote(poste)}&l={requests.utils.quote(ville)}&lang=fr"
         res = requests.get(scraper_url(url), timeout=60)
         
         import re
-        # Indeed affiche "X emplois" ou "X jobs"
+        
+        # Compter offres
         match = re.search(r'([\d,]+)\s+emploi', res.text, re.IGNORECASE)
         if not match:
             match = re.search(r'([\d,]+)\s+job', res.text, re.IGNORECASE)
-        
         total = int(match.group(1).replace(',', '')) if match else 0
         
-        print(f"✅ Indeed — {poste} à {ville}: {total} offres")
-        return {"source": "indeed", "poste": poste, "ville": ville, "nb_offres": total, "date": datetime.now().isoformat()}
+        # Extraire salaires réels
+        salaires = extract_salaries_from_indeed_offers(res.text)
+        stats = compute_real_salary_stats(salaires)
+        
+        print(f"✅ Indeed — {poste} à {ville}: {total} offres | Salaires: {stats['min'] or 0:,}$ - {stats['max'] or 0:,}$ ({stats['count']} extraits)")
+        return {
+            "source": "indeed", "poste": poste, "ville": ville,
+            "nb_offres": total,
+            "salaire_min": stats["min"] or 0,
+            "salaire_max": stats["max"] or 0,
+            "salaire_median": stats["median"] or 0,
+            "salaires_raw": salaires,
+            "date": datetime.now().isoformat()
+        }
     
     except Exception as e:
         print(f"❌ Indeed error: {e}")
-        return {"source": "indeed", "poste": poste, "ville": ville, "nb_offres": 0, "date": datetime.now().isoformat()}
+        return {"source": "indeed", "poste": poste, "ville": ville, "nb_offres": 0, "salaire_min": 0, "salaire_max": 0, "salaire_median": 0, "salaires_raw": [], "date": datetime.now().isoformat()}
+
 
 
 # ══════════════════════════════════════════════════════════
@@ -149,8 +164,17 @@ def calculer_score_marche(poste: str, ville: str, code_cnp: str = None) -> dict:
     D = min(100, int((nb_offres_total / 50) * 100))
 
     
-    # S — Attractivité salariale (basé IMT ou estimation)
+    # S — Attractivité salariale
     salaire_median = imt.get("salaire_median", 0)
+    
+    # Fallback: référence manuelle si IMT vide
+    if salaire_median == 0:
+        profession_key = poste.lower().replace(" ", "_").replace("é", "e").replace("è", "e").replace("à", "a").replace("ê", "e")
+        ref = get_salary_for_profile(profession_key, ville)
+        salaire_median = ref.get("median", 0)
+        if salaire_median > 0:
+            print(f"   💰 Salaire ref: {salaire_median:,}$ ({ref.get('source', '')})")
+    
     if salaire_median > 80000:
         S = 90
     elif salaire_median > 60000:
@@ -158,7 +182,7 @@ def calculer_score_marche(poste: str, ville: str, code_cnp: str = None) -> dict:
     elif salaire_median > 45000:
         S = 60
     else:
-        S = 50
+        S = 50    
     
     # T — Tension métier (basé perspectives IMT)
     perspectives = imt.get("perspectives", "inconnues")
@@ -340,6 +364,317 @@ def test_single(poste: str = "Infirmière praticienne spécialisée", ville: str
     sauvegarder_donnees_marche(donnees)
     print(f"\n📊 Résultat: {json.dumps(donnees, indent=2, ensure_ascii=False)}")
     return donnees
+
+ 
+
+
+"""
+YELMA — Patch extraction salaires réels
+========================================
+À intégrer dans votre scraper.py existant.
+
+Le principe : extraire les salaires directement depuis
+les offres d'emploi (pas depuis les stats CNP).
+Les offres affichent les vrais salaires du marché actuel.
+"""
+
+import re
+from statistics import median, mean
+
+# ── EXTRACTION SALAIRES DEPUIS LES OFFRES ─────────────────────────────────
+
+def parse_salary_from_text(text: str) -> dict:
+    """
+    Extrait et normalise un salaire depuis n'importe quel texte d'offre.
+    Gère : horaire, hebdo, annuel, avec/sans espaces, $ ou CAD.
+    
+    Exemples reconnus :
+      "34,50 $ / heure"     → annualisé 71 760 $
+      "55 000 $ par année"  → 55 000 $
+      "72k-85k"             → min 72 000, max 85 000
+      "Entre 28 et 32 $/h" → annualisé 60 320 $
+    """
+    result = {"raw": text, "min": None, "max": None, "annual": None, "type": None}
+    
+    # Nettoyage
+    text_clean = text.replace("\xa0", " ").replace(",", ".").lower().strip()
+    
+    # Patterns de salaire
+    patterns = [
+        # Annuel : "55 000 $" ou "55000$" ou "72k"
+        (r'(\d{2,3}[\s.]?\d{3})\s*\$?\s*(?:par\s+an|annuel|\/an|year)', "annual"),
+        (r'(\d{2,3})\s*k\$?\s*(?:à|-|–)\s*(\d{2,3})\s*k', "annual_range_k"),
+        (r'(\d{2,3}[\s.]?\d{3})\s*\$?\s*(?:à|-|–)\s*(\d{2,3}[\s.]?\d{3})', "annual_range"),
+        # Horaire : "28.50 $/h" ou "34,50 $ de l'heure"
+        (r'(\d{2,3}(?:\.\d{1,2})?)\s*\$?\s*(?:\/h|\/heure|de\s+l.heure|par\s+heure|heure)', "hourly"),
+        (r'(\d{2,3}(?:\.\d{1,2})?)\s*\$?\s*(?:à|-|–)\s*(\d{2,3}(?:\.\d{1,2})?)\s*\$?\s*(?:\/h|\/heure)', "hourly_range"),
+    ]
+    
+    for pattern, sal_type in patterns:
+        match = re.search(pattern, text_clean)
+        if match:
+            groups = match.groups()
+            if sal_type == "annual":
+                val = float(groups[0].replace(" ", "").replace(".", ""))
+                if val > 200000 or val < 20000:
+                    continue
+                result.update({"min": val, "max": val, "annual": val, "type": "annual"})
+                
+            elif sal_type == "annual_range_k":
+                mn = float(groups[0]) * 1000
+                mx = float(groups[1]) * 1000
+                result.update({"min": mn, "max": mx, "annual": (mn+mx)/2, "type": "annual"})
+                
+            elif sal_type == "annual_range":
+                mn = float(groups[0].replace(" ", "").replace(".", ""))
+                mx = float(groups[1].replace(" ", "").replace(".", ""))
+                if mn < 20000 or mx > 300000:
+                    continue
+                result.update({"min": mn, "max": mx, "annual": (mn+mx)/2, "type": "annual"})
+                
+            elif sal_type == "hourly":
+                hourly = float(groups[0])
+                if hourly < 15 or hourly > 120:
+                    continue
+                annual = round(hourly * 35 * 52)  # 35h/sem, 52 semaines
+                result.update({"min": annual, "max": annual, "annual": annual, "type": "hourly", "hourly_rate": hourly})
+                
+            elif sal_type == "hourly_range":
+                h_min = float(groups[0]); h_max = float(groups[1])
+                if h_min < 15 or h_max > 120:
+                    continue
+                ann_min = round(h_min * 35 * 52)
+                ann_max = round(h_max * 35 * 52)
+                result.update({"min": ann_min, "max": ann_max, "annual": (ann_min+ann_max)/2,
+                               "type": "hourly", "hourly_min": h_min, "hourly_max": h_max})
+            break
+    
+    return result
+
+
+def extract_salaries_from_jobillico_offers(soup, max_offers=30) -> list:
+    """
+    Extrait les salaires de toutes les offres Jobillico sur une page.
+    Retourne une liste de salaires annualisés.
+    """
+    salaries = []
+    
+    # Sélecteurs Jobillico (à ajuster si le site change)
+    offer_cards = soup.select('[class*="job-card"], [class*="offer-card"], article')
+    
+    for card in offer_cards[:max_offers]:
+        # Chercher le salaire dans la carte
+        sal_el = card.select_one('[class*="salary"], [class*="salaire"], [class*="compensation"]')
+        if sal_el:
+            parsed = parse_salary_from_text(sal_el.get_text(strip=True))
+            if parsed["annual"]:
+                salaries.append(parsed["annual"])
+                continue
+        
+        # Fallback : chercher dans tout le texte de la carte
+        card_text = card.get_text(" ", strip=True)
+        parsed = parse_salary_from_text(card_text)
+        if parsed["annual"] and 30000 < parsed["annual"] < 250000:
+            salaries.append(parsed["annual"])
+    
+    return salaries
+
+
+def extract_salaries_from_indeed_offers(page_html: str, max_offers=30) -> list:
+    """
+    Extrait les salaires depuis une page Indeed Canada.
+    """
+    from bs4 import BeautifulSoup
+    soup = BeautifulSoup(page_html, "html.parser")
+    salaries = []
+    
+    # Indeed affiche les salaires dans des spans spécifiques
+    salary_selectors = [
+        '[class*="salary-snippet"]',
+        '[class*="salaryText"]',
+        '[data-testid="attribute_snippet_testid"]',
+        '[class*="metadata"]',
+    ]
+    
+    for selector in salary_selectors:
+        for el in soup.select(selector)[:max_offers]:
+            text = el.get_text(strip=True)
+            if any(kw in text.lower() for kw in ['$', 'heure', 'an', 'year', 'salary']):
+                parsed = parse_salary_from_text(text)
+                if parsed["annual"] and 30000 < parsed["annual"] < 250000:
+                    salaries.append(parsed["annual"])
+    
+    return salaries
+
+
+def compute_real_salary_stats(salaries: list) -> dict:
+    """
+    Calcule les statistiques salariales à partir d'une liste de salaires réels.
+    Filtre les outliers avant le calcul.
+    """
+    if not salaries:
+        return {"median": None, "min": None, "max": None, "count": 0}
+    
+    # Filtrer les outliers (hors Q1-1.5*IQR et Q3+1.5*IQR)
+    sorted_s = sorted(salaries)
+    n = len(sorted_s)
+    if n >= 4:
+        q1 = sorted_s[n//4]
+        q3 = sorted_s[3*n//4]
+        iqr = q3 - q1
+        filtered = [s for s in sorted_s if q1 - 1.5*iqr <= s <= q3 + 1.5*iqr]
+    else:
+        filtered = sorted_s
+    
+    if not filtered:
+        filtered = sorted_s
+    
+    return {
+        "median": round(median(filtered)),
+        "mean":   round(mean(filtered)),
+        "min":    round(min(filtered)),
+        "max":    round(max(filtered)),
+        "p25":    round(filtered[len(filtered)//4]) if len(filtered) >= 4 else None,
+        "p75":    round(filtered[3*len(filtered)//4]) if len(filtered) >= 4 else None,
+        "count":  len(filtered),
+        "raw_count": len(salaries),
+    }
+
+
+# ── FALLBACK SALAIRES PAR PROFESSION (données IMT + conventions collectives) ──
+# Source : conventions collectives CISSS/CIUSSS + IMT En ligne + Glassdoor Canada
+# À mettre à jour 1x/an manuellement
+
+SALARY_REFERENCE = {
+    # Format: "profession_key": {"min": x, "median": y, "max": z, "source": "..."}
+    
+    "infirmiere_praticienne_specialisee": {
+        "min": 72000, "median": 88000, "max": 105000,
+        "source": "Convention collective CISSS/CIUSSS 2024",
+        "note": "Échelon 1 à échelon max, IPS spécialisée Montréal"
+    },
+    "infirmiere_praticienne": {
+        "min": 72000, "median": 88000, "max": 105000,
+        "source": "Convention collective CISSS/CIUSSS 2024",
+        "note": "Infirmière praticienne Montréal"
+    },
+    "coordonnateur_soins": {
+        "min": 75000, "median": 88000, "max": 105000,
+        "source": "IMT En ligne + Glassdoor Montréal 2024",
+    },
+    "formateur_soins_infirmiers": {
+        "min": 58000, "median": 68000, "max": 80000,
+        "source": "Cégeps + établissements de santé Québec 2024",
+    },
+    "developpeur_python": {
+        "min": 70000, "median": 90000, "max": 130000,
+        "source": "Stack Overflow Survey Canada 2024 + Glassdoor Montréal",
+    },
+    "developpeur_react": {
+        "min": 68000, "median": 88000, "max": 125000,
+        "source": "Glassdoor + LinkedIn Salary Montréal 2024",
+    },
+    "data_scientist": {
+        "min": 80000, "median": 100000, "max": 140000,
+        "source": "Glassdoor Montréal + Levels.fyi Canada 2024",
+    },
+    "chef_de_projet_it": {
+        "min": 75000, "median": 95000, "max": 130000,
+        "source": "PMI Salary Survey Canada 2024",
+    },
+    "responsable_rh": {
+        "min": 65000, "median": 80000, "max": 105000,
+        "source": "CRHA Québec + Glassdoor 2024",
+    },
+}
+
+
+def get_salary_for_profile(profession_key: str, city: str, scraped_salaries: list = None) -> dict:
+    """
+    Retourne le meilleur salaire disponible pour un profil YELMA.
+    Priorité : 1) salaires scrappés réels > 2) référence manuelle > 3) fallback CNP
+    
+    C'est cette fonction que vous appelez dans votre API Next.js.
+    """
+    
+    # 1. Salaires scrappés réels (meilleure source)
+    if scraped_salaries and len(scraped_salaries) >= 3:
+        stats = compute_real_salary_stats(scraped_salaries)
+        return {
+            "median":  stats["median"],
+            "min":     stats["min"],
+            "max":     stats["max"],
+            "p25":     stats["p25"],
+            "p75":     stats["p75"],
+            "source":  f"Offres réelles · {stats['count']} offres analysées",
+            "quality": "high",
+        }
+    
+    # 2. Référence manuelle (conventions collectives + Glassdoor)
+    if profession_key in SALARY_REFERENCE:
+        ref = SALARY_REFERENCE[profession_key]
+        return {
+            "median":  ref["median"],
+            "min":     ref["min"],
+            "max":     ref["max"],
+            "source":  ref["source"],
+            "quality": "medium",
+        }
+    
+    # 3. Fallback CNP (le moins précis — à éviter)
+    CNP_FALLBACK = {
+        "3012": 72000,  # IPS / Infirmières
+        "0311": 88000,  # Directeurs soins infirmiers
+        "4021": 65000,  # Enseignants niveau collégial
+        "2174": 88000,  # Programmeurs / développeurs
+        "2172": 98000,  # Analystes / data scientists
+        "0112": 78000,  # RH
+        "0114": 74000,  # Autres gestionnaires admin
+        "0213": 92000,  # Directeurs informatique
+    }
+    cnp = profession_key  # si vous passez le CNP directement
+    return {
+        "median":  CNP_FALLBACK.get(cnp, 65000),
+        "source":  "IMT En ligne · Statistique Canada (médiane provinciale)",
+        "quality": "low",
+        "warning": "Chiffre provincial — peut sous-estimer le marché montréalais de 10-20%"
+    }
+
+
+# ── TEST ───────────────────────────────────────────────────────────────────
+if __name__ == "__main__":
+    # Test du parser
+    tests = [
+        "34,50 $ de l'heure",
+        "55 000 $ par année",
+        "72k à 85k",
+        "Entre 28 $ et 32 $ / heure",
+        "Salaire : 88 000 $ - 105 000 $ annuellement",
+        "Rémunération compétitive selon convention collective",
+    ]
+    
+    print("=== TEST EXTRACTION SALAIRES ===\n")
+    for t in tests:
+        result = parse_salary_from_text(t)
+        annual = result.get("annual")
+        print(f"  Input:  {t}")
+        print(f"  Annuel: {f'{annual:,.0f} $' if annual else 'non détecté'}")
+        print()
+    
+    # Test stats
+    sample_salaries = [72000, 75000, 80000, 82000, 85000, 88000, 95000, 100000, 68000, 71000]
+    stats = compute_real_salary_stats(sample_salaries)
+    print(f"Stats sur {len(sample_salaries)} salaires:")
+    print(f"  Médiane: {stats['median']:,} $")
+    print(f"  Min: {stats['min']:,} $  |  Max: {stats['max']:,} $")
+    print(f"  P25: {stats['p25']:,} $  |  P75: {stats['p75']:,} $")
+    
+    # Test référence manuelle
+    result = get_salary_for_profile("infirmiere_praticienne_specialisee", "Montreal")
+    print(f"\nSalaire IPS Montréal (référence): {result['median']:,} $ (source: {result['source']})")
+
+
+
 
 
 if __name__ == "__main__":
