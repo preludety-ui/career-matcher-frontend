@@ -383,7 +383,7 @@ export default function RapportGPS({
                 <Tuile titre="Mes compétences" pct={data.force1 ? 100 : 0} desc={`${[data.force1, data.force2, data.force3].filter(Boolean).length} forces identifiées par YELMA.`} onClick={() => setActiveSection('competences')} />
                 <Tuile titre="Mes formations" pct={35} desc={`${(data.formations as Formation[] || []).length} formations clés pour débloquer ton potentiel.`} onClick={() => setActiveSection('formations')} />
                 <Tuile titre="Mon parcours" pct={scorePropulse} desc="Ton parcours analysé par YELMA." onClick={() => setActiveSection('parcours')} />
-                <Tuile titre={`Mon marché · ${villeAffichee}`} pct={80} desc={`${salaireMin.toLocaleString()} $ → ${salaireMax.toLocaleString()} $ en 5 ans.`} onClick={() => setActiveSection('marche')} />
+                <Tuile titre={`Mon marché · ${villeAffichee}`} pct={marcheScore !== null ? marcheScore : Number(data.score_marche) || 80} desc={`${salaireMin.toLocaleString()} $ → ${salaireMax.toLocaleString()} $ en 5 ans.`} onClick={() => setActiveSection('marche')} />
                 <Tuile titre="Mon GPS de carrière" pct={62} desc={`${salaireMin.toLocaleString()} $ → ${salaireMax.toLocaleString()} $ en 5 ans.`} onClick={() => setActiveSection('gps')} />
                 {/* Tuile Conseiller */}
                 <div onClick={() => setActiveSection('conseiller')} style={{ background: '#FDF6EE', borderRadius: '12px', padding: '16px', border: '1px solid #EDEAE3', display: 'flex', flexDirection: 'column', gap: '8px', cursor: 'pointer' }}>
