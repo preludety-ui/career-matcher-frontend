@@ -30,8 +30,33 @@ type RapportData = {
   message_analyse?: string;
   prenom?: string;
   nom?: string;
-  // Champs Supabase directs
+  score_marche?: number;
+  marche_details?: unknown;
+  domaine_actuel?: string;
   [key: string]: unknown;
+};
+
+type TendanceData = {
+  annees: number[];
+  courbe_actuel: number[];
+  courbe_cible: number[];
+  annee_arrivee: number;
+  poste_actuel: string;
+  poste_cible: string;
+  tendance_actuel: string;
+  tendance_cible: string;
+  nb_offres_actuel: number;
+  nb_offres_cible: number;
+};
+
+type MarcheDetails = {
+  nb_offres_estimees?: number;
+  tendance?: string;
+  explication?: string;
+  D?: number;
+  S?: number;
+  T?: number;
+  G?: number;
 };
 
 export function parseRapport(text: string): RapportData | null {
@@ -152,30 +177,25 @@ export default function RapportGPS({
   email?: string;
 }) {
   const chartRef = useRef<HTMLCanvasElement>(null);
+  const chartTendanceRef = useRef<HTMLCanvasElement>(null);
   const [activeSection, setActiveSection] = useState<string>('resume');
   const [conseillerInput, setConseillerInput] = useState('');
   const [conseillerMessages, setConseillerMessages] = useState<{ role: 'user' | 'bot'; text: string }[]>([]);
   const [conseillerLoading, setConseillerLoading] = useState(false);
-
   const [marcheScore, setMarcheScore] = useState<number | null>(null);
-  const [marcheDetails, setMarcheDetails] = useState<{nb_offres_estimees?: number; tendance?: string; explication?: string} | null>(null);
+  const [marcheDetails, setMarcheDetails] = useState<MarcheDetails | null>(null);
   const [marcheLoading, setMarcheLoading] = useState(false);
+  const [tendanceData, setTendanceData] = useState<TendanceData | null>(null);
 
-  // ── Extraire toutes les valeurs directement depuis data ──
   const isPropulse = plan === "propulse";
   const salaireMin = Number(data.salaire_min) || 40000;
   const salaireMax = Number(data.salaire_max) || 60000;
-  
-  // Score PROPULSE — cherche dans tous les champs possibles
   const scorePropulse = Number(data.score_propulse) || 0;
   const scoreCible = Number(data.score_cible_pct) || 0;
   const verdict = String(data.verdict || 'atteignable');
   const messageAnalyse = String(data.message_analyse || '');
-  
-  // Prénom/nom — cherche dans tous les champs possibles  
   const prenom = String(data.prenom || '');
   const nom = String(data.nom || '');
-  
   const villeAffichee = ville || String(data.ville || 'Montréal');
   const roleAffiche = roleActuel || String(data.role_actuel || '');
   const today = new Date().toLocaleDateString('fr-CA', { year: 'numeric', month: 'long', day: 'numeric' });
@@ -187,35 +207,6 @@ export default function RapportGPS({
   const BG = '#F5F2EC';
   const BORDER = '#EDEAE3';
   const CARD = '#FFFFFF';
-
-  useEffect(() => {
-    if (!chartRef.current || activeSection !== 'gps') return;
-    const loadChart = async () => {
-      const { Chart, registerables } = await import('chart.js');
-      Chart.register(...registerables);
-      const existing = Chart.getChart(chartRef.current!);
-      if (existing) existing.destroy();
-      const raw = [salaireMin, Number(data.gps_an1?.salaire) || 0, Number(data.gps_an2?.salaire) || 0, Number(data.gps_an3?.salaire) || 0, Number(data.gps_an4?.salaire) || 0, Number(data.gps_an5?.salaire) || 0];
-      const yelma = ensureCroissant(raw);
-      new Chart(chartRef.current!, {
-        type: 'line',
-        data: {
-          labels: ['Auj.', 'An 1', 'An 2', 'An 3', 'An 4', 'An 5'],
-          datasets: [{ label: 'Trajectoire YELMA', data: yelma, borderColor: '#E05C3A', backgroundColor: 'rgba(224,92,58,0.06)', borderWidth: 2, pointBackgroundColor: yelma.map((_, i) => i === yelma.length - 1 ? '#22A06B' : '#E05C3A'), pointRadius: 5, fill: true, tension: 0.4 }],
-        },
-        options: {
-          responsive: true, maintainAspectRatio: false,
-          plugins: { legend: { display: false }, tooltip: { callbacks: { label: (ctx) => '$' + ((ctx.parsed.y ?? 0)).toLocaleString() } } },
-          scales: { y: { min: 0, ticks: { callback: (v) => '$' + Math.round(Number(v) / 1000) + 'k', font: { size: 9 } }, grid: { color: 'rgba(0,0,0,0.04)' } }, x: { ticks: { font: { size: 9 } }, grid: { display: false } } },
-        },
-      });
-    };
-    loadChart();
-  }, [data, salaireMin, activeSection]);
-
-  useEffect(() => {
-    if (activeSection === 'marche') chargerMarche();
-  }, [activeSection]);
 
   const chargerMarche = async () => {
     if (marcheScore !== null) return;
@@ -243,6 +234,25 @@ export default function RapportGPS({
     }
   };
 
+  const chargerTendance = async () => {
+    if (tendanceData) return;
+    try {
+      const res = await fetch('/api/market/trend', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          poste_actuel: roleAffiche,
+          poste_cible: String(data.objectif_carriere || ''),
+          ville: villeAffichee,
+          annee_arrivee: 5,
+        }),
+      });
+      const d = await res.json();
+      if (d.success) setTendanceData(d);
+    } catch (e) {
+      console.error('Tendance error:', e);
+    }
+  };
 
   const envoyerConseiller = async (messageOverride?: string) => {
     const msg = messageOverride || conseillerInput.trim();
@@ -267,8 +277,92 @@ export default function RapportGPS({
       setConseillerMessages([...newMessages, { role: 'bot', text: d.reply || "Je suis là pour t'aider!" }]);
     } catch {
       setConseillerMessages([...newMessages, { role: 'bot', text: "Une erreur est survenue. Réessaie!" }]);
-    } finally { setConseillerLoading(false); }
+    } finally {
+      setConseillerLoading(false);
+    }
   };
+
+  useEffect(() => {
+    if (!chartRef.current || activeSection !== 'gps') return;
+    const loadChart = async () => {
+      const { Chart, registerables } = await import('chart.js');
+      Chart.register(...registerables);
+      const existing = Chart.getChart(chartRef.current!);
+      if (existing) existing.destroy();
+      const raw = [salaireMin, Number(data.gps_an1?.salaire) || 0, Number(data.gps_an2?.salaire) || 0, Number(data.gps_an3?.salaire) || 0, Number(data.gps_an4?.salaire) || 0, Number(data.gps_an5?.salaire) || 0];
+      const yelma = ensureCroissant(raw);
+      new Chart(chartRef.current!, {
+        type: 'line',
+        data: {
+          labels: ['Auj.', 'An 1', 'An 2', 'An 3', 'An 4', 'An 5'],
+          datasets: [{ label: 'Trajectoire YELMA', data: yelma, borderColor: '#E05C3A', backgroundColor: 'rgba(224,92,58,0.06)', borderWidth: 2, pointBackgroundColor: yelma.map((_, i) => i === yelma.length - 1 ? '#22A06B' : '#E05C3A'), pointRadius: 5, fill: true, tension: 0.4 }],
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { display: false }, tooltip: { callbacks: { label: (ctx) => '$' + ((ctx.parsed.y ?? 0)).toLocaleString() } } },
+          scales: { y: { min: 0, ticks: { callback: (v) => '$' + Math.round(Number(v) / 1000) + 'k', font: { size: 9 } }, grid: { color: 'rgba(0,0,0,0.04)' } }, x: { ticks: { font: { size: 9 } }, grid: { display: false } } },
+        },
+      });
+    };
+    loadChart();
+  }, [data, salaireMin, activeSection]);
+
+  useEffect(() => {
+    if (!chartTendanceRef.current || !tendanceData) return;
+    const loadTendanceChart = async () => {
+      const { Chart, registerables } = await import('chart.js');
+      Chart.register(...registerables);
+      const existing = Chart.getChart(chartTendanceRef.current!);
+      if (existing) existing.destroy();
+      const indexArrivee = tendanceData.annees.indexOf(tendanceData.annee_arrivee);
+      new Chart(chartTendanceRef.current!, {
+        type: 'line',
+        data: {
+          labels: tendanceData.annees.map(String),
+          datasets: [
+            {
+              label: tendanceData.poste_actuel,
+              data: tendanceData.courbe_actuel,
+              borderColor: GREEN,
+              backgroundColor: 'rgba(34,160,107,0.06)',
+              borderWidth: 2,
+              pointBackgroundColor: GREEN,
+              pointRadius: 4,
+              fill: true,
+              tension: 0.4,
+            },
+            {
+              label: tendanceData.poste_cible,
+              data: tendanceData.courbe_cible,
+              borderColor: ORANGE,
+              backgroundColor: 'rgba(224,92,58,0.06)',
+              borderWidth: 2,
+              pointBackgroundColor: tendanceData.courbe_cible.map((_, i) => i === indexArrivee ? '#FF0000' : ORANGE),
+              pointRadius: tendanceData.courbe_cible.map((_, i) => i === indexArrivee ? 8 : 4),
+              fill: true,
+              tension: 0.4,
+            },
+          ],
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { display: false }, tooltip: { callbacks: { label: (ctx) => `${ctx.dataset.label || ''}: ${ctx.parsed.y}` } } },
+          scales: {
+            y: { min: 0, max: 100, ticks: { font: { size: 9 } }, grid: { color: 'rgba(0,0,0,0.04)' } },
+            x: { ticks: { font: { size: 9 } }, grid: { display: false } },
+          },
+        },
+      });
+    };
+    loadTendanceChart();
+  }, [tendanceData, GREEN, ORANGE]);
+
+  useEffect(() => {
+    if (activeSection === 'marche') {
+      chargerMarche();
+      chargerTendance();
+    }
+  }, [activeSection]);
 
   const sections = [
     { id: 'resume', label: 'RÉSUMÉ' },
@@ -327,14 +421,11 @@ export default function RapportGPS({
         {/* ── RÉSUMÉ ── */}
         {activeSection === 'resume' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-
-            {/* Analyse YELMA */}
             <div>
               <div style={{ fontSize: '9px', letterSpacing: '2px', color: '#888', marginBottom: '12px', fontFamily: 'monospace', display: 'flex', alignItems: 'center', gap: '8px' }}>
                 RÉSUMÉ · L&apos;ANALYSE YELMA
                 <div style={{ flex: 1, height: '1px', background: BORDER }} />
               </div>
-
               <div style={{ background: CARD, borderRadius: '12px', border: `1px solid ${BORDER}`, padding: '20px', display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
                 <div style={{ flexShrink: 0 }}>
                   <JaugeArc pct={scoreCible} verdict={verdict} />
@@ -381,11 +472,10 @@ export default function RapportGPS({
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
                 <Tuile titre="Mes compétences" pct={data.force1 ? 100 : 0} desc={`${[data.force1, data.force2, data.force3].filter(Boolean).length} forces identifiées par YELMA.`} onClick={() => setActiveSection('competences')} />
-                <Tuile titre="Mes formations" pct={35} desc={`${(data.formations as Formation[] || []).length} formations clés pour débloquer ton potentiel.`} onClick={() => setActiveSection('formations')} />
+                <Tuile titre="Mes formations" pct={35} desc={`${(data.formations as Formation[] || []).length} formations clés.`} onClick={() => setActiveSection('formations')} />
                 <Tuile titre="Mon parcours" pct={scorePropulse} desc="Ton parcours analysé par YELMA." onClick={() => setActiveSection('parcours')} />
                 <Tuile titre={`Mon marché · ${villeAffichee}`} pct={marcheScore !== null ? marcheScore : Number(data.score_marche) || 80} desc={`${salaireMin.toLocaleString()} $ → ${salaireMax.toLocaleString()} $ en 5 ans.`} onClick={() => setActiveSection('marche')} />
-                <Tuile titre="Mon GPS de carrière" pct={62} desc={`${salaireMin.toLocaleString()} $ → ${salaireMax.toLocaleString()} $ en 5 ans.`} onClick={() => setActiveSection('gps')} />
-                {/* Tuile Conseiller */}
+                <Tuile titre="Mon GPS de carrière" pct={scoreCible} desc={`${salaireMin.toLocaleString()} $ → ${salaireMax.toLocaleString()} $ en 5 ans.`} onClick={() => setActiveSection('gps')} />
                 <div onClick={() => setActiveSection('conseiller')} style={{ background: '#FDF6EE', borderRadius: '12px', padding: '16px', border: '1px solid #EDEAE3', display: 'flex', flexDirection: 'column', gap: '8px', cursor: 'pointer' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div style={{ fontSize: '13px', color: DARK, fontWeight: 500 }}>Conseiller YELMA</div>
@@ -455,8 +545,6 @@ export default function RapportGPS({
                 </div>
               </div>
             ))}
-
-            {/* Axes */}
             {(data.axe1 || data.axe2) && (
               <>
                 <div style={{ fontSize: '9px', letterSpacing: '2px', color: '#888', fontFamily: 'monospace', display: 'flex', alignItems: 'center', gap: '8px', marginTop: '8px' }}>
@@ -491,8 +579,7 @@ export default function RapportGPS({
           </div>
         )}
 
-        
-         {/* ── MARCHÉ ── */}
+        {/* ── MARCHÉ ── */}
         {activeSection === 'marche' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <div style={{ fontSize: '9px', letterSpacing: '2px', color: '#888', fontFamily: 'monospace', display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -500,37 +587,37 @@ export default function RapportGPS({
               <div style={{ flex: 1, height: '1px', background: BORDER }} />
             </div>
 
-            {/* Score marché */}
             {marcheLoading && (
               <div style={{ background: CARD, borderRadius: '12px', padding: '16px', border: `1px solid ${BORDER}`, textAlign: 'center', color: '#888', fontSize: '12px' }}>
                 ⏳ Analyse du marché en cours...
               </div>
             )}
+
             {marcheScore !== null && marcheDetails && (
               <div style={{ background: CARD, borderRadius: '12px', padding: '16px', border: `1px solid ${BORDER}` }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
                   <div>
                     <div style={{ fontSize: '9px', letterSpacing: '1px', color: '#888', fontFamily: 'monospace' }}>SCORE MARCHÉ</div>
-                    <div style={{ fontSize: '32px', fontWeight: 700, color: marcheScore >= 70 ? '#22A06B' : marcheScore >= 50 ? '#C0842A' : '#E05C3A' }}>{marcheScore}</div>
+                    <div style={{ fontSize: '32px', fontWeight: 700, color: marcheScore >= 70 ? GREEN : marcheScore >= 50 ? GOLD : ORANGE }}>{marcheScore}</div>
                   </div>
                   <div style={{ textAlign: 'right' }}>
                     <div style={{ fontSize: '11px', color: '#888' }}>{marcheDetails.nb_offres_estimees} offres estimées</div>
-                    <div style={{ fontSize: '11px', fontWeight: 600, color: marcheScore >= 70 ? '#22A06B' : '#C0842A' }}>Marché {marcheDetails.tendance}</div>
+                    <div style={{ fontSize: '11px', fontWeight: 600, color: marcheScore >= 70 ? GREEN : GOLD }}>Marché {marcheDetails.tendance}</div>
                   </div>
                 </div>
                 <div style={{ fontSize: '11px', color: '#555', lineHeight: 1.6, marginBottom: '12px', fontStyle: 'italic' }}>{marcheDetails.explication}</div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
                   {[
-                    { label: 'Demande offres', val: (marcheDetails as {D?: number}).D || 0 },
-                    { label: 'Attractivité salariale', val: (marcheDetails as {S?: number}).S || 0 },
-                    { label: 'Tension métier', val: (marcheDetails as {T?: number}).T || 0 },
-                    { label: 'Croissance secteur', val: (marcheDetails as {G?: number}).G || 0 },
+                    { label: 'Demande offres', val: marcheDetails.D || 0 },
+                    { label: 'Attractivité salariale', val: marcheDetails.S || 0 },
+                    { label: 'Tension métier', val: marcheDetails.T || 0 },
+                    { label: 'Croissance secteur', val: marcheDetails.G || 0 },
                   ].map((item, i) => (
                     <div key={i} style={{ background: '#F5F2EC', borderRadius: '8px', padding: '8px 10px' }}>
                       <div style={{ fontSize: '8px', color: '#888', fontFamily: 'monospace', marginBottom: '3px' }}>{item.label.toUpperCase()}</div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                         <div style={{ flex: 1, height: '4px', background: '#E8E4DD', borderRadius: '2px', overflow: 'hidden' }}>
-                          <div style={{ height: '100%', width: `${item.val}%`, background: item.val >= 70 ? '#22A06B' : item.val >= 50 ? '#C0842A' : '#E05C3A', borderRadius: '2px' }} />
+                          <div style={{ height: '100%', width: `${item.val}%`, background: item.val >= 70 ? GREEN : item.val >= 50 ? GOLD : ORANGE, borderRadius: '2px' }} />
                         </div>
                         <div style={{ fontSize: '10px', fontWeight: 600, color: '#555' }}>{item.val}</div>
                       </div>
@@ -539,11 +626,6 @@ export default function RapportGPS({
                 </div>
               </div>
             )}
-
-            <div style={{ fontSize: '9px', letterSpacing: '2px', color: '#888', fontFamily: 'monospace', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              OPPORTUNITÉS COMPATIBLES
-              <div style={{ flex: 1, height: '1px', background: BORDER }} />
-            </div>
 
             <div style={{ background: CARD, borderRadius: '12px', padding: '16px', border: `1px solid ${BORDER}` }}>
               <div style={{ fontSize: '9px', letterSpacing: '1px', color: '#888', fontFamily: 'monospace', marginBottom: '4px' }}>💰 TA VALEUR SUR LE MARCHÉ · {roleAffiche} · {villeAffichee}</div>
@@ -555,21 +637,98 @@ export default function RapportGPS({
               </div>
               <div style={{ fontSize: '9px', color: '#aaa', marginTop: '3px' }}>Basé sur les données du marché en temps réel</div>
             </div>
-            {((data.opportunites as Opportunite[]) || []).map((o, i) => (
-              <div key={i} style={{ background: CARD, borderRadius: '12px', padding: '14px 16px', border: `1px solid ${BORDER}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                  <div style={{ fontSize: '18px', color: '#aaa', fontStyle: 'italic', minWidth: '20px' }}>{i + 1}</div>
-                  <div>
-                    <div style={{ fontSize: '13px', fontWeight: 500, color: DARK }}>{o.titre}</div>
-                    <div style={{ fontSize: '11px', color: '#888', marginTop: '2px' }}>{o.description}</div>
+
+            <div style={{ background: CARD, borderRadius: '12px', border: `1px solid ${BORDER}`, padding: '20px' }}>
+              <div style={{ display: 'flex', gap: '20px', alignItems: 'flex-start' }}>
+                <div style={{ textAlign: 'center', flexShrink: 0 }}>
+                  <div style={{ fontSize: '48px', fontWeight: 700, color: ORANGE, lineHeight: 1 }}>
+                    {marcheDetails?.nb_offres_estimees || 0}
                   </div>
+                  <div style={{ fontSize: '10px', color: '#888', lineHeight: 1.4 }}>offres actives<br />à {villeAffichee}</div>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <div style={{ fontSize: '14px', fontWeight: 700, color: ORANGE }}>{o.salaire?.toLocaleString()} $</div>
-                  <a href={`/mon-espace?tab=offres&email=${email || ''}`} style={{ fontSize: '14px', color: '#888', textDecoration: 'none' }}>→</a>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: '15px', fontWeight: 600, color: DARK, marginBottom: '6px' }}>Le marché te cherche — maintenant.</div>
+                  <div style={{ fontSize: '11px', color: '#666', lineHeight: 1.6, marginBottom: '12px' }}>
+                    {marcheDetails?.nb_offres_estimees || 0} offres correspondent à ton profil aujourd&apos;hui à {villeAffichee}.
+                  </div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '14px' }}>
+                    {((data.opportunites as Opportunite[]) || []).map((o, i) => {
+                      const colors = [ORANGE, GREEN, GOLD];
+                      return (
+                        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                          <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: colors[i % 3] }} />
+                          <span style={{ fontSize: '11px', color: '#555' }}>{o.titre} · {Math.round((marcheDetails?.nb_offres_estimees || 30) * [0.4, 0.25, 0.35][i])} offres</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <a href={`/mon-espace?tab=offres&email=${email || ''}`} style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', background: DARK, color: 'white', borderRadius: '8px', padding: '10px 18px', fontSize: '12px', fontWeight: 600, textDecoration: 'none' }}>
+                    Voir mes {marcheDetails?.nb_offres_estimees || 0} offres →
+                  </a>
                 </div>
               </div>
-            ))}
+            </div>
+
+            {/* Graphique tendance 5 ans */}
+            {tendanceData && (
+              <div style={{ background: CARD, borderRadius: '12px', border: `1px solid ${BORDER}`, padding: '20px' }}>
+                <div style={{ fontSize: '9px', letterSpacing: '2px', color: '#888', fontFamily: 'monospace', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  TENDANCES DU MARCHÉ · 5 ANS
+                  <div style={{ flex: 1, height: '1px', background: BORDER }} />
+                </div>
+                <div style={{ fontSize: '12px', color: DARK, lineHeight: 1.6, marginBottom: '16px' }}>
+                  <strong>{prenom}</strong>, tu évolues comme <strong>{tendanceData.poste_actuel}</strong> et tu vises <strong>{tendanceData.poste_cible}</strong>. Ces deux domaines sont dans le même secteur — mais leur trajectoire de croissance est très différente.
+                </div>
+                <div style={{ display: 'flex', gap: '16px', marginBottom: '12px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <div style={{ width: '20px', height: '2px', background: GREEN }} />
+                    <span style={{ fontSize: '10px', color: '#555' }}>{tendanceData.poste_actuel} (actuel)</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <div style={{ width: '20px', height: '2px', background: ORANGE }} />
+                    <span style={{ fontSize: '10px', color: '#555' }}>{tendanceData.poste_cible} (cible)</span>
+                  </div>
+                </div>
+                <div style={{ position: 'relative', height: '200px', marginBottom: '16px' }}>
+                  <canvas ref={chartTendanceRef} />
+                  {/* Trait pointillé "X arrive ici" */}
+                  <div style={{
+                    position: 'absolute',
+                    left: `${(tendanceData.annees.indexOf(tendanceData.annee_arrivee) / (tendanceData.annees.length - 1)) * 85 + 5}%`,
+                    top: '0', bottom: '20px',
+                    width: '1px',
+                    borderLeft: `1.5px dashed ${ORANGE}`,
+                    pointerEvents: 'none',
+                  }}>
+                    <div style={{ position: 'absolute', top: '8px', left: '4px', fontSize: '9px', color: ORANGE, whiteSpace: 'nowrap', fontFamily: 'monospace' }}>
+                      {prenom} arrive ici
+                    </div>
+                  </div>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                  <div style={{ background: '#F5F2EC', borderRadius: '10px', padding: '12px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
+                      <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: GREEN }} />
+                      <span style={{ fontSize: '10px', fontWeight: 600, color: DARK }}>{tendanceData.poste_actuel}</span>
+                    </div>
+                    <div style={{ fontSize: '11px', color: '#555', lineHeight: 1.5 }}>
+                      Demande <strong>{tendanceData.tendance_actuel}</strong>.{' '}
+                      {tendanceData.nb_offres_actuel > 0 ? `${tendanceData.nb_offres_actuel} offres actives.` : 'Marché établi.'}
+                    </div>
+                  </div>
+                  <div style={{ background: '#FFF5F2', borderRadius: '10px', padding: '12px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
+                      <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: ORANGE }} />
+                      <span style={{ fontSize: '10px', fontWeight: 600, color: DARK }}>{tendanceData.poste_cible}</span>
+                    </div>
+                    <div style={{ fontSize: '11px', color: '#555', lineHeight: 1.5 }}>
+                      Demande <strong>{tendanceData.tendance_cible}</strong>.{' '}
+                      {tendanceData.nb_offres_cible > 0 ? `${tendanceData.nb_offres_cible} offres actives.` : 'Secteur en expansion.'}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -703,7 +862,11 @@ export default function RapportGPS({
                       <div style={{ maxWidth: '80%', padding: '8px 12px', borderRadius: '10px', fontSize: '12px', lineHeight: 1.5, background: m.role === 'user' ? DARK : '#F5F2EC', color: m.role === 'user' ? 'white' : DARK }}>{m.text}</div>
                     </div>
                   ))}
-                  {conseillerLoading && <div style={{ display: 'flex', justifyContent: 'flex-start' }}><div style={{ background: '#F5F2EC', padding: '8px 12px', borderRadius: '10px', fontSize: '12px', color: '#888' }}>En train de réfléchir...</div></div>}
+                  {conseillerLoading && (
+                    <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
+                      <div style={{ background: '#F5F2EC', padding: '8px 12px', borderRadius: '10px', fontSize: '12px', color: '#888' }}>En train de réfléchir...</div>
+                    </div>
+                  )}
                 </div>
               )}
               {conseillerMessages.length === 0 && (

@@ -13,6 +13,7 @@
     "@supabase/supabase-js": "^2.99.3",
     "@types/dotenv": "^6.1.1",
     "chart.js": "^4.5.1",
+    "chartjs-plugin-annotation": "^3.1.0",
     "dotenv": "^17.3.1",
     "next": "16.2.1",
     "react": "19.2.4",
