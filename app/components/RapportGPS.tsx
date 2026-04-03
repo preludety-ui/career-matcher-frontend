@@ -157,6 +157,10 @@ export default function RapportGPS({
   const [conseillerMessages, setConseillerMessages] = useState<{ role: 'user' | 'bot'; text: string }[]>([]);
   const [conseillerLoading, setConseillerLoading] = useState(false);
 
+  const [marcheScore, setMarcheScore] = useState<number | null>(null);
+  const [marcheDetails, setMarcheDetails] = useState<{nb_offres_estimees?: number; tendance?: string; explication?: string} | null>(null);
+  const [marcheLoading, setMarcheLoading] = useState(false);
+
   // ── Extraire toutes les valeurs directement depuis data ──
   const isPropulse = plan === "propulse";
   const salaireMin = Number(data.salaire_min) || 40000;
@@ -208,6 +212,37 @@ export default function RapportGPS({
     };
     loadChart();
   }, [data, salaireMin, activeSection]);
+
+  useEffect(() => {
+    if (activeSection === 'marche') chargerMarche();
+  }, [activeSection]);
+
+  const chargerMarche = async () => {
+    if (marcheScore !== null) return;
+    setMarcheLoading(true);
+    try {
+      const res = await fetch('/api/marche-score', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email,
+          objectif: data.objectif_carriere,
+          ville: villeAffichee,
+          domaine: String(data.domaine_actuel || ''),
+        }),
+      });
+      const d = await res.json();
+      if (d.marche) {
+        setMarcheScore(d.marche.score_marche);
+        setMarcheDetails(d.marche);
+      }
+    } catch (e) {
+      console.error('Marché error:', e);
+    } finally {
+      setMarcheLoading(false);
+    }
+  };
+
 
   const envoyerConseiller = async (messageOverride?: string) => {
     const msg = messageOverride || conseillerInput.trim();
@@ -456,13 +491,60 @@ export default function RapportGPS({
           </div>
         )}
 
-        {/* ── MARCHÉ ── */}
+        
+         {/* ── MARCHÉ ── */}
         {activeSection === 'marche' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div style={{ fontSize: '9px', letterSpacing: '2px', color: '#888', fontFamily: 'monospace', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              MON MARCHÉ · {villeAffichee}
+              <div style={{ flex: 1, height: '1px', background: BORDER }} />
+            </div>
+
+            {/* Score marché */}
+            {marcheLoading && (
+              <div style={{ background: CARD, borderRadius: '12px', padding: '16px', border: `1px solid ${BORDER}`, textAlign: 'center', color: '#888', fontSize: '12px' }}>
+                ⏳ Analyse du marché en cours...
+              </div>
+            )}
+            {marcheScore !== null && marcheDetails && (
+              <div style={{ background: CARD, borderRadius: '12px', padding: '16px', border: `1px solid ${BORDER}` }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                  <div>
+                    <div style={{ fontSize: '9px', letterSpacing: '1px', color: '#888', fontFamily: 'monospace' }}>SCORE MARCHÉ</div>
+                    <div style={{ fontSize: '32px', fontWeight: 700, color: marcheScore >= 70 ? '#22A06B' : marcheScore >= 50 ? '#C0842A' : '#E05C3A' }}>{marcheScore}</div>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontSize: '11px', color: '#888' }}>{marcheDetails.nb_offres_estimees} offres estimées</div>
+                    <div style={{ fontSize: '11px', fontWeight: 600, color: marcheScore >= 70 ? '#22A06B' : '#C0842A' }}>Marché {marcheDetails.tendance}</div>
+                  </div>
+                </div>
+                <div style={{ fontSize: '11px', color: '#555', lineHeight: 1.6, marginBottom: '12px', fontStyle: 'italic' }}>{marcheDetails.explication}</div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                  {[
+                    { label: 'Demande offres', val: (marcheDetails as {D?: number}).D || 0 },
+                    { label: 'Attractivité salariale', val: (marcheDetails as {S?: number}).S || 0 },
+                    { label: 'Tension métier', val: (marcheDetails as {T?: number}).T || 0 },
+                    { label: 'Croissance secteur', val: (marcheDetails as {G?: number}).G || 0 },
+                  ].map((item, i) => (
+                    <div key={i} style={{ background: '#F5F2EC', borderRadius: '8px', padding: '8px 10px' }}>
+                      <div style={{ fontSize: '8px', color: '#888', fontFamily: 'monospace', marginBottom: '3px' }}>{item.label.toUpperCase()}</div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <div style={{ flex: 1, height: '4px', background: '#E8E4DD', borderRadius: '2px', overflow: 'hidden' }}>
+                          <div style={{ height: '100%', width: `${item.val}%`, background: item.val >= 70 ? '#22A06B' : item.val >= 50 ? '#C0842A' : '#E05C3A', borderRadius: '2px' }} />
+                        </div>
+                        <div style={{ fontSize: '10px', fontWeight: 600, color: '#555' }}>{item.val}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div style={{ fontSize: '9px', letterSpacing: '2px', color: '#888', fontFamily: 'monospace', display: 'flex', alignItems: 'center', gap: '8px' }}>
               OPPORTUNITÉS COMPATIBLES
               <div style={{ flex: 1, height: '1px', background: BORDER }} />
             </div>
+
             <div style={{ background: CARD, borderRadius: '12px', padding: '16px', border: `1px solid ${BORDER}` }}>
               <div style={{ fontSize: '9px', letterSpacing: '1px', color: '#888', fontFamily: 'monospace', marginBottom: '4px' }}>💰 TA VALEUR SUR LE MARCHÉ · {roleAffiche} · {villeAffichee}</div>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
