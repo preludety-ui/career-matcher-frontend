@@ -186,6 +186,7 @@ export default function RapportGPS({
   const [marcheDetails, setMarcheDetails] = useState<MarcheDetails | null>(null);
   const [marcheLoading, setMarcheLoading] = useState(false);
   const [tendanceData, setTendanceData] = useState<TendanceData | null>(null);
+  const [messageGPS, setMessageGPS] = useState<string>('');
 
   const isPropulse = plan === "propulse";
   const salaireMin = Number(data.salaire_min) || 40000;
@@ -207,7 +208,36 @@ export default function RapportGPS({
   const BG = '#F5F2EC';
   const BORDER = '#EDEAE3';
   const CARD = '#FFFFFF';
+  const chargerMessageGPS = async () => {
+    if (messageGPS) return;
+    try {
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          history: [
+            {
+              role: 'user',
+              content: `Tu es le conseiller YELMA. Écris UN SEUL paragraphe court (2-3 phrases max) personnalisé pour ${prenom} basé sur ces données GPS réelles:
+- Poste actuel: ${roleAffiche} à ${salaireMin.toLocaleString()}$/an
+- Poste cible: ${String(data.objectif_carriere)}
+- Progression: An1=${data.gps_an1?.salaire?.toLocaleString()}$ → An3=${data.gps_an3?.salaire?.toLocaleString()}$ → An5=${salaireMax.toLocaleString()}$
+- Verdict: ${verdict}
+- Ville: ${villeAffichee}
 
+Le message doit mentionner QUAND elle devient réellement ${String(data.objectif_carriere)} selon les données (ex: An 3), et que c'est le bon moment pour le marché. Ton bienveillant, direct, motivant. Commence par "En ${new Date().getFullYear() + 5},"`,
+            }
+          ],
+          lang: 'fr',
+          email,
+        }),
+      });
+      const d = await res.json();
+      if (d.reply) setMessageGPS(d.reply);
+    } catch (e) {
+      console.error('Message GPS error:', e);
+    }
+  };
   const chargerMarche = async () => {
     if (marcheScore !== null) return;
     setMarcheLoading(true);
@@ -396,6 +426,9 @@ export default function RapportGPS({
     if (activeSection === 'marche') {
       chargerMarche();
       chargerTendance();
+    }
+    if (activeSection === 'gps') {
+      chargerMessageGPS();
     }
   }, [activeSection]);
 
@@ -879,9 +912,7 @@ export default function RapportGPS({
               {/* Message final IA */}
               <div style={{ padding: '14px 20px', background: '#FAFAF8' }}>
                 <div style={{ fontSize: '11px', color: '#555', lineHeight: 1.7 }}>
-                  En {new Date().getFullYear() + 5}, le salaire médian <span style={{ fontStyle: 'italic' }}>{String(data.objectif_carriere || '')}</span> à {villeAffichee} est projeté à{' '}
-                  <strong style={{ color: ORANGE }}>{salaireMax.toLocaleString()} $</strong>.{' '}
-                  {prenom}, si tu suis ton GPS et atteins ce poste en an 5, tu arriveras exactement au bon moment sur le marché.
+                 {messageGPS || `En ${new Date().getFullYear() + 5}, le salaire médian ${String(data.objectif_carriere || '')} à ${villeAffichee} est projeté à ${salaireMax.toLocaleString()} $ — et la demande atteindra son pic. ${prenom}, si tu suis ton GPS et atteins ce poste en an 5, tu arriveras exactement au bon moment sur le marché.`}
                 </div>
               </div>
             </div>
