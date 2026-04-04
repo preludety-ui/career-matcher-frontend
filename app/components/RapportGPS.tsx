@@ -191,7 +191,6 @@ export default function RapportGPS({
   const chargerFormationsReelles = async () => {
     if (formationsReelles.length > 0) return;
     try {
-      // Déterminer le CNP basé sur le poste cible
       const cnpMap: Record<string, string> = {
         'infirmiere': '3012',
         'infirmière': '3012',
@@ -201,14 +200,27 @@ export default function RapportGPS({
         'ingénieur': '2131',
         'développeur': '2174',
         'analyste': '1111',
+        'plombier': '7251',
+        'électricien': '7241',
+        'soudeur': '7237',
+        'mécanicien': '7321',
       };
       const objectif = String(data.objectif_carriere || '').toLowerCase();
-      const cnp = Object.entries(cnpMap).find(([k]) => objectif.includes(k))?.[1] || '3012';
-
-      const res = await fetch(`/api/formations?cnp=${cnp}`);
+      const cnp = Object.entries(cnpMap).find(([k]) => objectif.includes(k))?.[1] || '';
+      const diplome = String(data.diplome_max || 'Baccalauréat');
+      
+      const params = new URLSearchParams();
+      if (cnp) params.append('cnp', cnp);
+      params.append('diplome', diplome);
+      
+      const res = await fetch(`/api/formations?${params.toString()}`);
       const d = await res.json();
-      if (d.formations) {
-        setFormationsReelles(d.formations.map((f: { titre: string; type_formation: string; fournisseur: string; duree_semaines?: number; duree_heures?: number; url_directe: string; raison_priorite: string; badge_urgent: boolean; impact_pts_total: number }) => ({
+      if (d.formations && d.formations.length > 0) {
+        setFormationsReelles(d.formations.map((f: {
+          titre: string; type_formation: string; fournisseur: string;
+          duree_semaines?: number; duree_heures?: number; url_directe: string;
+          raison_priorite: string; badge_urgent: boolean; impact_pts_total: number;
+        }) => ({
           nom: f.titre,
           type: f.type_formation,
           plateforme: f.fournisseur,
@@ -223,6 +235,7 @@ export default function RapportGPS({
       console.error('Formations réelles error:', e);
     }
   };
+
   const [scoreCompetences, setScoreCompetences] = useState<number | null>(null);
 
   const isPropulse = plan === "propulse";
