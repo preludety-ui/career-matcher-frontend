@@ -186,6 +186,7 @@ export default function RapportGPS({
   const [marcheDetails, setMarcheDetails] = useState<MarcheDetails | null>(null);
   const [marcheLoading, setMarcheLoading] = useState(false);
   const [tendanceData, setTendanceData] = useState<TendanceData | null>(null);
+  const [scoreCompetences, setScoreCompetences] = useState<number | null>(null);
 
   const isPropulse = plan === "propulse";
   const salaireMin = Number(data.salaire_min) || 40000;
@@ -233,6 +234,29 @@ export default function RapportGPS({
       setMarcheLoading(false);
     }
   };
+
+
+  const chargerCompetences = async () => {
+    if (scoreCompetences !== null) return;
+    try {
+      const res = await fetch('/api/score-competences', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email,
+          objectif_carriere: String(data.objectif_carriere || ''),
+          force1: String(data.force1 || ''),
+          force2: String(data.force2 || ''),
+          force3: String(data.force3 || ''),
+        }),
+      });
+      const d = await res.json();
+      if (d.success) setScoreCompetences(d.score_competences);
+    } catch (e) {
+      console.error('Compétences error:', e);
+    }
+  };
+
 
   const chargerTendance = async () => {
     if (tendanceData) return;
@@ -362,7 +386,17 @@ export default function RapportGPS({
       chargerMarche();
       chargerTendance();
     }
+    if (activeSection === 'competences') {
+      chargerCompetences();
+    }
   }, [activeSection]);
+
+  useEffect(() => {
+    // Charger score compétences au démarrage depuis Supabase
+    if (data.score_competences) {
+      setScoreCompetences(Number(data.score_competences));
+    }
+  }, [data]);
 
   const sections = [
     { id: 'resume', label: 'RÉSUMÉ' },
@@ -392,14 +426,16 @@ export default function RapportGPS({
               <span>🗓 {today}</span>
             </div>
           </div>
-          {scorePropulse > 0 && (
-            <div style={{ textAlign: 'right' }}>
-              <div style={{ fontSize: '52px', fontWeight: 700, color: propulseColor, lineHeight: 1, fontFamily: 'Georgia, serif' }}>
-                {scorePropulse}
-              </div>
-              <div style={{ fontSize: '9px', letterSpacing: '1.5px', color: '#888', fontFamily: 'monospace' }}>SCORE PROPULSE</div>
+          
+         <div style={{ textAlign: 'right' }}>
+            <div style={{ fontSize: '52px', fontWeight: 700, color: propulseColor, lineHeight: 1, fontFamily: 'Georgia, serif' }}>
+              {activeSection === 'competences' && scoreCompetences !== null ? scoreCompetences : scorePropulse}
             </div>
-          )}
+            <div style={{ fontSize: '9px', letterSpacing: '1.5px', color: '#888', fontFamily: 'monospace' }}>
+              {activeSection === 'competences' ? 'SCORE COMPÉTENCES' : 'SCORE PROPULSE'}
+            </div>
+          </div>
+
         </div>
       </div>
 
@@ -471,7 +507,7 @@ export default function RapportGPS({
                 <div style={{ flex: 1, height: '1px', background: BORDER }} />
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
-                <Tuile titre="Mes compétences" pct={data.force1 ? 100 : 0} desc={`${[data.force1, data.force2, data.force3].filter(Boolean).length} forces identifiées par YELMA.`} onClick={() => setActiveSection('competences')} />
+                <Tuile titre="Mes compétences" pct={scoreCompetences !== null ? scoreCompetences : (data.force1 ? 100 : 0)} desc={`${[data.force1, data.force2, data.force3].filter(Boolean).length} forces identifiées par YELMA.`} onClick={() => setActiveSection('competences')} />
                 <Tuile titre="Mes formations" pct={35} desc={`${(data.formations as Formation[] || []).length} formations clés.`} onClick={() => setActiveSection('formations')} />
                 <Tuile titre="Mon parcours" pct={scorePropulse} desc="Ton parcours analysé par YELMA." onClick={() => setActiveSection('parcours')} />
                 <Tuile titre={`Mon marché · ${villeAffichee}`} pct={marcheScore !== null ? marcheScore : Number(data.score_marche) || 80} desc={`${salaireMin.toLocaleString()} $ → ${salaireMax.toLocaleString()} $ en 5 ans.`} onClick={() => setActiveSection('marche')} />
