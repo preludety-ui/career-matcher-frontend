@@ -186,6 +186,43 @@ export default function RapportGPS({
   const [marcheDetails, setMarcheDetails] = useState<MarcheDetails | null>(null);
   const [marcheLoading, setMarcheLoading] = useState(false);
   const [tendanceData, setTendanceData] = useState<TendanceData | null>(null);
+  const [formationsReelles, setFormationsReelles] = useState<Formation[]>([]);
+
+  const chargerFormationsReelles = async () => {
+    if (formationsReelles.length > 0) return;
+    try {
+      // Déterminer le CNP basé sur le poste cible
+      const cnpMap: Record<string, string> = {
+        'infirmiere': '3012',
+        'infirmière': '3012',
+        'médecin': '3111',
+        'pharmacien': '3131',
+        'avocat': '4112',
+        'ingénieur': '2131',
+        'développeur': '2174',
+        'analyste': '1111',
+      };
+      const objectif = String(data.objectif_carriere || '').toLowerCase();
+      const cnp = Object.entries(cnpMap).find(([k]) => objectif.includes(k))?.[1] || '3012';
+
+      const res = await fetch(`/api/formations?cnp=${cnp}`);
+      const d = await res.json();
+      if (d.formations) {
+        setFormationsReelles(d.formations.map((f: { titre: string; type_formation: string; fournisseur: string; duree_semaines?: number; duree_heures?: number; url_directe: string; raison_priorite: string; badge_urgent: boolean; impact_pts_total: number }) => ({
+          nom: f.titre,
+          type: f.type_formation,
+          plateforme: f.fournisseur,
+          duree: f.duree_semaines ? `${f.duree_semaines} semaines` : f.duree_heures ? `${f.duree_heures} heures` : 'Voir le site',
+          url: f.url_directe,
+          pourquoi: f.raison_priorite,
+          urgent: f.badge_urgent,
+          pts: f.impact_pts_total,
+        })));
+      }
+    } catch (e) {
+      console.error('Formations réelles error:', e);
+    }
+  };
   const [scoreCompetences, setScoreCompetences] = useState<number | null>(null);
 
   const isPropulse = plan === "propulse";
@@ -389,6 +426,9 @@ export default function RapportGPS({
     if (activeSection === 'competences') {
       chargerCompetences();
     }
+    if (activeSection === 'formations') {
+      chargerFormationsReelles();
+    }
   }, [activeSection]);
 
   useEffect(() => {
@@ -426,8 +466,8 @@ export default function RapportGPS({
               <span>🗓 {today}</span>
             </div>
           </div>
-          
-         <div style={{ textAlign: 'right' }}>
+
+          <div style={{ textAlign: 'right' }}>
             <div style={{ fontSize: '52px', fontWeight: 700, color: propulseColor, lineHeight: 1, fontFamily: 'Georgia, serif' }}>
               {activeSection === 'competences' && scoreCompetences !== null ? scoreCompetences : scorePropulse}
             </div>
@@ -813,40 +853,133 @@ export default function RapportGPS({
         {/* ── FORMATIONS ── */}
         {activeSection === 'formations' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <div style={{ fontSize: '9px', letterSpacing: '2px', color: '#888', fontFamily: 'monospace', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              FORMATIONS RECOMMANDÉES
-              <div style={{ flex: 1, height: '1px', background: BORDER }} />
+
+            {/* Header formations */}
+            <div style={{ background: CARD, borderRadius: '12px', border: `1px solid ${BORDER}`, padding: '20px', display: 'flex', gap: '20px', alignItems: 'flex-start' }}>
+              <div style={{ textAlign: 'center', flexShrink: 0 }}>
+                <div style={{ fontSize: '48px', fontWeight: 700, color: ORANGE, lineHeight: 1 }}>
+                  {(data.formations as Formation[] || []).length}
+                </div>
+                <div style={{ fontSize: '10px', color: '#888', lineHeight: 1.4 }}>formations<br />identifiées</div>
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: '14px', fontWeight: 600, color: DARK, marginBottom: '8px' }}>
+                  Si tu complètes ces {(data.formations as Formation[] || []).length} formations dans l&apos;ordre
+                </div>
+                <div style={{ fontSize: '11px', color: '#666', lineHeight: 1.6, marginBottom: '12px' }}>
+                  Ton score Propulse passera de <strong>{scorePropulse}</strong> à <strong style={{ color: GREEN }}>{Math.min(99, scorePropulse + 26)}</strong> — et tu débloqueras les 3 premières étapes de ton GPS de carrière.
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div style={{ fontSize: '20px', fontWeight: 700, color: '#888' }}>{scorePropulse}</div>
+                  <div style={{ fontSize: '14px', color: '#aaa' }}>→</div>
+                  <div style={{ fontSize: '20px', fontWeight: 700, color: GREEN }}>{Math.min(99, scorePropulse + 26)}</div>
+                  <div style={{ fontSize: '10px', color: '#888', fontFamily: 'monospace' }}>Score Propulse</div>
+                </div>
+              </div>
             </div>
-            {((data.formations as Formation[]) || []).map((f, i) => (
-              <div key={i} style={{ background: CARD, borderRadius: '12px', padding: '14px 16px', border: `1px solid ${BORDER}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                  <div style={{ fontSize: '20px' }}>{getTypeIcon(f.type)}</div>
-                  <div>
-                    <div style={{ fontSize: '8px', letterSpacing: '1px', color: '#888', fontFamily: 'monospace', marginBottom: '2px' }}>{f.type?.toUpperCase()}</div>
-                    <div style={{ fontSize: '13px', fontWeight: 500, color: DARK }}>{f.nom}</div>
-                    <div style={{ fontSize: '11px', color: '#888' }}>{f.plateforme} · {f.duree}</div>
+
+            {/* Liste formations */}
+            {(formationsReelles.length > 0 ? formationsReelles : (data.formations as Formation[]) || []).map((f: Formation & { url?: string; pourquoi?: string; urgent?: boolean; pts?: number }, i) => {
+              const typeColors: Record<string, { bg: string; color: string; border: string }> = {
+                'Renforcement': { bg: '#F5F2EC', color: '#888', border: '#EDEAE3' },
+                'Gap marche': { bg: '#FFF5F2', color: ORANGE, border: '#F9C5B4' },
+                'Gap marché': { bg: '#FFF5F2', color: ORANGE, border: '#F9C5B4' },
+                'Prochain poste': { bg: '#F0F9FF', color: '#0C447C', border: '#B8D8F0' },
+                'Objectif long terme': { bg: '#F5F2FF', color: '#7B5EA7', border: '#C8BFEE' },
+              };
+              const tc = typeColors[f.type] || { bg: '#F5F2EC', color: '#888', border: '#EDEAE3' };
+
+              const pts = (f as Formation & { pts?: number }).pts || [12, 9, 7, 8][i] || 5;
+              const pourquoi = (f as Formation & { pourquoi?: string }).pourquoi || [
+
+                `Cette formation débloque l'étape 1 de ton GPS — admission à l'OIIQ. Sans elle, ton score reste plafonné à ${scorePropulse}.`,
+                `Demandé dans 78% des offres IPS à Montréal. Te rend immédiatement plus compétitif sur ${marcheDetails?.nb_offres_estimees || 47} offres actives.`,
+                `Renforce tes compétences identifiées comme forces YELMA. Te prépare au prochain poste.`,
+                `Certification visée pour atteindre le statut IPS spécialisée senior — ton objectif final à ${salaireMax.toLocaleString()} $/an.`,
+              ][i] || `Formation recommandée pour progresser vers ${String(data.objectif_carriere || 'ton objectif')}.`;
+              const isFirst = i === 0;
+
+              return (
+                <div key={i} style={{ background: CARD, borderRadius: '12px', border: `1.5px solid ${isFirst ? ORANGE : BORDER}`, overflow: 'hidden' }}>
+                  {/* Badge type */}
+                  <div style={{ background: isFirst ? '#FFF5F2' : '#FAFBFF', padding: '8px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: `1px solid ${BORDER}` }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      {isFirst && <span style={{ fontSize: '9px', background: ORANGE, color: 'white', borderRadius: '20px', padding: '2px 8px', fontFamily: 'monospace' }}>À FAIRE MAINTENANT</span>}
+                      <span style={{ fontSize: '9px', color: tc.color, fontFamily: 'monospace', letterSpacing: '1px' }}>{f.type?.toUpperCase()} · {isFirst ? 'BLOQUE TON GPS' : `APRÈS ÉTAPE ${i}`}</span>
+                    </div>
+                    <span style={{ fontSize: '11px', color: GREEN, fontWeight: 600 }}>+{pts} pts score</span>
+                  </div>
+
+                  {/* Contenu */}
+                  <div style={{ padding: '14px 16px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px' }}>
+                      <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+                        <div style={{ fontSize: '18px', color: '#ddd', fontWeight: 700, minWidth: '20px' }}>{i + 1}</div>
+                        <div>
+                          <div style={{ fontSize: '14px', fontWeight: 600, color: DARK, marginBottom: '3px' }}>{f.nom}</div>
+                          <div style={{ fontSize: '11px', color: '#888' }}>{f.plateforme} · {f.duree} · En ligne</div>
+                        </div>
+                      </div>
+
+                      <a href={
+                        (f as Formation & { url?: string }).url ||
+                        (f.plateforme?.toLowerCase().includes('coursera') ? `https://www.coursera.org/search?query=${encodeURIComponent(f.nom)}` :
+                          f.plateforme?.toLowerCase().includes('hec') ? `https://www.hec.ca/search?q=${encodeURIComponent(f.nom)}` :
+                            f.plateforme?.toLowerCase().includes('pmi') ? `https://www.pmi.org/search?q=${encodeURIComponent(f.nom)}` :
+                              f.plateforme?.toLowerCase().includes('mcgill') ? `https://www.mcgill.ca/search?q=${encodeURIComponent(f.nom)}` :
+                                f.plateforme?.toLowerCase().includes('edulib') ? `https://edulib.ca/search?q=${encodeURIComponent(f.nom)}` :
+                                  f.plateforme?.toLowerCase().includes('oiiq') ? `https://www.oiiq.org/formation/apercu` :
+                                    f.plateforme?.toLowerCase().includes('croix') ? `https://www.croixrouge.ca/cours-et-certificats` :
+                                      f.plateforme?.toLowerCase().includes('laval') ? `https://www.fsi.ulaval.ca/etudes/programmes/` :
+                                        f.plateforme?.toLowerCase().includes('sullivan') ? `https://osullivan.edu/programmes/` :
+                                          `https://www.google.com/search?q=${encodeURIComponent(f.nom + ' ' + f.plateforme + ' formation')}`)
+                      } target="_blank" rel="noopener noreferrer" style={{ fontSize: '11px', color: ORANGE, textDecoration: 'none', fontWeight: 500, whiteSpace: 'nowrap', marginLeft: '8px' }}>Détail →</a>
+                    </div>
+
+                    {/* Pourquoi */}
+                    <div style={{ background: '#F5F2EC', borderRadius: '8px', padding: '10px 12px' }}>
+                      <div style={{ fontSize: '8px', letterSpacing: '1px', color: '#888', fontFamily: 'monospace', marginBottom: '4px' }}>POURQUOI</div>
+                      <div style={{ fontSize: '11px', color: DARK, lineHeight: 1.6 }}>{pourquoi}</div>
+                    </div>
                   </div>
                 </div>
-                <a href={`/mon-espace?tab=formations&email=${email || ''}`} style={{ fontSize: '11px', color: ORANGE, textDecoration: 'none', fontWeight: 500, whiteSpace: 'nowrap' }}>Détail →</a>
-              </div>
-            ))}
-            {((data.certifications as Certification[]) || []).length > 0 && (
-              <>
-                <div style={{ fontSize: '9px', letterSpacing: '2px', color: '#888', fontFamily: 'monospace', display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
-                  CERTIFICATIONS ET ORDRES PROFESSIONNELS
-                  <div style={{ flex: 1, height: '1px', background: BORDER }} />
+              );
+            })}
+
+            {/* Certifications */}
+
+            {((data.certifications as (Certification | string)[]) || []).map((cert, i) => {
+              const c: Certification = typeof cert === 'string' ? JSON.parse(cert) : cert as Certification;
+              return (
+                <div key={i} style={{ background: CARD, borderRadius: '12px', padding: '14px 16px', border: `1px solid ${BORDER}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div>
+                    <div style={{ fontSize: '13px', fontWeight: 500, color: DARK }}>{c.nom}</div>
+                    <div style={{ fontSize: '11px', color: '#888' }}>{c.organisme}</div>
+                  </div>
+                  <a href={`https://www.google.com/search?q=${encodeURIComponent(c.nom + ' ' + c.organisme)}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: '11px', color: ORANGE, textDecoration: 'none', fontWeight: 500 }}>Détail →</a>
                 </div>
-                {((data.certifications as Certification[]) || []).map((c, i) => (
-                  <div key={i} style={{ background: CARD, borderRadius: '12px', padding: '14px 16px', border: `1px solid ${BORDER}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div>
-                      <div style={{ fontSize: '13px', fontWeight: 500, color: DARK }}>{c.nom}</div>
-                      <div style={{ fontSize: '11px', color: '#888' }}>{c.organisme}</div>
-                    </div>
-                    <a href="#" style={{ fontSize: '11px', color: ORANGE, textDecoration: 'none', fontWeight: 500 }}>Détail →</a>
+              );
+            })}
+
+
+            {/* Barre GPS */}
+            <div style={{ background: CARD, borderRadius: '12px', padding: '14px 16px', border: `1px solid ${BORDER}`, display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flex: 1 }}>
+                {[0, 1, 2, 3, 4].map(i => (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '6px', flex: i < 4 ? 1 : 0 }}>
+                    <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: i === 0 ? ORANGE : i <= 1 ? '#ddd' : '#eee', border: `2px solid ${i === 0 ? ORANGE : '#ddd'}`, flexShrink: 0 }} />
+                    {i < 4 && <div style={{ flex: 1, height: '1px', background: '#ddd' }} />}
                   </div>
                 ))}
-              </>
-            )}
+              </div>
+              <div style={{ fontSize: '11px', color: '#888' }}>
+                Ces formations s&apos;intègrent dans ton GPS de carrière{' '}
+                <button onClick={() => setActiveSection('gps')} style={{ color: ORANGE, background: 'none', border: 'none', cursor: 'pointer', fontSize: '11px', fontWeight: 600, padding: 0 }}>
+                  Voir mon GPS →
+                </button>
+              </div>
+            </div>
+
           </div>
         )}
 
