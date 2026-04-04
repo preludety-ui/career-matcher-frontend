@@ -186,57 +186,6 @@ export default function RapportGPS({
   const [marcheDetails, setMarcheDetails] = useState<MarcheDetails | null>(null);
   const [marcheLoading, setMarcheLoading] = useState(false);
   const [tendanceData, setTendanceData] = useState<TendanceData | null>(null);
-  const [formationsReelles, setFormationsReelles] = useState<Formation[]>([]);
-
-  const chargerFormationsReelles = async () => {
-    if (formationsReelles.length > 0) return;
-    try {
-      const cnpMap: Record<string, string> = {
-        'infirmiere': '3012',
-        'infirmière': '3012',
-        'médecin': '3111',
-        'pharmacien': '3131',
-        'avocat': '4112',
-        'ingénieur': '2131',
-        'développeur': '2174',
-        'analyste': '1111',
-        'plombier': '7251',
-        'électricien': '7241',
-        'soudeur': '7237',
-        'mécanicien': '7321',
-      };
-      const objectif = String(data.objectif_carriere || '').toLowerCase();
-      const cnp = Object.entries(cnpMap).find(([k]) => objectif.includes(k))?.[1] || '';
-      const diplome = String(data.diplome_max || 'Baccalauréat');
-      
-      const params = new URLSearchParams();
-      if (cnp) params.append('cnp', cnp);
-      params.append('diplome', diplome);
-      
-      const res = await fetch(`/api/formations?${params.toString()}`);
-      const d = await res.json();
-      if (d.formations && d.formations.length > 0) {
-        setFormationsReelles(d.formations.map((f: {
-          titre: string; type_formation: string; fournisseur: string;
-          duree_semaines?: number; duree_heures?: number; url_directe: string;
-          raison_priorite: string; badge_urgent: boolean; impact_pts_total: number;
-        }) => ({
-          nom: f.titre,
-          type: f.type_formation,
-          plateforme: f.fournisseur,
-          duree: f.duree_semaines ? `${f.duree_semaines} semaines` : f.duree_heures ? `${f.duree_heures} heures` : 'Voir le site',
-          url: f.url_directe,
-          pourquoi: f.raison_priorite,
-          urgent: f.badge_urgent,
-          pts: f.impact_pts_total,
-        })));
-      }
-    } catch (e) {
-      console.error('Formations réelles error:', e);
-    }
-  };
-
-  const [scoreCompetences, setScoreCompetences] = useState<number | null>(null);
 
   const isPropulse = plan === "propulse";
   const salaireMin = Number(data.salaire_min) || 40000;
@@ -284,29 +233,6 @@ export default function RapportGPS({
       setMarcheLoading(false);
     }
   };
-
-
-  const chargerCompetences = async () => {
-    if (scoreCompetences !== null) return;
-    try {
-      const res = await fetch('/api/score-competences', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email,
-          objectif_carriere: String(data.objectif_carriere || ''),
-          force1: String(data.force1 || ''),
-          force2: String(data.force2 || ''),
-          force3: String(data.force3 || ''),
-        }),
-      });
-      const d = await res.json();
-      if (d.success) setScoreCompetences(d.score_competences);
-    } catch (e) {
-      console.error('Compétences error:', e);
-    }
-  };
-
 
   const chargerTendance = async () => {
     if (tendanceData) return;
@@ -365,16 +291,51 @@ export default function RapportGPS({
       if (existing) existing.destroy();
       const raw = [salaireMin, Number(data.gps_an1?.salaire) || 0, Number(data.gps_an2?.salaire) || 0, Number(data.gps_an3?.salaire) || 0, Number(data.gps_an4?.salaire) || 0, Number(data.gps_an5?.salaire) || 0];
       const yelma = ensureCroissant(raw);
+      const stepLabels = ['Auj.', 'An 1', 'An 2', 'An 3', 'An 4', 'An 5'];
+
+      // Plugin cercles alignés sous le graphique
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const circlesPlugin = {
+        id: 'circlesPlugin',
+        afterDraw(chart: any) {
+          const ctx = chart.ctx;
+          const xScale = chart.scales.x;
+          const yBottom = chart.scales.y.bottom;
+          stepLabels.forEach((label, i) => {
+            const x = xScale.getPixelForValue(i);
+            const y = yBottom + 22;
+            const isOrange = i === 0 || i === stepLabels.length - 1;
+            ctx.beginPath();
+            ctx.arc(x, y, 15, 0, 2 * Math.PI);
+            ctx.fillStyle = isOrange ? '#E05C3A' : 'white';
+            ctx.fill();
+            ctx.strokeStyle = isOrange ? '#E05C3A' : '#ddd';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            ctx.fillStyle = isOrange ? 'white' : '#888';
+            ctx.font = '700 8px monospace';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(label, x, y);
+          });
+        }
+      };
+
       new Chart(chartRef.current!, {
         type: 'line',
+        plugins: [circlesPlugin],
         data: {
-          labels: ['Auj.', 'An 1', 'An 2', 'An 3', 'An 4', 'An 5'],
+          labels: stepLabels,
           datasets: [{ label: 'Trajectoire YELMA', data: yelma, borderColor: '#E05C3A', backgroundColor: 'rgba(224,92,58,0.06)', borderWidth: 2, pointBackgroundColor: yelma.map((_, i) => i === yelma.length - 1 ? '#22A06B' : '#E05C3A'), pointRadius: 5, fill: true, tension: 0.4 }],
         },
         options: {
           responsive: true, maintainAspectRatio: false,
+          layout: { padding: { bottom: 40, left: 0, right: 30 } },
           plugins: { legend: { display: false }, tooltip: { callbacks: { label: (ctx) => '$' + ((ctx.parsed.y ?? 0)).toLocaleString() } } },
-          scales: { y: { min: 0, ticks: { callback: (v) => '$' + Math.round(Number(v) / 1000) + 'k', font: { size: 9 } }, grid: { color: 'rgba(0,0,0,0.04)' } }, x: { ticks: { font: { size: 9 } }, grid: { display: false } } },
+          scales: {
+            y: { min: 0, ticks: { callback: (v) => '$' + Math.round(Number(v) / 1000) + 'k', font: { size: 9 } }, grid: { color: 'rgba(0,0,0,0.04)' } },
+            x: { ticks: { display: false }, grid: { display: false }, border: { display: false }, offset: false}
+          },
         },
       });
     };
@@ -436,20 +397,7 @@ export default function RapportGPS({
       chargerMarche();
       chargerTendance();
     }
-    if (activeSection === 'competences') {
-      chargerCompetences();
-    }
-    if (activeSection === 'formations') {
-      chargerFormationsReelles();
-    }
   }, [activeSection]);
-
-  useEffect(() => {
-    // Charger score compétences au démarrage depuis Supabase
-    if (data.score_competences) {
-      setScoreCompetences(Number(data.score_competences));
-    }
-  }, [data]);
 
   const sections = [
     { id: 'resume', label: 'RÉSUMÉ' },
@@ -479,16 +427,14 @@ export default function RapportGPS({
               <span>🗓 {today}</span>
             </div>
           </div>
-
-          <div style={{ textAlign: 'right' }}>
-            <div style={{ fontSize: '52px', fontWeight: 700, color: propulseColor, lineHeight: 1, fontFamily: 'Georgia, serif' }}>
-              {activeSection === 'competences' && scoreCompetences !== null ? scoreCompetences : scorePropulse}
+          {scorePropulse > 0 && (
+            <div style={{ textAlign: 'right' }}>
+              <div style={{ fontSize: '52px', fontWeight: 700, color: propulseColor, lineHeight: 1, fontFamily: 'Georgia, serif' }}>
+                {scorePropulse}
+              </div>
+              <div style={{ fontSize: '9px', letterSpacing: '1.5px', color: '#888', fontFamily: 'monospace' }}>SCORE PROPULSE</div>
             </div>
-            <div style={{ fontSize: '9px', letterSpacing: '1.5px', color: '#888', fontFamily: 'monospace' }}>
-              {activeSection === 'competences' ? 'SCORE COMPÉTENCES' : 'SCORE PROPULSE'}
-            </div>
-          </div>
-
+          )}
         </div>
       </div>
 
@@ -560,7 +506,7 @@ export default function RapportGPS({
                 <div style={{ flex: 1, height: '1px', background: BORDER }} />
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
-                <Tuile titre="Mes compétences" pct={scoreCompetences !== null ? scoreCompetences : (data.force1 ? 100 : 0)} desc={`${[data.force1, data.force2, data.force3].filter(Boolean).length} forces identifiées par YELMA.`} onClick={() => setActiveSection('competences')} />
+                <Tuile titre="Mes compétences" pct={data.force1 ? 100 : 0} desc={`${[data.force1, data.force2, data.force3].filter(Boolean).length} forces identifiées par YELMA.`} onClick={() => setActiveSection('competences')} />
                 <Tuile titre="Mes formations" pct={35} desc={`${(data.formations as Formation[] || []).length} formations clés.`} onClick={() => setActiveSection('formations')} />
                 <Tuile titre="Mon parcours" pct={scorePropulse} desc="Ton parcours analysé par YELMA." onClick={() => setActiveSection('parcours')} />
                 <Tuile titre={`Mon marché · ${villeAffichee}`} pct={marcheScore !== null ? marcheScore : Number(data.score_marche) || 80} desc={`${salaireMin.toLocaleString()} $ → ${salaireMax.toLocaleString()} $ en 5 ans.`} onClick={() => setActiveSection('marche')} />
@@ -766,7 +712,7 @@ export default function RapportGPS({
                   <div style={{ flex: 1, height: '1px', background: BORDER }} />
                 </div>
                 <div style={{ fontSize: '12px', color: DARK, lineHeight: 1.6, marginBottom: '16px' }}>
-                  <strong>{prenom}</strong>, tu évolues comme <strong>{tendanceData.poste_actuel}</strong> et tu vises <strong>{tendanceData.poste_cible}</strong>. Ces deux domaines sont dans le même secteur — mais leur trajectoire de croissance est très différente.
+                  <strong>{prenom}</strong>, tu évolues dans <strong>{tendanceData.poste_actuel}</strong> et tu vises <strong>{tendanceData.poste_cible}</strong>. Ces deux domaines sont dans le même secteur — mais leur trajectoire de croissance est très différente.
                 </div>
                 <div style={{ display: 'flex', gap: '16px', marginBottom: '12px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -823,176 +769,163 @@ export default function RapportGPS({
 
         {/* ── GPS ── */}
         {activeSection === 'gps' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <div style={{ fontSize: '9px', letterSpacing: '2px', color: '#888', fontFamily: 'monospace', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              ÉVOLUTION SALARIALE · GPS DE CARRIÈRE 5 ANS
-              <div style={{ flex: 1, height: '1px', background: BORDER }} />
-            </div>
-            <div style={{ background: CARD, borderRadius: '12px', padding: '16px', border: `1px solid ${BORDER}` }}>
-              <div style={{ fontSize: '22px', color: DARK, marginBottom: '4px' }}>
-                {salaireMin.toLocaleString()} $ → <span style={{ color: ORANGE }}>{salaireMax.toLocaleString()} $</span> <span style={{ fontSize: '12px', color: '#888' }}>CAD/an</span>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+
+            {/* Header */}
+            <div>
+              <div style={{ fontSize: '9px', letterSpacing: '2px', color: '#888', fontFamily: 'monospace', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+                ÉVOLUTION SALARIALE · GPS DE CARRIÈRE 5 ANS
+                <div style={{ flex: 1, height: '1px', background: BORDER }} />
               </div>
-              <div style={{ fontSize: '10px', color: '#888', marginBottom: '16px' }}>Projection sur 5 ans · {villeAffichee}</div>
-              <div style={{ position: 'relative', width: '100%', height: '180px' }}>
+              <div style={{ fontSize: '28px', color: DARK, fontWeight: 400 }}>
+                {salaireMin.toLocaleString()} $ → <span style={{ color: ORANGE, fontWeight: 700 }}>{salaireMax.toLocaleString()} $</span>
+                <span style={{ fontSize: '13px', color: '#888', marginLeft: '8px' }}>CAD/an</span>
+              </div>
+              <div style={{ fontSize: '10px', color: '#888', marginTop: '4px' }}>Projection sur 5 ans · Données marché temps réel · {villeAffichee}</div>
+            </div>
+
+            {/* Graphique avec cercles intégrés */}
+            <div style={{ background: CARD, borderRadius: '12px', padding: '20px', border: `1px solid ${BORDER}` }}>
+              <div style={{ position: 'relative', width: '100%', height: '220px' }}>
                 <canvas ref={chartRef}></canvas>
               </div>
+
+              {/* Titres/salaires/actions sous les cercles */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '4px', marginTop: '8px', paddingLeft: '0px', paddingRight: '0px' }}>
+                {[
+                  { gps: { titre: roleAffiche || 'Poste actuel', salaire: salaireMin, action: 'Point de départ' }, isMax: false },
+                  { gps: data.gps_an1, isMax: false },
+                  { gps: data.gps_an2, isMax: false },
+                  { gps: data.gps_an3, isMax: false },
+                  { gps: data.gps_an4, isMax: false },
+                  { gps: data.gps_an5, isMax: true },
+                ].filter(e => e.gps && (e.gps as GPS).salaire).map((e, i) => {
+                  const gps = e.gps as GPS;
+                  return (
+                    <div key={i} style={{ textAlign: 'center', paddingTop: '4px' }}>
+                      <div style={{ fontSize: '10px', fontWeight: 600, color: e.isMax ? ORANGE : DARK, lineHeight: 1.3, marginBottom: '2px' }}>{gps.titre}</div>
+                      <div style={{ fontSize: '10px', fontWeight: 700, color: e.isMax ? ORANGE : '#555' }}>{gps.salaire?.toLocaleString()} $</div>
+                      {gps.action && <div style={{ fontSize: '8px', color: '#aaa', marginTop: '2px', lineHeight: 1.3 }}>{gps.action}</div>}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
-            {[
-              { an: 'Auj.', gps: { titre: roleAffiche || 'Poste actuel', salaire: salaireMin, action: 'Point de départ' }, isActuel: true, isMax: false },
-              { an: 'An 1', gps: data.gps_an1, isActuel: false, isMax: false },
-              { an: 'An 2', gps: data.gps_an2, isActuel: false, isMax: false },
-              { an: 'An 3', gps: data.gps_an3, isActuel: false, isMax: false },
-              { an: 'An 4', gps: data.gps_an4, isActuel: false, isMax: false },
-              { an: 'An 5', gps: data.gps_an5, isActuel: false, isMax: true },
-            ].filter(e => e.gps && (e.gps as GPS).salaire).map((e, i) => {
-              const gps = e.gps as GPS;
-              return (
-                <div key={i} style={{ background: e.isActuel ? ORANGE : e.isMax ? '#F0FFF8' : CARD, borderRadius: '10px', padding: '12px 16px', border: `1px solid ${e.isActuel ? ORANGE : e.isMax ? '#C8EFD8' : BORDER}`, display: 'flex', gap: '16px', alignItems: 'center' }}>
-                  <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: e.isActuel ? 'rgba(255,255,255,0.2)' : e.isMax ? '#22A06B' : '#F0EDE6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: 600, color: e.isActuel ? 'white' : e.isMax ? 'white' : '#888', flexShrink: 0 }}>{e.an}</div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: '13px', fontWeight: 500, color: e.isActuel ? 'white' : e.isMax ? '#085041' : DARK }}>{gps.titre}</div>
-                    {gps.action && <div style={{ fontSize: '10px', color: e.isActuel ? 'rgba(255,255,255,0.7)' : '#888', marginTop: '2px' }}>{gps.action}</div>}
+
+            {/* Tableau prévision poste cible */}
+            <div style={{ background: CARD, borderRadius: '12px', border: `1px solid ${BORDER}`, overflow: 'hidden' }}>
+              <div style={{ padding: '16px 20px', borderBottom: `1px solid ${BORDER}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <div style={{ fontSize: '9px', letterSpacing: '2px', color: '#888', fontFamily: 'monospace', marginBottom: '4px' }}>
+                    PRÉVISION · {String(data.objectif_carriere || '').toUpperCase()} {new Date().getFullYear()}–{new Date().getFullYear() + 5}
                   </div>
-                  <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontSize: '14px', fontWeight: 700, color: e.isActuel ? 'white' : e.isMax ? GREEN : ORANGE }}>{gps.salaire?.toLocaleString()} $</div>
-                    {e.isMax && <div style={{ fontSize: '9px', color: GREEN, fontFamily: 'monospace' }}>POTENTIEL MAX</div>}
+                  <div style={{ fontSize: '14px', fontWeight: 500, color: DARK }}>
+                    Poste cible : <span style={{ color: ORANGE, fontStyle: 'italic' }}>{String(data.objectif_carriere || '')}</span>
+                  </div>
+                  <div style={{ marginTop: '6px' }}>
+                    <span style={{ background: '#FFF0EB', color: ORANGE, borderRadius: '20px', padding: '2px 10px', fontSize: '9px', fontFamily: 'monospace' }}>
+                      ⊙ Ta cible · {verdict === 'atteignable' ? 'Atteignable en 5 ans' : 'Objectif ambitieux'}
+                    </span>
                   </div>
                 </div>
-              );
-            })}
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontSize: '9px', color: '#888', fontFamily: 'monospace' }}>Indice de tension</div>
+                  <div style={{ fontSize: '18px', fontWeight: 700, color: ORANGE }}>Élevé</div>
+                </div>
+              </div>
+
+              {/* En-tête tableau */}
+              <div style={{ display: 'grid', gridTemplateColumns: '60px 1fr 140px 80px', padding: '8px 20px', background: '#FAFAF8', borderBottom: `1px solid ${BORDER}` }}>
+                {['ANNÉE', 'SALAIRE MÉDIAN', 'CROISSANCE', 'DEMANDE'].map((h, i) => (
+                  <div key={i} style={{ fontSize: '8px', letterSpacing: '1px', color: '#aaa', fontFamily: 'monospace' }}>{h}</div>
+                ))}
+              </div>
+
+              {/* Lignes */}
+              {[
+                { an: new Date().getFullYear(), gps: { titre: roleAffiche, salaire: salaireMin, action: '' }, isTarget: false },
+                { an: new Date().getFullYear() + 1, gps: data.gps_an1, isTarget: false },
+                { an: new Date().getFullYear() + 2, gps: data.gps_an2, isTarget: false },
+                { an: new Date().getFullYear() + 3, gps: data.gps_an3, isTarget: false },
+                { an: new Date().getFullYear() + 4, gps: data.gps_an4, isTarget: false },
+                { an: new Date().getFullYear() + 5, gps: data.gps_an5, isTarget: true },
+              ].filter(e => e.gps && (e.gps as GPS).salaire).map((e, i) => {
+                const gps = e.gps as GPS;
+                const prevSalaire = i === 0 ? null : (() => {
+                  const prev = [salaireMin, data.gps_an1?.salaire, data.gps_an2?.salaire, data.gps_an3?.salaire, data.gps_an4?.salaire][i - 1];
+                  return Number(prev) || salaireMin;
+                })();
+                const croissance = prevSalaire ? Math.round(((gps.salaire - prevSalaire) / prevSalaire) * 100) : null;
+                const demande = Math.min(100, 55 + i * 7);
+                return (
+                  <div key={i} style={{ display: 'grid', gridTemplateColumns: '60px 1fr 140px 80px', padding: '12px 20px', borderBottom: `1px solid ${BORDER}`, background: e.isTarget ? '#FFF5F2' : 'white', alignItems: 'center' }}>
+                    <div style={{ fontSize: '12px', fontWeight: e.isTarget ? 700 : 400, color: e.isTarget ? ORANGE : '#888', fontFamily: 'monospace' }}>{e.an}</div>
+                    <div style={{ fontSize: '13px', fontWeight: e.isTarget ? 700 : 500, color: e.isTarget ? ORANGE : DARK }}>{gps.salaire?.toLocaleString()} $</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      {croissance !== null ? (
+                        <>
+                          <span style={{ fontSize: '10px', color: croissance > 0 ? GREEN : '#888', fontWeight: 600, minWidth: '36px' }}>{croissance > 0 ? `+${croissance}%` : '—'}</span>
+                          <div style={{ flex: 1, height: '4px', background: '#F0EDE6', borderRadius: '2px', overflow: 'hidden' }}>
+                            <div style={{ height: '100%', width: `${Math.min(100, Math.abs(croissance) * 3)}%`, background: e.isTarget ? ORANGE : GREEN, borderRadius: '2px' }} />
+                          </div>
+                        </>
+                      ) : <span style={{ fontSize: '10px', color: '#aaa' }}>—</span>}
+                    </div>
+                    <div style={{ fontSize: '12px', fontWeight: 500, color: e.isTarget ? ORANGE : '#555' }}>{demande}</div>
+                  </div>
+                );
+              })}
+
+              {/* Message final IA */}
+              <div style={{ padding: '14px 20px', background: '#FAFAF8' }}>
+                <div style={{ fontSize: '11px', color: '#555', lineHeight: 1.7 }}>
+                  En {new Date().getFullYear() + 5}, le salaire médian <span style={{ fontStyle: 'italic' }}>{String(data.objectif_carriere || '')}</span> à {villeAffichee} est projeté à{' '}
+                  <strong style={{ color: ORANGE }}>{salaireMax.toLocaleString()} $</strong>.{' '}
+                  {prenom}, si tu suis ton GPS et atteins ce poste en an 5, tu arriveras exactement au bon moment sur le marché.
+                </div>
+              </div>
+            </div>
+
           </div>
         )}
 
         {/* ── FORMATIONS ── */}
         {activeSection === 'formations' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-
-            {/* Header formations */}
-            <div style={{ background: CARD, borderRadius: '12px', border: `1px solid ${BORDER}`, padding: '20px', display: 'flex', gap: '20px', alignItems: 'flex-start' }}>
-              <div style={{ textAlign: 'center', flexShrink: 0 }}>
-                <div style={{ fontSize: '48px', fontWeight: 700, color: ORANGE, lineHeight: 1 }}>
-                  {(data.formations as Formation[] || []).length}
-                </div>
-                <div style={{ fontSize: '10px', color: '#888', lineHeight: 1.4 }}>formations<br />identifiées</div>
-              </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: '14px', fontWeight: 600, color: DARK, marginBottom: '8px' }}>
-                  Si tu complètes ces {(data.formations as Formation[] || []).length} formations dans l&apos;ordre
-                </div>
-                <div style={{ fontSize: '11px', color: '#666', lineHeight: 1.6, marginBottom: '12px' }}>
-                  Ton score Propulse passera de <strong>{scorePropulse}</strong> à <strong style={{ color: GREEN }}>{Math.min(99, scorePropulse + 26)}</strong> — et tu débloqueras les 3 premières étapes de ton GPS de carrière.
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <div style={{ fontSize: '20px', fontWeight: 700, color: '#888' }}>{scorePropulse}</div>
-                  <div style={{ fontSize: '14px', color: '#aaa' }}>→</div>
-                  <div style={{ fontSize: '20px', fontWeight: 700, color: GREEN }}>{Math.min(99, scorePropulse + 26)}</div>
-                  <div style={{ fontSize: '10px', color: '#888', fontFamily: 'monospace' }}>Score Propulse</div>
-                </div>
-              </div>
+            <div style={{ fontSize: '9px', letterSpacing: '2px', color: '#888', fontFamily: 'monospace', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              FORMATIONS RECOMMANDÉES
+              <div style={{ flex: 1, height: '1px', background: BORDER }} />
             </div>
-
-            {/* Liste formations */}
-            {(formationsReelles.length > 0 ? formationsReelles : (data.formations as Formation[]) || []).map((f: Formation & { url?: string; pourquoi?: string; urgent?: boolean; pts?: number }, i) => {
-              const typeColors: Record<string, { bg: string; color: string; border: string }> = {
-                'Renforcement': { bg: '#F5F2EC', color: '#888', border: '#EDEAE3' },
-                'Gap marche': { bg: '#FFF5F2', color: ORANGE, border: '#F9C5B4' },
-                'Gap marché': { bg: '#FFF5F2', color: ORANGE, border: '#F9C5B4' },
-                'Prochain poste': { bg: '#F0F9FF', color: '#0C447C', border: '#B8D8F0' },
-                'Objectif long terme': { bg: '#F5F2FF', color: '#7B5EA7', border: '#C8BFEE' },
-              };
-              const tc = typeColors[f.type] || { bg: '#F5F2EC', color: '#888', border: '#EDEAE3' };
-
-              const pts = (f as Formation & { pts?: number }).pts || [12, 9, 7, 8][i] || 5;
-              const pourquoi = (f as Formation & { pourquoi?: string }).pourquoi || [
-
-                `Cette formation débloque l'étape 1 de ton GPS — admission à l'OIIQ. Sans elle, ton score reste plafonné à ${scorePropulse}.`,
-                `Demandé dans 78% des offres IPS à Montréal. Te rend immédiatement plus compétitif sur ${marcheDetails?.nb_offres_estimees || 47} offres actives.`,
-                `Renforce tes compétences identifiées comme forces YELMA. Te prépare au prochain poste.`,
-                `Certification visée pour atteindre le statut IPS spécialisée senior — ton objectif final à ${salaireMax.toLocaleString()} $/an.`,
-              ][i] || `Formation recommandée pour progresser vers ${String(data.objectif_carriere || 'ton objectif')}.`;
-              const isFirst = i === 0;
-
-              return (
-                <div key={i} style={{ background: CARD, borderRadius: '12px', border: `1.5px solid ${isFirst ? ORANGE : BORDER}`, overflow: 'hidden' }}>
-                  {/* Badge type */}
-                  <div style={{ background: isFirst ? '#FFF5F2' : '#FAFBFF', padding: '8px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: `1px solid ${BORDER}` }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      {isFirst && <span style={{ fontSize: '9px', background: ORANGE, color: 'white', borderRadius: '20px', padding: '2px 8px', fontFamily: 'monospace' }}>À FAIRE MAINTENANT</span>}
-                      <span style={{ fontSize: '9px', color: tc.color, fontFamily: 'monospace', letterSpacing: '1px' }}>{f.type?.toUpperCase()} · {isFirst ? 'BLOQUE TON GPS' : `APRÈS ÉTAPE ${i}`}</span>
-                    </div>
-                    <span style={{ fontSize: '11px', color: GREEN, fontWeight: 600 }}>+{pts} pts score</span>
-                  </div>
-
-                  {/* Contenu */}
-                  <div style={{ padding: '14px 16px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px' }}>
-                      <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
-                        <div style={{ fontSize: '18px', color: '#ddd', fontWeight: 700, minWidth: '20px' }}>{i + 1}</div>
-                        <div>
-                          <div style={{ fontSize: '14px', fontWeight: 600, color: DARK, marginBottom: '3px' }}>{f.nom}</div>
-                          <div style={{ fontSize: '11px', color: '#888' }}>{f.plateforme} · {f.duree} · En ligne</div>
-                        </div>
-                      </div>
-
-                      <a href={
-                        (f as Formation & { url?: string }).url ||
-                        (f.plateforme?.toLowerCase().includes('coursera') ? `https://www.coursera.org/search?query=${encodeURIComponent(f.nom)}` :
-                          f.plateforme?.toLowerCase().includes('hec') ? `https://www.hec.ca/search?q=${encodeURIComponent(f.nom)}` :
-                            f.plateforme?.toLowerCase().includes('pmi') ? `https://www.pmi.org/search?q=${encodeURIComponent(f.nom)}` :
-                              f.plateforme?.toLowerCase().includes('mcgill') ? `https://www.mcgill.ca/search?q=${encodeURIComponent(f.nom)}` :
-                                f.plateforme?.toLowerCase().includes('edulib') ? `https://edulib.ca/search?q=${encodeURIComponent(f.nom)}` :
-                                  f.plateforme?.toLowerCase().includes('oiiq') ? `https://www.oiiq.org/formation/apercu` :
-                                    f.plateforme?.toLowerCase().includes('croix') ? `https://www.croixrouge.ca/cours-et-certificats` :
-                                      f.plateforme?.toLowerCase().includes('laval') ? `https://www.fsi.ulaval.ca/etudes/programmes/` :
-                                        f.plateforme?.toLowerCase().includes('sullivan') ? `https://osullivan.edu/programmes/` :
-                                          `https://www.google.com/search?q=${encodeURIComponent(f.nom + ' ' + f.plateforme + ' formation')}`)
-                      } target="_blank" rel="noopener noreferrer" style={{ fontSize: '11px', color: ORANGE, textDecoration: 'none', fontWeight: 500, whiteSpace: 'nowrap', marginLeft: '8px' }}>Détail →</a>
-                    </div>
-
-                    {/* Pourquoi */}
-                    <div style={{ background: '#F5F2EC', borderRadius: '8px', padding: '10px 12px' }}>
-                      <div style={{ fontSize: '8px', letterSpacing: '1px', color: '#888', fontFamily: 'monospace', marginBottom: '4px' }}>POURQUOI</div>
-                      <div style={{ fontSize: '11px', color: DARK, lineHeight: 1.6 }}>{pourquoi}</div>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-
-            {/* Certifications */}
-
-            {((data.certifications as (Certification | string)[]) || []).map((cert, i) => {
-              const c: Certification = typeof cert === 'string' ? JSON.parse(cert) : cert as Certification;
-              return (
-                <div key={i} style={{ background: CARD, borderRadius: '12px', padding: '14px 16px', border: `1px solid ${BORDER}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            {((data.formations as Formation[]) || []).map((f, i) => (
+              <div key={i} style={{ background: CARD, borderRadius: '12px', padding: '14px 16px', border: `1px solid ${BORDER}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                  <div style={{ fontSize: '20px' }}>{getTypeIcon(f.type)}</div>
                   <div>
-                    <div style={{ fontSize: '13px', fontWeight: 500, color: DARK }}>{c.nom}</div>
-                    <div style={{ fontSize: '11px', color: '#888' }}>{c.organisme}</div>
+                    <div style={{ fontSize: '8px', letterSpacing: '1px', color: '#888', fontFamily: 'monospace', marginBottom: '2px' }}>{f.type?.toUpperCase()}</div>
+                    <div style={{ fontSize: '13px', fontWeight: 500, color: DARK }}>{f.nom}</div>
+                    <div style={{ fontSize: '11px', color: '#888' }}>{f.plateforme} · {f.duree}</div>
                   </div>
-                  <a href={`https://www.google.com/search?q=${encodeURIComponent(c.nom + ' ' + c.organisme)}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: '11px', color: ORANGE, textDecoration: 'none', fontWeight: 500 }}>Détail →</a>
                 </div>
-              );
-            })}
-
-
-            {/* Barre GPS */}
-            <div style={{ background: CARD, borderRadius: '12px', padding: '14px 16px', border: `1px solid ${BORDER}`, display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flex: 1 }}>
-                {[0, 1, 2, 3, 4].map(i => (
-                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '6px', flex: i < 4 ? 1 : 0 }}>
-                    <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: i === 0 ? ORANGE : i <= 1 ? '#ddd' : '#eee', border: `2px solid ${i === 0 ? ORANGE : '#ddd'}`, flexShrink: 0 }} />
-                    {i < 4 && <div style={{ flex: 1, height: '1px', background: '#ddd' }} />}
+                <a href={`/mon-espace?tab=formations&email=${email || ''}`} style={{ fontSize: '11px', color: ORANGE, textDecoration: 'none', fontWeight: 500, whiteSpace: 'nowrap' }}>Détail →</a>
+              </div>
+            ))}
+            {((data.certifications as Certification[]) || []).length > 0 && (
+              <>
+                <div style={{ fontSize: '9px', letterSpacing: '2px', color: '#888', fontFamily: 'monospace', display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
+                  CERTIFICATIONS ET ORDRES PROFESSIONNELS
+                  <div style={{ flex: 1, height: '1px', background: BORDER }} />
+                </div>
+                {((data.certifications as Certification[]) || []).map((c, i) => (
+                  <div key={i} style={{ background: CARD, borderRadius: '12px', padding: '14px 16px', border: `1px solid ${BORDER}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <div style={{ fontSize: '13px', fontWeight: 500, color: DARK }}>{c.nom}</div>
+                      <div style={{ fontSize: '11px', color: '#888' }}>{c.organisme}</div>
+                    </div>
+                    <a href="#" style={{ fontSize: '11px', color: ORANGE, textDecoration: 'none', fontWeight: 500 }}>Détail →</a>
                   </div>
                 ))}
-              </div>
-              <div style={{ fontSize: '11px', color: '#888' }}>
-                Ces formations s&apos;intègrent dans ton GPS de carrière{' '}
-                <button onClick={() => setActiveSection('gps')} style={{ color: ORANGE, background: 'none', border: 'none', cursor: 'pointer', fontSize: '11px', fontWeight: 600, padding: 0 }}>
-                  Voir mon GPS →
-                </button>
-              </div>
-            </div>
-
+              </>
+            )}
           </div>
         )}
 
