@@ -316,158 +316,172 @@ export default function Home() {
   }, [userInfo]);
 
   if (!lang) {
-    const t = content.fr;
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center px-4 py-6" style={{ background: "#FAFBFF" }}>
-        <div className="w-full max-w-sm" style={{ textAlign: "center" }}>
+  const t = content.fr;
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center px-4 py-6" style={{ background: "#FAFBFF" }}>
+      <div className="w-full max-w-sm" style={{ textAlign: "center" }}>
 
-          <div style={{ display: "flex", justifyContent: "center", alignItems: "flex-end", gap: "3px", height: "20px", margin: "0 auto 8px" }}>
-            {[7, 13, 20, 13, 7].map((h, i) => (
-              <div key={i} style={{ width: "4px", borderRadius: "3px", background: "#FF7043", height: `${h}px`, animation: `wave 1.1s ease-in-out infinite`, animationDelay: `${i * 0.15}s` }} />
-            ))}
-          </div>
+        {/* Logo animé */}
+        <div style={{ display: "flex", justifyContent: "center", alignItems: "flex-end", gap: "3px", height: "20px", margin: "0 auto 8px" }}>
+          {[7, 13, 20, 13, 7].map((h, i) => (
+            <div key={i} style={{ width: "4px", borderRadius: "3px", background: "#FF7043", height: `${h}px`, animation: `wave 1.1s ease-in-out infinite`, animationDelay: `${i * 0.15}s` }} />
+          ))}
+        </div>
 
-          <h1 style={{ fontSize: "32px", fontWeight: 800, color: "#1A1A2E", letterSpacing: "-1px", margin: "0 0 4px" }}>YELMA</h1>
-          <div style={{ width: "28px", height: "2px", background: "#FF7043", borderRadius: "4px", margin: "0 auto 6px" }} />
-          <div style={{ display: "inline-block", background: "#FFE0D6", borderRadius: "20px", padding: "3px 12px", marginBottom: "6px" }}>
-            <span style={{ fontSize: "9px", color: "#993C1D", fontWeight: 600 }}>{t.niche}</span>
-          </div>
-          <div style={{ fontSize: "8px", color: "#aaa", fontStyle: "italic", marginBottom: "8px" }}>{t.nicheEN}</div>
-          <p style={{ fontSize: "11px", color: "#2D2D44", fontWeight: 500, lineHeight: 1.6, margin: "0 0 2px" }}>
-            {t.slogan1} <span style={{ color: "#FF7043", fontWeight: 700 }}>{t.slogan2}</span>
-          </p>
-          <p style={{ fontSize: "9px", color: "#aaa", fontStyle: "italic", margin: "0 0 10px" }}>{t.sloganEN}</p>
+        <h1 style={{ fontSize: "32px", fontWeight: 800, color: "#1A1A2E", letterSpacing: "-1px", margin: "0 0 4px" }}>YELMA</h1>
+        <div style={{ width: "28px", height: "2px", background: "#FF7043", borderRadius: "4px", margin: "0 auto 10px" }} />
 
-          <div style={{ background: "#1A1A2E", borderRadius: "10px", padding: "8px 12px", display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-              <div style={{ fontSize: "8px", color: "#FF7043", fontWeight: 600 }}>{t.market}</div>
-              {marketLoading && <div style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#FF7043", animation: "pulse1 1s ease-in-out infinite" }} />}
-            </div>
-            <div style={{ display: "flex", gap: "12px" }}>
-              {[[marketData.taux_chomage, t.chomage, "#FF7043"], [marketData.postes_tech, t.postes, "#10B981"], [marketData.salaire_junior, t.salaire, "#0EA5E9"]].map(([v, l, c], i) => (
-                <div key={i} style={{ textAlign: "center" }}>
-                  <div style={{ fontSize: "13px", fontWeight: 500, color: c }}>{v}</div>
-                  <div style={{ fontSize: "7px", color: "#aaa" }}>{l}</div>
-                </div>
-              ))}
-              <button onClick={() => { const p = document.getElementById("yelma-popup"); if (p) p.style.display = "flex"; }} style={{ background: "#FF7043", border: "none", color: "white", fontSize: "8px", cursor: "pointer", fontWeight: 600, padding: "4px 8px", borderRadius: "6px" }}>{t.seeMore}</button>
-            </div>
-          </div>
+        <div style={{ display: "inline-block", background: "#FFE0D6", borderRadius: "20px", padding: "3px 12px", marginBottom: "10px" }}>
+          <span style={{ fontSize: "10px", color: "#993C1D", fontWeight: 600 }}>La plateforme carrière pour les jeunes que le marché du travail oublie trop souvent</span>
+        </div>
 
-          <div style={{ display: "flex", gap: "6px", marginBottom: "8px" }}>
-            {[
-              { bg: "#FFE0D6", stroke: "#FF7043", title: t.card1title, sub: t.card1sub, titleEN: t.card1EN, subEN: t.card1subEN },
-              { bg: "#D6F0FF", stroke: "#0EA5E9", title: t.card2title, sub: t.card2sub, titleEN: t.card2EN, subEN: t.card2subEN },
-              { bg: "#D6FFE8", stroke: "#10B981", title: t.card3title, sub: t.card3sub, titleEN: t.card3EN, subEN: t.card3subEN },
-            ].map((card, i) => (
-              <div key={i} style={{ flex: 1, background: "white", borderRadius: "12px", padding: "10px 6px", textAlign: "center", border: `1.5px solid ${card.bg}`, display: "flex", flexDirection: "column", alignItems: "center", gap: "4px" }}>
-                <div style={{ fontSize: "8px", fontWeight: 600, color: "#aaa" }}>{card.titleEN}</div>
-                <div style={{ fontSize: "7px", color: "#bbb" }}>{card.subEN}</div>
-                <div style={{ width: "1px", height: "5px", background: card.bg }} />
-                <div style={{ width: "20px", height: "20px", borderRadius: "50%", background: card.bg, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <div style={{ width: "8px", height: "8px", borderRadius: "50%", background: card.stroke, animation: "pulse1 1.5s ease-in-out infinite" }} />
-                </div>
-                <div style={{ width: "1px", height: "5px", background: card.bg }} />
-                <div style={{ fontSize: "10px", fontWeight: 700, color: card.stroke }}>{card.title}</div>
-                <div style={{ fontSize: "7px", color: card.stroke, opacity: .8 }}>{card.sub}</div>
+        <p style={{ fontSize: "13px", color: "#2D2D44", fontWeight: 500, lineHeight: 1.6, margin: "0 0 16px" }}>
+          Tu ne sais pas où tu excelles ? <span style={{ color: "#FF7043", fontWeight: 700 }}>On le découvre ensemble — et on t'y envoie.</span>
+        </p>
+
+        {/* Marché live */}
+        <div style={{ background: "#1A1A2E", borderRadius: "10px", padding: "8px 12px", display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+          <div style={{ fontSize: "8px", color: "#FF7043", fontWeight: 600 }}>MARCHÉ · LIVE 🔴</div>
+          <div style={{ display: "flex", gap: "12px" }}>
+            {[[marketData.taux_chomage, "Chômage jeunes", "#FF7043"], [marketData.postes_tech, "Postes tech", "#10B981"], [marketData.salaire_junior, "Salaire junior", "#0EA5E9"]].map(([v, l, c], i) => (
+              <div key={i} style={{ textAlign: "center" }}>
+                <div style={{ fontSize: "13px", fontWeight: 500, color: c as string }}>{v}</div>
+                <div style={{ fontSize: "7px", color: "#aaa" }}>{l}</div>
               </div>
             ))}
-          </div>
-
-          <div style={{ background: "white", borderRadius: "10px", padding: "10px 12px", border: "0.5px solid #E8E8F0", marginBottom: "8px" }}>
-            <div style={{ display: "flex", gap: "8px", alignItems: "flex-start" }}>
-              <div style={{ background: "#FFE0D6", borderRadius: "8px", padding: "5px 7px", flexShrink: 0, textAlign: "center" }}>
-                <div style={{ fontSize: "10px", fontWeight: 700, color: "#FF7043" }}>YELMA</div>
-                <div style={{ fontSize: "7px", color: "#993C1D" }}>{t.forYou}</div>
-                <div style={{ fontSize: "7px", color: "#993C1D", fontStyle: "italic" }}>{t.forYouEN}</div>
-              </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: "5px", flex: 1 }}>
-                {[[t.p1, t.p1EN, "#FF7043"], [t.p2, t.p2EN, "#0EA5E9"], [t.p3, t.p3EN, "#10B981"]].map(([p, pEN, c], i) => (
-                  <div key={i}>
-                    <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
-                      <div style={{ width: "5px", height: "5px", borderRadius: "50%", background: c, flexShrink: 0 }} />
-                      <span style={{ fontSize: "9px", color: "#1A1A2E", fontWeight: 500 }}>{p}</span>
-                    </div>
-                    <div style={{ paddingLeft: "10px", fontSize: "8px", color: "#aaa", fontStyle: "italic" }}>{pEN}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          <p style={{ fontSize: "10px", color: "#888", margin: "0 0 8px" }}>{t.chooseLang}</p>
-          <div style={{ display: "flex", gap: "8px" }}>
-            <button onClick={() => selectLang("fr")} style={{ flex: 1, background: "#1A1A2E", color: "white", border: "none", padding: "13px", borderRadius: "12px", fontSize: "14px", fontWeight: 700, cursor: "pointer" }}>Français</button>
-            <button onClick={() => selectLang("en")} style={{ flex: 1, background: "white", color: "#1A1A2E", border: "2px solid #E8E8F0", padding: "13px", borderRadius: "12px", fontSize: "14px", fontWeight: 700, cursor: "pointer" }}>English</button>
+            <button onClick={() => { const p = document.getElementById("yelma-popup"); if (p) p.style.display = "flex"; }} style={{ background: "#FF7043", border: "none", color: "white", fontSize: "8px", cursor: "pointer", fontWeight: 600, padding: "4px 8px", borderRadius: "6px" }}>+ voir →</button>
           </div>
         </div>
 
-        <a href="/pricing" style={{ position: "fixed", bottom: "20px", right: "20px", background: "#FF7043", color: "white", borderRadius: "20px", padding: "8px 16px", fontSize: "11px", fontWeight: 600, textDecoration: "none", zIndex: 100 }}>✦ Commencer — 4.99$/mois</a>
-        <a href="/partenaires" style={{ position: "fixed", bottom: "60px", left: "20px", background: "#0EA5E9", color: "white", borderRadius: "20px", padding: "8px 16px", fontSize: "11px", fontWeight: 600, textDecoration: "none", zIndex: 100 }}>🤝 Espace partenaire</a>
-        <a href="/dashboard" style={{ position: "fixed", bottom: "20px", left: "20px", background: "#1A1A2E", color: "white", borderRadius: "20px", padding: "8px 16px", fontSize: "11px", fontWeight: 600, textDecoration: "none", zIndex: 100 }}>👔 Espace recruteur</a>
-        <a href="/mon-espace" style={{ position: "fixed", bottom: "100px", left: "20px", background: "#FF7043", color: "white", borderRadius: "20px", padding: "8px 16px", fontSize: "11px", fontWeight: 600, textDecoration: "none", zIndex: 100 }}>🎯 Espace candidat</a>
+        {/* 3 cartes */}
+        <div style={{ display: "flex", gap: "6px", marginBottom: "12px" }}>
+          {[
+            { bg: "#FFE0D6", stroke: "#FF7043", title: "RÉVÈLE", sub: "vos forces cachées" },
+            { bg: "#D6F0FF", stroke: "#0EA5E9", title: "ORIENTE", sub: "où vous êtes imbattable" },
+            { bg: "#D6FFE8", stroke: "#10B981", title: "AMÉLIORE", sub: "vos compétences" },
+          ].map((card, i) => (
+            <div key={i} style={{ flex: 1, background: "white", borderRadius: "12px", padding: "10px 6px", textAlign: "center", border: `1.5px solid ${card.bg}` }}>
+              <div style={{ width: "20px", height: "20px", borderRadius: "50%", background: card.bg, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 6px" }}>
+                <div style={{ width: "8px", height: "8px", borderRadius: "50%", background: card.stroke, animation: "pulse1 1.5s ease-in-out infinite" }} />
+              </div>
+              <div style={{ fontSize: "10px", fontWeight: 700, color: card.stroke }}>{card.title}</div>
+              <div style={{ fontSize: "7px", color: card.stroke, opacity: .8 }}>{card.sub}</div>
+            </div>
+          ))}
+        </div>
 
-        <div id="yelma-popup" style={{ display: "none", position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.5)", zIndex: 999, alignItems: "center", justifyContent: "center" }} onClick={(e) => { if (e.target === e.currentTarget) (e.currentTarget as HTMLElement).style.display = "none"; }}>
-          <div style={{ background: "white", borderRadius: "16px", padding: "18px", width: "92%", maxWidth: "380px", maxHeight: "85vh", overflowY: "auto" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
+        {/* Comment ça marche */}
+        <div style={{ background: "white", borderRadius: "12px", padding: "14px", border: "0.5px solid #E8E8F0", marginBottom: "12px", textAlign: "left" }}>
+          <div style={{ fontSize: "9px", fontWeight: 700, color: "#888", marginBottom: "12px", textAlign: "center" }}>COMMENT ÇA MARCHE</div>
+          {[
+            { num: "1", titre: "Tu passes l'entretien YELMA", desc: "8 questions, 5 minutes. L'IA analyse tes forces cachées.", couleur: "#FF7043" },
+            { num: "2", titre: "Tu reçois ton Rapport GPS", desc: "Score Propulse, forces révélées, plan de carrière sur 5 ans.", couleur: "#0EA5E9" },
+            { num: "3", titre: "Tu passes à l'action", desc: "Offres ciblées, CV personnalisé, lettre générée par l'IA.", couleur: "#10B981" },
+          ].map((step, i) => (
+            <div key={i} style={{ display: "flex", gap: "10px", alignItems: "flex-start", marginBottom: i < 2 ? "10px" : 0 }}>
+              <div style={{ width: "24px", height: "24px", borderRadius: "50%", background: step.couleur, color: "white", fontSize: "11px", fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{step.num}</div>
               <div>
-                <div style={{ fontSize: "14px", fontWeight: 500, color: "#1A1A2E" }}>Tendances marché · 2026</div>
-                <div style={{ fontSize: "10px", color: "#FF7043" }}>Mise à jour quotidienne · Données réelles</div>
-              </div>
-              <button onClick={() => { const p = document.getElementById("yelma-popup"); if (p) p.style.display = "none"; }} style={{ background: "none", border: "none", fontSize: "20px", cursor: "pointer" }}>×</button>
-            </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "6px", marginBottom: "14px" }}>
-              {[[marketData.taux_chomage, "Chômage jeunes", "#FF7043"], [marketData.postes_tech, "Postes tech", "#10B981"], [marketData.salaire_junior, "Salaire junior", "#0EA5E9"]].map(([val, label, color], i) => (
-                <div key={i} style={{ background: "#FAFBFF", borderRadius: "8px", padding: "8px", textAlign: "center" }}>
-                  <div style={{ fontSize: "16px", fontWeight: 500, color }}>{val}</div>
-                  <div style={{ fontSize: "8px", color: "#888" }}>{label}</div>
-                </div>
-              ))}
-            </div>
-            <div style={{ marginBottom: "12px" }}>
-              <div style={{ fontSize: "9px", fontWeight: 600, color: "#888", marginBottom: "6px" }}>TOP COMPÉTENCES DEMANDÉES</div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: "5px" }}>
-                {marketData.competences.map((c, i) => (
-                  <span key={i} style={{ background: "#FFE0D6", color: "#993C1D", borderRadius: "20px", padding: "3px 8px", fontSize: "10px" }}>{c}</span>
-                ))}
+                <div style={{ fontSize: "12px", fontWeight: 600, color: "#1A1A2E" }}>{step.titre}</div>
+                <div style={{ fontSize: "10px", color: "#888" }}>{step.desc}</div>
               </div>
             </div>
-            <div style={{ marginBottom: "12px" }}>
-              <div style={{ fontSize: "9px", fontWeight: 600, color: "#888", marginBottom: "6px" }}>SECTEURS QUI RECRUTENT</div>
-              {marketData.secteurs.map((s, i) => (
-                <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
-                  <span style={{ fontSize: "12px", color: "#1A1A2E" }}>{s.nom}</span>
-                  <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                    <div style={{ width: "80px", height: "5px", background: "#F1EFE8", borderRadius: "3px", overflow: "hidden" }}>
-                      <div style={{ width: `${s.pourcentage}%`, height: "100%", background: i === 0 ? "#FF7043" : i === 1 ? "#10B981" : "#0EA5E9", borderRadius: "3px" }} />
-                    </div>
-                    <span style={{ fontSize: "10px", color: i === 0 ? "#FF7043" : i === 1 ? "#10B981" : "#0EA5E9", fontWeight: 500 }}>{s.niveau}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div style={{ marginBottom: "12px" }}>
-              <div style={{ fontSize: "9px", fontWeight: 600, color: "#888", marginBottom: "6px" }}>TECHNOLOGIES QUI MONTENT</div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: "5px" }}>
-                {marketData.technologies.map((t, i) => (
-                  <span key={i} style={{ background: "#D6F0FF", color: "#0C447C", borderRadius: "20px", padding: "3px 8px", fontSize: "10px" }}>{t}</span>
-                ))}
-              </div>
-            </div>
-            <div style={{ background: "#F8F6FF", borderLeft: "3px solid #FF7043", borderRadius: "0 10px 10px 0", padding: "10px 12px" }}>
-              <div style={{ fontSize: "9px", fontWeight: 600, color: "#888", marginBottom: "3px" }}>CONSEIL DU MOMENT</div>
-              <div style={{ fontSize: "11px", color: "#1A1A2E", lineHeight: 1.6 }}>{marketData.conseil}</div>
-            </div>
+          ))}
+        </div>
+
+        {/* Témoignage mini */}
+        <div style={{ background: "white", borderRadius: "12px", padding: "14px", border: "0.5px solid #E8E8F0", marginBottom: "12px", textAlign: "left", borderLeft: "4px solid #FF7043" }}>
+          <div style={{ fontSize: "9px", fontWeight: 700, color: "#888", marginBottom: "8px" }}>💬 ILS ONT ESSAYÉ YELMA</div>
+          <p style={{ fontSize: "12px", color: "#444", fontStyle: "italic", lineHeight: 1.6, margin: "0 0 8px" }}>
+            &ldquo;J'avais postulé 34 fois sans réponse. Après YELMA, j'ai compris mes vraies forces. 3 semaines après, j'avais une offre.&rdquo;
+          </p>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div style={{ fontSize: "10px", color: "#888" }}>— Karima B., Montréal · Score 74</div>
+            <a href="/temoignages" style={{ fontSize: "10px", color: "#FF7043", fontWeight: 600, textDecoration: "none" }}>Voir tous les témoignages →</a>
           </div>
         </div>
 
-        <style>{`
-          @keyframes wave { 0%,100%{transform:scaleY(1)} 50%{transform:scaleY(1.8)} }
-          @keyframes pulse1 { 0%,100%{transform:scale(1)} 50%{transform:scale(1.3)} }
-        `}</style>
+        {/* Pour toi si */}
+        <div style={{ background: "white", borderRadius: "10px", padding: "10px 12px", border: "0.5px solid #E8E8F0", marginBottom: "16px", textAlign: "left" }}>
+          <div style={{ fontSize: "9px", fontWeight: 700, color: "#FF7043", marginBottom: "8px" }}>YELMA C'EST POUR TOI SI...</div>
+          {[
+            ["Tu finis tes études et tu ne sais pas par où commencer", "#FF7043"],
+            ["Tu postules partout sans résultats", "#0EA5E9"],
+            ["Tu veux savoir exactement quoi améliorer pour décrocher un emploi", "#10B981"],
+          ].map(([p, c], i) => (
+            <div key={i} style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: i < 2 ? "6px" : 0 }}>
+              <div style={{ width: "5px", height: "5px", borderRadius: "50%", background: c, flexShrink: 0 }} />
+              <span style={{ fontSize: "11px", color: "#1A1A2E" }}>{p}</span>
+            </div>
+          ))}
+        </div>
+
+        {/* Boutons langue */}
+        <p style={{ fontSize: "10px", color: "#888", margin: "0 0 8px" }}>Choisissez votre langue / Choose your language</p>
+        <div style={{ display: "flex", gap: "8px" }}>
+          <button onClick={() => selectLang("fr")} style={{ flex: 1, background: "#1A1A2E", color: "white", border: "none", padding: "13px", borderRadius: "12px", fontSize: "14px", fontWeight: 700, cursor: "pointer" }}>Français</button>
+          <button onClick={() => selectLang("en")} style={{ flex: 1, background: "white", color: "#1A1A2E", border: "2px solid #E8E8F0", padding: "13px", borderRadius: "12px", fontSize: "14px", fontWeight: 700, cursor: "pointer" }}>English</button>
+        </div>
       </div>
-    );
-  }
+
+      {/* Boutons flottants — simplifiés */}
+      <a href="/pricing" style={{ position: "fixed", bottom: "20px", right: "20px", background: "#FF7043", color: "white", borderRadius: "20px", padding: "8px 16px", fontSize: "11px", fontWeight: 600, textDecoration: "none", zIndex: 100 }}>✦ Commencer — 4.99$/mois</a>
+      <a href="/mon-espace" style={{ position: "fixed", bottom: "20px", left: "20px", background: "#FF7043", color: "white", borderRadius: "20px", padding: "8px 16px", fontSize: "11px", fontWeight: 600, textDecoration: "none", zIndex: 100 }}>🎯 Espace candidat</a>
+      <a href="/dashboard" style={{ position: "fixed", bottom: "60px", left: "20px", background: "#1A1A2E", color: "white", borderRadius: "20px", padding: "8px 16px", fontSize: "11px", fontWeight: 600, textDecoration: "none", zIndex: 100 }}>👔 Espace recruteur</a>
+
+      {/* Popup marché — inchangé */}
+      <div id="yelma-popup" style={{ display: "none", position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.5)", zIndex: 999, alignItems: "center", justifyContent: "center" }} onClick={(e) => { if (e.target === e.currentTarget) (e.currentTarget as HTMLElement).style.display = "none"; }}>
+        <div style={{ background: "white", borderRadius: "16px", padding: "18px", width: "92%", maxWidth: "380px", maxHeight: "85vh", overflowY: "auto" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
+            <div>
+              <div style={{ fontSize: "14px", fontWeight: 500, color: "#1A1A2E" }}>Tendances marché · 2026</div>
+              <div style={{ fontSize: "10px", color: "#FF7043" }}>Mise à jour quotidienne · Données réelles</div>
+            </div>
+            <button onClick={() => { const p = document.getElementById("yelma-popup"); if (p) p.style.display = "none"; }} style={{ background: "none", border: "none", fontSize: "20px", cursor: "pointer" }}>×</button>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "6px", marginBottom: "14px" }}>
+            {[[marketData.taux_chomage, "Chômage jeunes", "#FF7043"], [marketData.postes_tech, "Postes tech", "#10B981"], [marketData.salaire_junior, "Salaire junior", "#0EA5E9"]].map(([val, label, color], i) => (
+              <div key={i} style={{ background: "#FAFBFF", borderRadius: "8px", padding: "8px", textAlign: "center" }}>
+                <div style={{ fontSize: "16px", fontWeight: 500, color: color as string }}>{val}</div>
+                <div style={{ fontSize: "8px", color: "#888" }}>{label}</div>
+              </div>
+            ))}
+          </div>
+          <div style={{ marginBottom: "12px" }}>
+            <div style={{ fontSize: "9px", fontWeight: 600, color: "#888", marginBottom: "6px" }}>TOP COMPÉTENCES DEMANDÉES</div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "5px" }}>
+              {marketData.competences.map((c, i) => (
+                <span key={i} style={{ background: "#FFE0D6", color: "#993C1D", borderRadius: "20px", padding: "3px 8px", fontSize: "10px" }}>{c}</span>
+              ))}
+            </div>
+          </div>
+          <div style={{ marginBottom: "12px" }}>
+            <div style={{ fontSize: "9px", fontWeight: 600, color: "#888", marginBottom: "6px" }}>SECTEURS QUI RECRUTENT</div>
+            {marketData.secteurs.map((s, i) => (
+              <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
+                <span style={{ fontSize: "12px", color: "#1A1A2E" }}>{s.nom}</span>
+                <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                  <div style={{ width: "80px", height: "5px", background: "#F1EFE8", borderRadius: "3px", overflow: "hidden" }}>
+                    <div style={{ width: `${s.pourcentage}%`, height: "100%", background: i === 0 ? "#FF7043" : i === 1 ? "#10B981" : "#0EA5E9", borderRadius: "3px" }} />
+                  </div>
+                  <span style={{ fontSize: "10px", color: i === 0 ? "#FF7043" : i === 1 ? "#10B981" : "#0EA5E9", fontWeight: 500 }}>{s.niveau}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div style={{ background: "#F8F6FF", borderLeft: "3px solid #FF7043", borderRadius: "0 10px 10px 0", padding: "10px 12px" }}>
+            <div style={{ fontSize: "9px", fontWeight: 600, color: "#888", marginBottom: "3px" }}>CONSEIL DU MOMENT</div>
+            <div style={{ fontSize: "11px", color: "#1A1A2E", lineHeight: 1.6 }}>{marketData.conseil}</div>
+          </div>
+        </div>
+      </div>
+
+      <style>{`
+        @keyframes wave { 0%,100%{transform:scaleY(1)} 50%{transform:scaleY(1.8)} }
+        @keyframes pulse1 { 0%,100%{transform:scale(1)} 50%{transform:scale(1.3)} }
+      `}</style>
+    </div>
+  );
+}
 
   const t = content[lang];
 

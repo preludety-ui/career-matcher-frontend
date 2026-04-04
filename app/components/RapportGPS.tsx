@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 
 type GPS = { titre: string; salaire: number; action: string };
 type Opportunite = { titre: string; salaire: number; description: string };
-type Formation = { nom: string; type: string; plateforme: string; duree: string };
+type Formation = { nom: string; type: string; plateforme: string; duree: string; url?: string; pourquoi?: string; urgent?: boolean; pts?: number };
 type Certification = { nom: string; organisme: string };
 
 type RapportData = {
@@ -33,8 +33,13 @@ type RapportData = {
   score_marche?: number;
   marche_details?: unknown;
   domaine_actuel?: string;
+  diplome_max?: string;
   [key: string]: unknown;
+
+
 };
+
+
 
 type TendanceData = {
   annees: number[];
@@ -59,43 +64,94 @@ type MarcheDetails = {
   G?: number;
 };
 
+type ProfilLink = {
+  id: string;
+  url: string;
+  createdAt: string;
+  views: number;
+  active: boolean;
+  employeur?: string;
+};
+
+type CandidatureLocal = {
+  id: string;
+  employeur: string;
+  poste: string;
+  statut: 'envoyee' | 'en_attente' | 'sauvegardee' | 'entretien' | 'refus';
+  match: number;
+  date: string;
+  deadline?: string;
+  rappel?: string;
+};
+
+// ── parseRapport avec score_cible_pct corrigé ────────────────
 export function parseRapport(text: string): RapportData | null {
   const isRapport =
     text.includes("TES 3 COMPÉTENCES") ||
     text.includes("COMPÉTENCES CLÉS") ||
     text.includes("GPS DE CARRIÈRE") ||
-    text.includes("An 1:");
+    text.includes("An 1:") ||
+    text.includes("SCORE_CIBLE");
   if (!isRapport) return null;
+
   const forceBlocks = [...text.matchAll(/\d+\.\s+\*\*(.+?)\*\*\n(.+?)(?=\n\d+\.|\n\n|$)/g)];
   const forces = forceBlocks.slice(0, 3).map(m => ({ nom: m[1]?.trim(), desc: m[2]?.replace(/\*\*/g, "").trim() }));
+
   const parseGPSLines = (section: string): GPS[] => {
     const matches = [...section.matchAll(/An\s*\d\s*[:\|]\s*\*?\*?([^|\n\*]+?)\*?\*?\s*[\|]\s*([\d,\s]+)\s*[\|]\s*([^\n]+)/gi)];
     return matches.map(m => ({ titre: m[1]?.replace(/\*\*/g, "").trim() || "", salaire: parseInt(m[2]?.replace(/[^\d]/g, "") || "0"), action: m[3]?.trim() || "" })).filter(g => g.salaire > 0);
   };
+
   const gpsSection = text.match(/GPS DE CARRIÈRE[\s\S]+?(?=OBJECTIF:|FORMATIONS|CERTIFICATIONS|$)/i)?.[0] || "";
   const yelmaGPS = parseGPSLines(gpsSection || text);
+
   const oppMatches = [...text.matchAll(/\d+\.\s+\*\*([^*]+)\*\*\s*[—-]\s*([\d,\s]+)\$[^\n]*\n([^\n]+)/gi)];
   const opportunites: Opportunite[] = oppMatches.slice(0, 3).map(m => ({ titre: m[1]?.trim() || "", salaire: parseInt(m[2]?.replace(/[^\d]/g, "") || "0"), description: m[3]?.trim() || "" })).filter(o => o.salaire > 0);
+
   const formMatches = [...text.matchAll(/\d+\.\s+([^\|]+)\|\s*([^\|]+)\|\s*([^\|]+)\|\s*([^\n]+)/gi)];
   const formations: Formation[] = formMatches.map(m => ({ nom: m[1]?.trim() || "", type: m[2]?.trim() || "Formation", plateforme: m[3]?.trim() || "", duree: m[4]?.trim() || "" }));
+
   const certMatches = [...text.matchAll(/CERTIFICATIONS[\s\S]*?\n\d+\.\s+([^\|]+)\|\s*([^\n]+)/gi)];
   const certifications: Certification[] = certMatches.map(m => ({ nom: m[1]?.trim() || "", organisme: m[2]?.trim() || "" }));
+
   const objectifMatch = text.match(/OBJECTIF:\s*([^\n]+)/i);
   const scenarioMatch = text.match(/SCENARIO:\s*(\d)/i);
+  const scoreCibleMatch = text.match(/SCORE_CIBLE:\s*(\d+)/i);
   const messageMatch = text.match(/MESSAGE_OBJECTIF:\s*([^\n]+)/i);
   const delaiMatch = text.match(/DELAI_OBJECTIF:\s*([^\n]+)/i);
+
+  const scenarioNum = parseInt(scenarioMatch?.[1] || "3");
+
+  // Score cible : SCORE_CIBLE direct > fallback SCENARIO > fallback salaires
+  let scoreCiblePct: number;
+  if (scoreCibleMatch) {
+    scoreCiblePct = Math.min(100, Math.max(5, parseInt(scoreCibleMatch[1])));
+  } else if (scenarioNum === 1) {
+    scoreCiblePct = 65;
+  } else if (scenarioNum === 2) {
+    scoreCiblePct = 40;
+  } else {
+    scoreCiblePct = 20;
+  }
+
+  const verdict = scenarioNum === 1 ? "atteignable" : scenarioNum === 2 ? "ambitieux" : "difficile";
+
   if (forces.length === 0 && yelmaGPS.length === 0) return null;
+
   return {
     force1: forces[0]?.nom, force1_desc: forces[0]?.desc,
     force2: forces[1]?.nom, force2_desc: forces[1]?.desc,
     force3: forces[2]?.nom, force3_desc: forces[2]?.desc,
     salaire_min: yelmaGPS[0] ? Math.round(yelmaGPS[0].salaire * 0.85) : 40000,
-    salaire_max: yelmaGPS[0]?.salaire || 60000,
+    salaire_max: yelmaGPS[4]?.salaire || yelmaGPS[3]?.salaire || yelmaGPS[0]?.salaire || 60000,
     objectif_carriere: objectifMatch?.[1]?.trim(),
-    scenario_objectif: parseInt(scenarioMatch?.[1] || "3"),
+    scenario_objectif: scenarioNum,
+    score_cible_pct: scoreCiblePct,
+    verdict,
     message_objectif: messageMatch?.[1]?.trim(),
     delai_objectif: delaiMatch?.[1]?.trim(),
-    opportunites, gps_an1: yelmaGPS[0], gps_an2: yelmaGPS[1],
+    opportunites,
+    gps_an1: yelmaGPS[0], gps_an2: yelmaGPS[1],
     gps_an3: yelmaGPS[2], gps_an4: yelmaGPS[3], gps_an5: yelmaGPS[4],
     formations, certifications,
   };
@@ -176,6 +232,19 @@ export default function RapportGPS({
   roleActuel?: string;
   email?: string;
 }) {
+  if (!data) return null;
+  
+  console.log('SCORE CHECK:', {
+  score_propulse: data.score_propulse,
+  score_cible_pct: data.score_cible_pct,
+  scenario_objectif: data.scenario_objectif,
+});
+
+  const salaire_min: number = (data.salaire_min as number) ?? 0;
+  const salaire_max: number = (data.salaire_max as number) ?? 0;
+  const salaire_median: number = (data as any).salaire_median ?? 0;
+  const [activeTab, setActiveTab] = useState('rapport');
+
   const chartRef = useRef<HTMLCanvasElement>(null);
   const chartTendanceRef = useRef<HTMLCanvasElement>(null);
   const [activeSection, setActiveSection] = useState<string>('resume');
@@ -188,11 +257,33 @@ export default function RapportGPS({
   const [tendanceData, setTendanceData] = useState<TendanceData | null>(null);
   const [messageGPS, setMessageGPS] = useState<string>('');
 
+  // ── États parcours ───────────────────────────────────────────
+  const [cvMode, setCvMode] = useState<'ips' | 'coordination' | 'formation'>('ips');
+  const [cvGenerating, setCvGenerating] = useState(false);
+  const [cvContent, setCvContent] = useState<string | null>(null);
+  const [lettreMode, setLettreMode] = useState<'offre' | 'generale'>('offre');
+  const [lettreGenerating, setLettreGenerating] = useState(false);
+  const [lettreContent, setLettreContent] = useState<string | null>(null);
+  const [lettreOffre, setLettreOffre] = useState('');
+  const [profilLinks, setProfilLinks] = useState<ProfilLink[]>([]);
+  const [linkCopied, setLinkCopied] = useState<string | null>(null);
+  const [linkCreating, setLinkCreating] = useState(false);
+  const [candidaturesLocales, setCandidaturesLocales] = useState<CandidatureLocal[]>([]);
+
   const isPropulse = plan === "propulse";
   const salaireMin = Number(data.salaire_min) || 40000;
   const salaireMax = Number(data.salaire_max) || 60000;
   const scorePropulse = Number(data.score_propulse) || 0;
-  const scoreCible = Number(data.score_cible_pct) || 0;
+
+  // ── Score cible : données DB en priorité, sinon parseRapport ─
+  const scoreCible = (() => {
+  if (data.score_cible_pct && data.score_cible_pct > 0) return data.score_cible_pct;
+  const scenario = data.scenario_objectif ?? 3;
+  if (scenario === 1) return 65;
+  if (scenario === 2) return 40;
+  return 20;
+})();
+
   const verdict = String(data.verdict || 'atteignable');
   const messageAnalyse = String(data.message_analyse || '');
   const prenom = String(data.prenom || '');
@@ -208,6 +299,8 @@ export default function RapportGPS({
   const BG = '#F5F2EC';
   const BORDER = '#EDEAE3';
   const CARD = '#FFFFFF';
+
+  // ── Fonctions IA ─────────────────────────────────────────────
   const chargerMessageGPS = async () => {
     if (messageGPS) return;
     try {
@@ -215,29 +308,23 @@ export default function RapportGPS({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          history: [
-            {
-              role: 'user',
-              content: `Tu es le conseiller YELMA. Écris UN SEUL paragraphe court (2-3 phrases max) personnalisé pour ${prenom} basé sur ces données GPS réelles:
+          history: [{
+            role: 'user',
+            content: `Tu es le conseiller YELMA. Écris UN SEUL paragraphe court (2-3 phrases max) personnalisé pour ${prenom}:
 - Poste actuel: ${roleAffiche} à ${salaireMin.toLocaleString()}$/an
 - Poste cible: ${String(data.objectif_carriere)}
-- Progression: An1=${data.gps_an1?.salaire?.toLocaleString()}$ → An3=${data.gps_an3?.salaire?.toLocaleString()}$ → An5=${salaireMax.toLocaleString()}$
-- Verdict: ${verdict}
-- Ville: ${villeAffichee}
-
-Le message doit mentionner QUAND elle devient réellement ${String(data.objectif_carriere)} selon les données (ex: An 3), et que c'est le bon moment pour le marché. Ton bienveillant, direct, motivant. Commence par "En ${new Date().getFullYear() + 5},"`,
-            }
-          ],
-          lang: 'fr',
-          email,
+- Progression: An1=${data.gps_an1?.salaire?.toLocaleString()}$ → An5=${salaireMax.toLocaleString()}$
+- Verdict: ${verdict} · Ville: ${villeAffichee}
+Commence par "En ${new Date().getFullYear() + 5},"`,
+          }],
+          lang: 'fr', email,
         }),
       });
       const d = await res.json();
       if (d.reply) setMessageGPS(d.reply);
-    } catch (e) {
-      console.error('Message GPS error:', e);
-    }
+    } catch (e) { console.error('Message GPS error:', e); }
   };
+
   const chargerMarche = async () => {
     if (marcheScore !== null) return;
     setMarcheLoading(true);
@@ -245,23 +332,12 @@ Le message doit mentionner QUAND elle devient réellement ${String(data.objectif
       const res = await fetch('/api/marche-score', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email,
-          objectif: data.objectif_carriere,
-          ville: villeAffichee,
-          domaine: String(data.domaine_actuel || ''),
-        }),
+        body: JSON.stringify({ email, objectif: data.objectif_carriere, ville: villeAffichee, domaine: String(data.domaine_actuel || '') }),
       });
       const d = await res.json();
-      if (d.marche) {
-        setMarcheScore(d.marche.score_marche);
-        setMarcheDetails(d.marche);
-      }
-    } catch (e) {
-      console.error('Marché error:', e);
-    } finally {
-      setMarcheLoading(false);
-    }
+      if (d.marche) { setMarcheScore(d.marche.score_marche); setMarcheDetails(d.marche); }
+    } catch (e) { console.error('Marché error:', e); }
+    finally { setMarcheLoading(false); }
   };
 
   const chargerTendance = async () => {
@@ -270,18 +346,11 @@ Le message doit mentionner QUAND elle devient réellement ${String(data.objectif
       const res = await fetch('/api/market/trend', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          poste_actuel: roleAffiche,
-          poste_cible: String(data.objectif_carriere || ''),
-          ville: villeAffichee,
-          annee_arrivee: 5,
-        }),
+        body: JSON.stringify({ poste_actuel: roleAffiche, poste_cible: String(data.objectif_carriere || ''), ville: villeAffichee, annee_arrivee: 5 }),
       });
       const d = await res.json();
       if (d.success) setTendanceData(d);
-    } catch (e) {
-      console.error('Tendance error:', e);
-    }
+    } catch (e) { console.error('Tendance error:', e); }
   };
 
   const envoyerConseiller = async (messageOverride?: string) => {
@@ -297,7 +366,7 @@ Le message doit mentionner QUAND elle devient réellement ${String(data.objectif
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           history: [
-            { role: 'system', content: `Tu es le Conseiller YELMA. Le candidat s'appelle ${prenom}. Son rôle : ${roleAffiche}. Son objectif : ${data.objectif_carriere}. Son score PROPULSE : ${scorePropulse}. Réponds de façon courte, bienveillante et actionnable.` },
+            { role: 'system', content: `Tu es le Conseiller YELMA. Candidat: ${prenom}. Rôle: ${roleAffiche}. Objectif: ${data.objectif_carriere}. Score PROPULSE: ${scorePropulse}. Réponds de façon courte et actionnable.` },
             ...newMessages.map(m => ({ role: m.role === 'bot' ? 'assistant' : 'user', content: m.text })),
           ],
           lang: 'fr', email,
@@ -307,11 +376,89 @@ Le message doit mentionner QUAND elle devient réellement ${String(data.objectif
       setConseillerMessages([...newMessages, { role: 'bot', text: d.reply || "Je suis là pour t'aider!" }]);
     } catch {
       setConseillerMessages([...newMessages, { role: 'bot', text: "Une erreur est survenue. Réessaie!" }]);
-    } finally {
-      setConseillerLoading(false);
-    }
+    } finally { setConseillerLoading(false); }
   };
 
+  // ── Fonctions parcours ───────────────────────────────────────
+  const generateCV = async () => {
+    setCvGenerating(true);
+    setCvContent(null);
+    try {
+      const modesLabel = { ips: String(data.objectif_carriere || 'Poste cible'), coordination: 'Coordination', formation: 'Formation' };
+      const res = await fetch('/api/cv/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          candidat: {
+            prenom, nom, titre: roleAffiche, ville: villeAffichee,
+            scorePropulse, scoreMatch: scoreCible,
+            competences: [
+              { nom: data.force1, pct: 92, rarete: 'rare' },
+              { nom: data.force2, pct: 85, rarete: 'élevée' },
+              { nom: data.force3, pct: 78, rarete: 'élevée' },
+            ].filter(c => c.nom),
+            offres: marcheDetails?.nb_offres_estimees || 0,
+            cible: String(data.objectif_carriere || ''),
+          },
+          mode: cvMode,
+          poste: modesLabel[cvMode],
+        }),
+      });
+      const d = await res.json();
+      setCvContent(d.cv || 'Erreur de génération');
+    } catch (e) { console.error(e); }
+    finally { setCvGenerating(false); }
+  };
+
+  const generateLettre = async () => {
+    setLettreGenerating(true);
+    setLettreContent(null);
+    try {
+      const res = await fetch('/api/lettre/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          candidat: {
+            prenom, nom, titre: roleAffiche, ville: villeAffichee,
+            competences: [{ nom: data.force1 }, { nom: data.force2 }, { nom: data.force3 }].filter(c => c.nom),
+            cible: String(data.objectif_carriere || ''),
+          },
+          offre: lettreMode === 'offre' ? lettreOffre : null,
+          mode: lettreMode,
+        }),
+      });
+      const d = await res.json();
+      setLettreContent(d.lettre || 'Erreur de génération');
+    } catch (e) { console.error(e); }
+    finally { setLettreGenerating(false); }
+  };
+
+  const createProfilLink = async () => {
+    setLinkCreating(true);
+    try {
+      const res = await fetch('/api/profil/create-link', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ candidatId: email }),
+      });
+      const d = await res.json();
+      if (d.link) setProfilLinks(prev => [d.link, ...prev]);
+    } catch (e) { console.error(e); }
+    finally { setLinkCreating(false); }
+  };
+
+  const copyLink = (url: string, id: string) => {
+    navigator.clipboard.writeText(url);
+    setLinkCopied(id);
+    setTimeout(() => setLinkCopied(null), 2000);
+  };
+
+  const revokeLink = async (id: string) => {
+    await fetch(`/api/profil/revoke-link/${id}`, { method: 'DELETE' });
+    setProfilLinks(prev => prev.map(l => l.id === id ? { ...l, active: false } : l));
+  };
+
+  // ── useEffects ───────────────────────────────────────────────
   useEffect(() => {
     if (!chartRef.current || activeSection !== 'gps') return;
     const loadChart = async () => {
@@ -322,8 +469,6 @@ Le message doit mentionner QUAND elle devient réellement ${String(data.objectif
       const raw = [salaireMin, Number(data.gps_an1?.salaire) || 0, Number(data.gps_an2?.salaire) || 0, Number(data.gps_an3?.salaire) || 0, Number(data.gps_an4?.salaire) || 0, Number(data.gps_an5?.salaire) || 0];
       const yelma = ensureCroissant(raw);
       const stepLabels = ['Auj.', 'An 1', 'An 2', 'An 3', 'An 4', 'An 5'];
-
-      // Plugin cercles alignés sous le graphique
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const circlesPlugin = {
         id: 'circlesPlugin',
@@ -335,25 +480,17 @@ Le message doit mentionner QUAND elle devient réellement ${String(data.objectif
             const x = xScale.getPixelForValue(i);
             const y = yBottom + 22;
             const isOrange = i === 0 || i === stepLabels.length - 1;
-            ctx.beginPath();
-            ctx.arc(x, y, 15, 0, 2 * Math.PI);
-            ctx.fillStyle = isOrange ? '#E05C3A' : 'white';
-            ctx.fill();
-            ctx.strokeStyle = isOrange ? '#E05C3A' : '#ddd';
-            ctx.lineWidth = 2;
-            ctx.stroke();
+            ctx.beginPath(); ctx.arc(x, y, 15, 0, 2 * Math.PI);
+            ctx.fillStyle = isOrange ? '#E05C3A' : 'white'; ctx.fill();
+            ctx.strokeStyle = isOrange ? '#E05C3A' : '#ddd'; ctx.lineWidth = 2; ctx.stroke();
             ctx.fillStyle = isOrange ? 'white' : '#888';
-            ctx.font = '700 8px monospace';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
+            ctx.font = '700 8px monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
             ctx.fillText(label, x, y);
           });
         }
       };
-
       new Chart(chartRef.current!, {
-        type: 'line',
-        plugins: [circlesPlugin],
+        type: 'line', plugins: [circlesPlugin],
         data: {
           labels: stepLabels,
           datasets: [{ label: 'Trajectoire YELMA', data: yelma, borderColor: '#E05C3A', backgroundColor: 'rgba(224,92,58,0.06)', borderWidth: 2, pointBackgroundColor: yelma.map((_, i) => i === yelma.length - 1 ? '#22A06B' : '#E05C3A'), pointRadius: 5, fill: true, tension: 0.4 }],
@@ -364,7 +501,7 @@ Le message doit mentionner QUAND elle devient réellement ${String(data.objectif
           plugins: { legend: { display: false }, tooltip: { callbacks: { label: (ctx) => '$' + ((ctx.parsed.y ?? 0)).toLocaleString() } } },
           scales: {
             y: { min: 0, ticks: { callback: (v) => '$' + Math.round(Number(v) / 1000) + 'k', font: { size: 9 } }, grid: { color: 'rgba(0,0,0,0.04)' } },
-            x: { ticks: { display: false }, grid: { display: false }, border: { display: false }, offset: false}
+            x: { ticks: { display: false }, grid: { display: false }, border: { display: false }, offset: false },
           },
         },
       });
@@ -385,37 +522,14 @@ Le message doit mentionner QUAND elle devient réellement ${String(data.objectif
         data: {
           labels: tendanceData.annees.map(String),
           datasets: [
-            {
-              label: tendanceData.poste_actuel,
-              data: tendanceData.courbe_actuel,
-              borderColor: GREEN,
-              backgroundColor: 'rgba(34,160,107,0.06)',
-              borderWidth: 2,
-              pointBackgroundColor: GREEN,
-              pointRadius: 4,
-              fill: true,
-              tension: 0.4,
-            },
-            {
-              label: tendanceData.poste_cible,
-              data: tendanceData.courbe_cible,
-              borderColor: ORANGE,
-              backgroundColor: 'rgba(224,92,58,0.06)',
-              borderWidth: 2,
-              pointBackgroundColor: tendanceData.courbe_cible.map((_, i) => i === indexArrivee ? '#FF0000' : ORANGE),
-              pointRadius: tendanceData.courbe_cible.map((_, i) => i === indexArrivee ? 8 : 4),
-              fill: true,
-              tension: 0.4,
-            },
+            { label: tendanceData.poste_actuel, data: tendanceData.courbe_actuel, borderColor: GREEN, backgroundColor: 'rgba(34,160,107,0.06)', borderWidth: 2, pointBackgroundColor: GREEN, pointRadius: 4, fill: true, tension: 0.4 },
+            { label: tendanceData.poste_cible, data: tendanceData.courbe_cible, borderColor: ORANGE, backgroundColor: 'rgba(224,92,58,0.06)', borderWidth: 2, pointBackgroundColor: tendanceData.courbe_cible.map((_, i) => i === indexArrivee ? '#FF0000' : ORANGE), pointRadius: tendanceData.courbe_cible.map((_, i) => i === indexArrivee ? 8 : 4), fill: true, tension: 0.4 },
           ],
         },
         options: {
           responsive: true, maintainAspectRatio: false,
           plugins: { legend: { display: false }, tooltip: { callbacks: { label: (ctx) => `${ctx.dataset.label || ''}: ${ctx.parsed.y}` } } },
-          scales: {
-            y: { min: 0, max: 100, ticks: { font: { size: 9 } }, grid: { color: 'rgba(0,0,0,0.04)' } },
-            x: { ticks: { font: { size: 9 } }, grid: { display: false } },
-          },
+          scales: { y: { min: 0, max: 100, ticks: { font: { size: 9 } }, grid: { color: 'rgba(0,0,0,0.04)' } }, x: { ticks: { font: { size: 9 } }, grid: { display: false } } },
         },
       });
     };
@@ -423,14 +537,19 @@ Le message doit mentionner QUAND elle devient réellement ${String(data.objectif
   }, [tendanceData, GREEN, ORANGE]);
 
   useEffect(() => {
-    if (activeSection === 'marche') {
-      chargerMarche();
-      chargerTendance();
-    }
-    if (activeSection === 'gps') {
-      chargerMessageGPS();
-    }
+    if (activeSection === 'marche') { chargerMarche(); chargerTendance(); }
+    if (activeSection === 'gps') { chargerMessageGPS(); }
   }, [activeSection]);
+
+  // Initialiser candidatures depuis les données
+  useEffect(() => {
+    if (data.objectif_carriere && candidaturesLocales.length === 0) {
+      setCandidaturesLocales([{
+        id: 'c1', employeur: 'Candidature récente', poste: String(data.objectif_carriere),
+        statut: 'en_attente', match: scoreCible, date: new Date().toLocaleDateString('fr-CA'),
+      }]);
+    }
+  }, [data.objectif_carriere]);
 
   const sections = [
     { id: 'resume', label: 'RÉSUMÉ' },
@@ -462,9 +581,7 @@ Le message doit mentionner QUAND elle devient réellement ${String(data.objectif
           </div>
           {scorePropulse > 0 && (
             <div style={{ textAlign: 'right' }}>
-              <div style={{ fontSize: '52px', fontWeight: 700, color: propulseColor, lineHeight: 1, fontFamily: 'Georgia, serif' }}>
-                {scorePropulse}
-              </div>
+              <div style={{ fontSize: '52px', fontWeight: 700, color: propulseColor, lineHeight: 1, fontFamily: 'Georgia, serif' }}>{scorePropulse}</div>
               <div style={{ fontSize: '9px', letterSpacing: '1.5px', color: '#888', fontFamily: 'monospace' }}>SCORE PROPULSE</div>
             </div>
           )}
@@ -531,8 +648,6 @@ Le message doit mentionner QUAND elle devient réellement ${String(data.objectif
                 </div>
               </div>
             </div>
-
-            {/* Grille 6 tuiles */}
             <div>
               <div style={{ fontSize: '9px', letterSpacing: '2px', color: '#888', marginBottom: '12px', fontFamily: 'monospace', display: 'flex', alignItems: 'center', gap: '8px' }}>
                 TON TABLEAU DE BORD
@@ -551,9 +666,7 @@ Le message doit mentionner QUAND elle devient réellement ${String(data.objectif
                   </div>
                   <div style={{ height: '3px', background: '#E05C3A', borderRadius: '2px', width: '40%' }} />
                   <div style={{ fontSize: '11px', color: '#888', lineHeight: 1.5, fontStyle: 'italic' }}>Tu as des questions ? Je suis là.</div>
-                  <button style={{ background: ORANGE, color: 'white', border: 'none', borderRadius: '8px', padding: '8px 12px', fontSize: '11px', fontWeight: 600, cursor: 'pointer' }}>
-                    Parler à YELMA →
-                  </button>
+                  <button style={{ background: ORANGE, color: 'white', border: 'none', borderRadius: '8px', padding: '8px 12px', fontSize: '11px', fontWeight: 600, cursor: 'pointer' }}>Parler à YELMA →</button>
                 </div>
               </div>
             </div>
@@ -569,11 +682,8 @@ Le message doit mentionner QUAND elle devient réellement ${String(data.objectif
             </div>
             {(data.force1 || data.force2 || data.force3) && (
               <div style={{ fontSize: '18px', color: DARK, lineHeight: 1.4 }}>
-                {prenom && <span>{prenom}, </span>}
-                tu possèdes{' '}
-                <span style={{ color: ORANGE, fontStyle: 'italic' }}>
-                  {[data.force1, data.force2, data.force3].filter(Boolean).length} compétences rares
-                </span> que le marché recherche activement.
+                {prenom && <span>{prenom}, </span>}tu possèdes{' '}
+                <span style={{ color: ORANGE, fontStyle: 'italic' }}>{[data.force1, data.force2, data.force3].filter(Boolean).length} compétences rares</span> que le marché recherche activement.
               </div>
             )}
             {[
@@ -593,14 +703,8 @@ Le message doit mentionner QUAND elle devient réellement ${String(data.objectif
                   <div style={{ background: f.badgeBg, borderRadius: '20px', padding: '3px 10px', fontSize: '9px', color: f.badgeColor, fontWeight: 600, fontFamily: 'monospace' }}>{f.badge}</div>
                 </div>
                 <div style={{ display: 'flex', gap: '16px', alignItems: 'center', marginTop: '8px' }}>
-                  <div>
-                    <div style={{ fontSize: '8px', letterSpacing: '1px', color: '#888', fontFamily: 'monospace' }}>RARETÉ</div>
-                    <div style={{ fontSize: '11px', color: f.rareteColor, fontWeight: 600 }}>{f.rarete}</div>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: '8px', letterSpacing: '1px', color: '#888', fontFamily: 'monospace' }}>VALEUR MARCHÉ</div>
-                    <div style={{ fontSize: '11px', color: DARK, fontWeight: 600 }}>{f.valeur}</div>
-                  </div>
+                  <div><div style={{ fontSize: '8px', letterSpacing: '1px', color: '#888', fontFamily: 'monospace' }}>RARETÉ</div><div style={{ fontSize: '11px', color: f.rareteColor, fontWeight: 600 }}>{f.rarete}</div></div>
+                  <div><div style={{ fontSize: '8px', letterSpacing: '1px', color: '#888', fontFamily: 'monospace' }}>VALEUR MARCHÉ</div><div style={{ fontSize: '11px', color: DARK, fontWeight: 600 }}>{f.valeur}</div></div>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: '8px', letterSpacing: '1px', color: '#888', fontFamily: 'monospace', marginBottom: '4px' }}>Niveau</div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -616,12 +720,8 @@ Le message doit mentionner QUAND elle devient réellement ${String(data.objectif
             {(data.axe1 || data.axe2) && (
               <>
                 <div style={{ fontSize: '9px', letterSpacing: '2px', color: '#888', fontFamily: 'monospace', display: 'flex', alignItems: 'center', gap: '8px', marginTop: '8px' }}>
-                  AXES DE DÉVELOPPEMENT · CE QUI TE RETIENT
+                  AXES DE DÉVELOPPEMENT
                   <div style={{ flex: 1, height: '1px', background: BORDER }} />
-                </div>
-                <div style={{ fontSize: '16px', color: DARK }}>
-                  {[data.axe1, data.axe2].filter(Boolean).length} lacunes précises bloquent{' '}
-                  <span style={{ color: GOLD, fontStyle: 'italic' }}>ta progression</span> vers la cible.
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                   {[
@@ -632,12 +732,6 @@ Le message doit mentionner QUAND elle devient réellement ${String(data.objectif
                       <div style={{ fontSize: '22px', color: a.color, fontStyle: 'italic', marginBottom: '8px' }}>{a.num}</div>
                       <div style={{ fontSize: '13px', fontWeight: 600, color: DARK, marginBottom: '6px' }}>{String(a.axe)}</div>
                       <div style={{ fontSize: '11px', color: '#555', lineHeight: 1.5, marginBottom: '10px' }}>{String(a.desc || '')}</div>
-                      <div style={{ background: '#F5F2EC', borderRadius: '8px', padding: '8px 10px', marginBottom: '10px' }}>
-                        <div style={{ fontSize: '8px', letterSpacing: '1px', color: '#888', fontFamily: 'monospace', marginBottom: '3px' }}>POURQUOI C&apos;EST CRITIQUE</div>
-                        <div style={{ fontSize: '11px', color: DARK, lineHeight: 1.5 }}>
-                          {i === 0 ? `Exigé pour progresser vers ${String(data.objectif_carriere || 'ton objectif')}.` : `Demandé dans la majorité des offres compatibles avec ton profil.`}
-                        </div>
-                      </div>
                       <button onClick={() => setActiveSection('formations')} style={{ fontSize: '11px', color: a.color, background: 'none', border: 'none', cursor: 'pointer', fontWeight: 500, padding: 0 }}>Voir les formations →</button>
                     </div>
                   ))}
@@ -654,13 +748,7 @@ Le message doit mentionner QUAND elle devient réellement ${String(data.objectif
               MON MARCHÉ · {villeAffichee}
               <div style={{ flex: 1, height: '1px', background: BORDER }} />
             </div>
-
-            {marcheLoading && (
-              <div style={{ background: CARD, borderRadius: '12px', padding: '16px', border: `1px solid ${BORDER}`, textAlign: 'center', color: '#888', fontSize: '12px' }}>
-                ⏳ Analyse du marché en cours...
-              </div>
-            )}
-
+            {marcheLoading && <div style={{ background: CARD, borderRadius: '12px', padding: '16px', border: `1px solid ${BORDER}`, textAlign: 'center', color: '#888', fontSize: '12px' }}>⏳ Analyse du marché en cours...</div>}
             {marcheScore !== null && marcheDetails && (
               <div style={{ background: CARD, borderRadius: '12px', padding: '16px', border: `1px solid ${BORDER}` }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
@@ -675,12 +763,7 @@ Le message doit mentionner QUAND elle devient réellement ${String(data.objectif
                 </div>
                 <div style={{ fontSize: '11px', color: '#555', lineHeight: 1.6, marginBottom: '12px', fontStyle: 'italic' }}>{marcheDetails.explication}</div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                  {[
-                    { label: 'Demande offres', val: marcheDetails.D || 0 },
-                    { label: 'Attractivité salariale', val: marcheDetails.S || 0 },
-                    { label: 'Tension métier', val: marcheDetails.T || 0 },
-                    { label: 'Croissance secteur', val: marcheDetails.G || 0 },
-                  ].map((item, i) => (
+                  {[{ label: 'Demande offres', val: marcheDetails.D || 0 }, { label: 'Attractivité salariale', val: marcheDetails.S || 0 }, { label: 'Tension métier', val: marcheDetails.T || 0 }, { label: 'Croissance secteur', val: marcheDetails.G || 0 }].map((item, i) => (
                     <div key={i} style={{ background: '#F5F2EC', borderRadius: '8px', padding: '8px 10px' }}>
                       <div style={{ fontSize: '8px', color: '#888', fontFamily: 'monospace', marginBottom: '3px' }}>{item.label.toUpperCase()}</div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -694,7 +777,6 @@ Le message doit mentionner QUAND elle devient réellement ${String(data.objectif
                 </div>
               </div>
             )}
-
             <div style={{ background: CARD, borderRadius: '12px', padding: '16px', border: `1px solid ${BORDER}` }}>
               <div style={{ fontSize: '9px', letterSpacing: '1px', color: '#888', fontFamily: 'monospace', marginBottom: '4px' }}>💰 TA VALEUR SUR LE MARCHÉ · {roleAffiche} · {villeAffichee}</div>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
@@ -705,39 +787,21 @@ Le message doit mentionner QUAND elle devient réellement ${String(data.objectif
               </div>
               <div style={{ fontSize: '9px', color: '#aaa', marginTop: '3px' }}>Basé sur les données du marché en temps réel</div>
             </div>
-
             <div style={{ background: CARD, borderRadius: '12px', border: `1px solid ${BORDER}`, padding: '20px' }}>
               <div style={{ display: 'flex', gap: '20px', alignItems: 'flex-start' }}>
                 <div style={{ textAlign: 'center', flexShrink: 0 }}>
-                  <div style={{ fontSize: '48px', fontWeight: 700, color: ORANGE, lineHeight: 1 }}>
-                    {marcheDetails?.nb_offres_estimees || 0}
-                  </div>
+                  <div style={{ fontSize: '48px', fontWeight: 700, color: ORANGE, lineHeight: 1 }}>{marcheDetails?.nb_offres_estimees || 0}</div>
                   <div style={{ fontSize: '10px', color: '#888', lineHeight: 1.4 }}>offres actives<br />à {villeAffichee}</div>
                 </div>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: '15px', fontWeight: 600, color: DARK, marginBottom: '6px' }}>Le marché te cherche — maintenant.</div>
-                  <div style={{ fontSize: '11px', color: '#666', lineHeight: 1.6, marginBottom: '12px' }}>
-                    {marcheDetails?.nb_offres_estimees || 0} offres correspondent à ton profil aujourd&apos;hui à {villeAffichee}.
-                  </div>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '14px' }}>
-                    {((data.opportunites as Opportunite[]) || []).map((o, i) => {
-                      const colors = [ORANGE, GREEN, GOLD];
-                      return (
-                        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                          <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: colors[i % 3] }} />
-                          <span style={{ fontSize: '11px', color: '#555' }}>{o.titre} · {Math.round((marcheDetails?.nb_offres_estimees || 30) * [0.4, 0.25, 0.35][i])} offres</span>
-                        </div>
-                      );
-                    })}
-                  </div>
+                  <div style={{ fontSize: '11px', color: '#666', lineHeight: 1.6, marginBottom: '12px' }}>{marcheDetails?.nb_offres_estimees || 0} offres correspondent à ton profil à {villeAffichee}.</div>
                   <a href={`/mon-espace?tab=offres&email=${email || ''}`} style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', background: DARK, color: 'white', borderRadius: '8px', padding: '10px 18px', fontSize: '12px', fontWeight: 600, textDecoration: 'none' }}>
                     Voir mes {marcheDetails?.nb_offres_estimees || 0} offres →
                   </a>
                 </div>
               </div>
             </div>
-
-            {/* Graphique tendance 5 ans */}
             {tendanceData && (
               <div style={{ background: CARD, borderRadius: '12px', border: `1px solid ${BORDER}`, padding: '20px' }}>
                 <div style={{ fontSize: '9px', letterSpacing: '2px', color: '#888', fontFamily: 'monospace', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -745,54 +809,26 @@ Le message doit mentionner QUAND elle devient réellement ${String(data.objectif
                   <div style={{ flex: 1, height: '1px', background: BORDER }} />
                 </div>
                 <div style={{ fontSize: '12px', color: DARK, lineHeight: 1.6, marginBottom: '16px' }}>
-                  <strong>{prenom}</strong>, tu évolues dans <strong>{tendanceData.poste_actuel}</strong> et tu vises <strong>{tendanceData.poste_cible}</strong>. Ces deux domaines sont dans le même secteur — mais leur trajectoire de croissance est très différente.
+                  <strong>{prenom}</strong>, tu évolues dans <strong>{tendanceData.poste_actuel}</strong> et tu vises <strong>{tendanceData.poste_cible}</strong>. Trajectoires très différentes.
                 </div>
                 <div style={{ display: 'flex', gap: '16px', marginBottom: '12px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <div style={{ width: '20px', height: '2px', background: GREEN }} />
-                    <span style={{ fontSize: '10px', color: '#555' }}>{tendanceData.poste_actuel} (actuel)</span>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <div style={{ width: '20px', height: '2px', background: ORANGE }} />
-                    <span style={{ fontSize: '10px', color: '#555' }}>{tendanceData.poste_cible} (cible)</span>
-                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><div style={{ width: '20px', height: '2px', background: GREEN }} /><span style={{ fontSize: '10px', color: '#555' }}>{tendanceData.poste_actuel} (actuel)</span></div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><div style={{ width: '20px', height: '2px', background: ORANGE }} /><span style={{ fontSize: '10px', color: '#555' }}>{tendanceData.poste_cible} (cible)</span></div>
                 </div>
                 <div style={{ position: 'relative', height: '200px', marginBottom: '16px' }}>
                   <canvas ref={chartTendanceRef} />
-                  {/* Trait pointillé "X arrive ici" */}
-                  <div style={{
-                    position: 'absolute',
-                    left: `${(tendanceData.annees.indexOf(tendanceData.annee_arrivee) / (tendanceData.annees.length - 1)) * 85 + 5}%`,
-                    top: '0', bottom: '20px',
-                    width: '1px',
-                    borderLeft: `1.5px dashed ${ORANGE}`,
-                    pointerEvents: 'none',
-                  }}>
-                    <div style={{ position: 'absolute', top: '8px', left: '4px', fontSize: '9px', color: ORANGE, whiteSpace: 'nowrap', fontFamily: 'monospace' }}>
-                      {prenom} arrive ici
-                    </div>
+                  <div style={{ position: 'absolute', left: `${(tendanceData.annees.indexOf(tendanceData.annee_arrivee) / (tendanceData.annees.length - 1)) * 85 + 5}%`, top: '0', bottom: '20px', width: '1px', borderLeft: `1.5px dashed ${ORANGE}`, pointerEvents: 'none' }}>
+                    <div style={{ position: 'absolute', top: '8px', left: '4px', fontSize: '9px', color: ORANGE, whiteSpace: 'nowrap', fontFamily: 'monospace' }}>{prenom} arrive ici</div>
                   </div>
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                   <div style={{ background: '#F5F2EC', borderRadius: '10px', padding: '12px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
-                      <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: GREEN }} />
-                      <span style={{ fontSize: '10px', fontWeight: 600, color: DARK }}>{tendanceData.poste_actuel}</span>
-                    </div>
-                    <div style={{ fontSize: '11px', color: '#555', lineHeight: 1.5 }}>
-                      Demande <strong>{tendanceData.tendance_actuel}</strong>.{' '}
-                      {tendanceData.nb_offres_actuel > 0 ? `${tendanceData.nb_offres_actuel} offres actives.` : 'Marché établi.'}
-                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}><div style={{ width: '8px', height: '8px', borderRadius: '50%', background: GREEN }} /><span style={{ fontSize: '10px', fontWeight: 600, color: DARK }}>{tendanceData.poste_actuel}</span></div>
+                    <div style={{ fontSize: '11px', color: '#555', lineHeight: 1.5 }}>Demande <strong>{tendanceData.tendance_actuel}</strong>. {tendanceData.nb_offres_actuel > 0 ? `${tendanceData.nb_offres_actuel} offres actives.` : 'Marché établi.'}</div>
                   </div>
                   <div style={{ background: '#FFF5F2', borderRadius: '10px', padding: '12px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
-                      <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: ORANGE }} />
-                      <span style={{ fontSize: '10px', fontWeight: 600, color: DARK }}>{tendanceData.poste_cible}</span>
-                    </div>
-                    <div style={{ fontSize: '11px', color: '#555', lineHeight: 1.5 }}>
-                      Demande <strong>{tendanceData.tendance_cible}</strong>.{' '}
-                      {tendanceData.nb_offres_cible > 0 ? `${tendanceData.nb_offres_cible} offres actives.` : 'Secteur en expansion.'}
-                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}><div style={{ width: '8px', height: '8px', borderRadius: '50%', background: ORANGE }} /><span style={{ fontSize: '10px', fontWeight: 600, color: DARK }}>{tendanceData.poste_cible}</span></div>
+                    <div style={{ fontSize: '11px', color: '#555', lineHeight: 1.5 }}>Demande <strong>{tendanceData.tendance_cible}</strong>. {tendanceData.nb_offres_cible > 0 ? `${tendanceData.nb_offres_cible} offres actives.` : 'Secteur en expansion.'}</div>
                   </div>
                 </div>
               </div>
@@ -803,8 +839,6 @@ Le message doit mentionner QUAND elle devient réellement ${String(data.objectif
         {/* ── GPS ── */}
         {activeSection === 'gps' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-
-            {/* Header */}
             <div>
               <div style={{ fontSize: '9px', letterSpacing: '2px', color: '#888', fontFamily: 'monospace', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
                 ÉVOLUTION SALARIALE · GPS DE CARRIÈRE 5 ANS
@@ -816,21 +850,13 @@ Le message doit mentionner QUAND elle devient réellement ${String(data.objectif
               </div>
               <div style={{ fontSize: '10px', color: '#888', marginTop: '4px' }}>Projection sur 5 ans · Données marché temps réel · {villeAffichee}</div>
             </div>
-
-            {/* Graphique avec cercles intégrés */}
             <div style={{ background: CARD, borderRadius: '12px', padding: '20px', border: `1px solid ${BORDER}` }}>
-              <div style={{ position: 'relative', width: '100%', height: '220px' }}>
-                <canvas ref={chartRef}></canvas>
-              </div>
-
-              {/* Titres/salaires/actions sous les cercles */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '4px', marginTop: '8px', paddingLeft: '0px', paddingRight: '0px' }}>
+              <div style={{ position: 'relative', width: '100%', height: '220px' }}><canvas ref={chartRef}></canvas></div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '4px', marginTop: '8px' }}>
                 {[
                   { gps: { titre: roleAffiche || 'Poste actuel', salaire: salaireMin, action: 'Point de départ' }, isMax: false },
-                  { gps: data.gps_an1, isMax: false },
-                  { gps: data.gps_an2, isMax: false },
-                  { gps: data.gps_an3, isMax: false },
-                  { gps: data.gps_an4, isMax: false },
+                  { gps: data.gps_an1, isMax: false }, { gps: data.gps_an2, isMax: false },
+                  { gps: data.gps_an3, isMax: false }, { gps: data.gps_an4, isMax: false },
                   { gps: data.gps_an5, isMax: true },
                 ].filter(e => e.gps && (e.gps as GPS).salaire).map((e, i) => {
                   const gps = e.gps as GPS;
@@ -844,37 +870,18 @@ Le message doit mentionner QUAND elle devient réellement ${String(data.objectif
                 })}
               </div>
             </div>
-
-            {/* Tableau prévision poste cible */}
             <div style={{ background: CARD, borderRadius: '12px', border: `1px solid ${BORDER}`, overflow: 'hidden' }}>
               <div style={{ padding: '16px 20px', borderBottom: `1px solid ${BORDER}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
-                  <div style={{ fontSize: '9px', letterSpacing: '2px', color: '#888', fontFamily: 'monospace', marginBottom: '4px' }}>
-                    PRÉVISION · {String(data.objectif_carriere || '').toUpperCase()} {new Date().getFullYear()}–{new Date().getFullYear() + 5}
-                  </div>
-                  <div style={{ fontSize: '14px', fontWeight: 500, color: DARK }}>
-                    Poste cible : <span style={{ color: ORANGE, fontStyle: 'italic' }}>{String(data.objectif_carriere || '')}</span>
-                  </div>
-                  <div style={{ marginTop: '6px' }}>
-                    <span style={{ background: '#FFF0EB', color: ORANGE, borderRadius: '20px', padding: '2px 10px', fontSize: '9px', fontFamily: 'monospace' }}>
-                      ⊙ Ta cible · {verdict === 'atteignable' ? 'Atteignable en 5 ans' : 'Objectif ambitieux'}
-                    </span>
-                  </div>
+                  <div style={{ fontSize: '9px', letterSpacing: '2px', color: '#888', fontFamily: 'monospace', marginBottom: '4px' }}>PRÉVISION · {String(data.objectif_carriere || '').toUpperCase()} {new Date().getFullYear()}–{new Date().getFullYear() + 5}</div>
+                  <div style={{ fontSize: '14px', fontWeight: 500, color: DARK }}>Poste cible : <span style={{ color: ORANGE, fontStyle: 'italic' }}>{String(data.objectif_carriere || '')}</span></div>
+                  <div style={{ marginTop: '6px' }}><span style={{ background: '#FFF0EB', color: ORANGE, borderRadius: '20px', padding: '2px 10px', fontSize: '9px', fontFamily: 'monospace' }}>⊙ Ta cible · {verdict === 'atteignable' ? 'Atteignable en 5 ans' : 'Objectif ambitieux'}</span></div>
                 </div>
-                <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: '9px', color: '#888', fontFamily: 'monospace' }}>Indice de tension</div>
-                  <div style={{ fontSize: '18px', fontWeight: 700, color: ORANGE }}>Élevé</div>
-                </div>
+                <div style={{ textAlign: 'right' }}><div style={{ fontSize: '9px', color: '#888', fontFamily: 'monospace' }}>Indice de tension</div><div style={{ fontSize: '18px', fontWeight: 700, color: ORANGE }}>Élevé</div></div>
               </div>
-
-              {/* En-tête tableau */}
               <div style={{ display: 'grid', gridTemplateColumns: '60px 1fr 140px 80px', padding: '8px 20px', background: '#FAFAF8', borderBottom: `1px solid ${BORDER}` }}>
-                {['ANNÉE', 'SALAIRE MÉDIAN', 'CROISSANCE', 'DEMANDE'].map((h, i) => (
-                  <div key={i} style={{ fontSize: '8px', letterSpacing: '1px', color: '#aaa', fontFamily: 'monospace' }}>{h}</div>
-                ))}
+                {['ANNÉE', 'SALAIRE MÉDIAN', 'CROISSANCE', 'DEMANDE'].map((h, i) => (<div key={i} style={{ fontSize: '8px', letterSpacing: '1px', color: '#aaa', fontFamily: 'monospace' }}>{h}</div>))}
               </div>
-
-              {/* Lignes */}
               {[
                 { an: new Date().getFullYear(), gps: { titre: roleAffiche, salaire: salaireMin, action: '' }, isTarget: false },
                 { an: new Date().getFullYear() + 1, gps: data.gps_an1, isTarget: false },
@@ -884,10 +891,7 @@ Le message doit mentionner QUAND elle devient réellement ${String(data.objectif
                 { an: new Date().getFullYear() + 5, gps: data.gps_an5, isTarget: true },
               ].filter(e => e.gps && (e.gps as GPS).salaire).map((e, i) => {
                 const gps = e.gps as GPS;
-                const prevSalaire = i === 0 ? null : (() => {
-                  const prev = [salaireMin, data.gps_an1?.salaire, data.gps_an2?.salaire, data.gps_an3?.salaire, data.gps_an4?.salaire][i - 1];
-                  return Number(prev) || salaireMin;
-                })();
+                const prevSalaire = i === 0 ? null : (() => { const prev = [salaireMin, data.gps_an1?.salaire, data.gps_an2?.salaire, data.gps_an3?.salaire, data.gps_an4?.salaire][i - 1]; return Number(prev) || salaireMin; })();
                 const croissance = prevSalaire ? Math.round(((gps.salaire - prevSalaire) / prevSalaire) * 100) : null;
                 const demande = Math.min(100, 55 + i * 7);
                 return (
@@ -895,28 +899,19 @@ Le message doit mentionner QUAND elle devient réellement ${String(data.objectif
                     <div style={{ fontSize: '12px', fontWeight: e.isTarget ? 700 : 400, color: e.isTarget ? ORANGE : '#888', fontFamily: 'monospace' }}>{e.an}</div>
                     <div style={{ fontSize: '13px', fontWeight: e.isTarget ? 700 : 500, color: e.isTarget ? ORANGE : DARK }}>{gps.salaire?.toLocaleString()} $</div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      {croissance !== null ? (
-                        <>
-                          <span style={{ fontSize: '10px', color: croissance > 0 ? GREEN : '#888', fontWeight: 600, minWidth: '36px' }}>{croissance > 0 ? `+${croissance}%` : '—'}</span>
-                          <div style={{ flex: 1, height: '4px', background: '#F0EDE6', borderRadius: '2px', overflow: 'hidden' }}>
-                            <div style={{ height: '100%', width: `${Math.min(100, Math.abs(croissance) * 3)}%`, background: e.isTarget ? ORANGE : GREEN, borderRadius: '2px' }} />
-                          </div>
-                        </>
-                      ) : <span style={{ fontSize: '10px', color: '#aaa' }}>—</span>}
+                      {croissance !== null ? (<><span style={{ fontSize: '10px', color: croissance > 0 ? GREEN : '#888', fontWeight: 600, minWidth: '36px' }}>{croissance > 0 ? `+${croissance}%` : '—'}</span><div style={{ flex: 1, height: '4px', background: '#F0EDE6', borderRadius: '2px', overflow: 'hidden' }}><div style={{ height: '100%', width: `${Math.min(100, Math.abs(croissance) * 3)}%`, background: e.isTarget ? ORANGE : GREEN, borderRadius: '2px' }} /></div></>) : <span style={{ fontSize: '10px', color: '#aaa' }}>—</span>}
                     </div>
                     <div style={{ fontSize: '12px', fontWeight: 500, color: e.isTarget ? ORANGE : '#555' }}>{demande}</div>
                   </div>
                 );
               })}
-
-              {/* Message final IA */}
               <div style={{ padding: '14px 20px', background: '#FAFAF8' }}>
                 <div style={{ fontSize: '11px', color: '#555', lineHeight: 1.7 }}>
-                 {messageGPS || `En ${new Date().getFullYear() + 5}, le salaire médian ${String(data.objectif_carriere || '')} à ${villeAffichee} est projeté à ${salaireMax.toLocaleString()} $ — et la demande atteindra son pic. ${prenom}, si tu suis ton GPS et atteins ce poste en an 5, tu arriveras exactement au bon moment sur le marché.`}
+                  {messageGPS || `En ${new Date().getFullYear() + 5}, le salaire médian ${String(data.objectif_carriere || '')} à ${villeAffichee} est projeté à `}
+                  {!messageGPS && <><strong style={{ color: ORANGE }}>{salaireMax.toLocaleString()} $</strong>. {prenom}, si tu suis ton GPS, tu arriveras exactement au bon moment sur le marché.</>}
                 </div>
               </div>
             </div>
-
           </div>
         )}
 
@@ -937,13 +932,13 @@ Le message doit mentionner QUAND elle devient réellement ${String(data.objectif
                     <div style={{ fontSize: '11px', color: '#888' }}>{f.plateforme} · {f.duree}</div>
                   </div>
                 </div>
-                <a href={`/mon-espace?tab=formations&email=${email || ''}`} style={{ fontSize: '11px', color: ORANGE, textDecoration: 'none', fontWeight: 500, whiteSpace: 'nowrap' }}>Détail →</a>
+                <a href={f.url || `/mon-espace?tab=formations&email=${email || ''}`} target={f.url ? '_blank' : '_self'} rel="noopener noreferrer" style={{ fontSize: '11px', color: ORANGE, textDecoration: 'none', fontWeight: 500, whiteSpace: 'nowrap' }}>Détail →</a>
               </div>
             ))}
             {((data.certifications as Certification[]) || []).length > 0 && (
               <>
                 <div style={{ fontSize: '9px', letterSpacing: '2px', color: '#888', fontFamily: 'monospace', display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
-                  CERTIFICATIONS ET ORDRES PROFESSIONNELS
+                  CERTIFICATIONS
                   <div style={{ flex: 1, height: '1px', background: BORDER }} />
                 </div>
                 {((data.certifications as Certification[]) || []).map((c, i) => (
@@ -952,7 +947,7 @@ Le message doit mentionner QUAND elle devient réellement ${String(data.objectif
                       <div style={{ fontSize: '13px', fontWeight: 500, color: DARK }}>{c.nom}</div>
                       <div style={{ fontSize: '11px', color: '#888' }}>{c.organisme}</div>
                     </div>
-                    <a href="#" style={{ fontSize: '11px', color: ORANGE, textDecoration: 'none', fontWeight: 500 }}>Détail →</a>
+                    <span style={{ fontSize: '11px', color: ORANGE, fontWeight: 500 }}>Détail →</span>
                   </div>
                 ))}
               </>
@@ -960,23 +955,200 @@ Le message doit mentionner QUAND elle devient réellement ${String(data.objectif
           </div>
         )}
 
-        {/* ── PARCOURS ── */}
+        {/* ── PARCOURS ENRICHI ── */}
         {activeSection === 'parcours' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <div style={{ fontSize: '9px', letterSpacing: '2px', color: '#888', fontFamily: 'monospace', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              MON PARCOURS
-              <div style={{ flex: 1, height: '1px', background: BORDER }} />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+
+            {/* Hero */}
+            <div style={{ background: BG, borderRadius: '12px', padding: '18px 20px', display: 'flex', alignItems: 'center', gap: '20px' }}>
+              <div style={{ flexShrink: 0, textAlign: 'center' }}>
+                <div style={{ fontSize: '48px', fontWeight: 700, color: ORANGE, lineHeight: 1, fontFamily: 'Georgia, serif' }}>{scorePropulse}</div>
+                <div style={{ fontSize: '9px', color: '#888', letterSpacing: '1.5px', fontFamily: 'monospace', marginTop: '2px' }}>PROPULSE</div>
+              </div>
+              <div style={{ width: '1px', background: BORDER, alignSelf: 'stretch' }} />
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: '14px', fontWeight: 500, color: DARK, marginBottom: '4px' }}>{prenom} {nom} · {roleAffiche} · {villeAffichee}</div>
+                <div style={{ fontSize: '11px', color: '#666', lineHeight: 1.6, marginBottom: '10px' }}>Profil complet à 78%. Complète ton parcours pour débloquer ton score final.</div>
+                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                  {[data.force1, data.force2, data.force3].filter(Boolean).length > 0 && <span style={{ padding: '3px 9px', borderRadius: '999px', fontSize: '10px', fontWeight: 500, background: '#E1F5EE', border: '0.5px solid #5DCAA5', color: '#0F6E56' }}>{[data.force1, data.force2, data.force3].filter(Boolean).length} compétences révélées</span>}
+                  {(data.formations as Formation[] || []).length > 0 && <span style={{ padding: '3px 9px', borderRadius: '999px', fontSize: '10px', fontWeight: 500, background: '#FAECE7', border: '0.5px solid #F0997B', color: '#993C1D' }}>{(data.formations as Formation[] || []).length} formations recommandées</span>}
+                  {marcheDetails?.nb_offres_estimees && <span style={{ padding: '3px 9px', borderRadius: '999px', fontSize: '10px', fontWeight: 500, background: '#FAEEDA', border: '0.5px solid #EF9F27', color: '#854F0B' }}>{marcheDetails.nb_offres_estimees} offres compatibles</span>}
+                </div>
+              </div>
             </div>
-            <div style={{ background: CARD, borderRadius: '12px', padding: '20px', border: `1px solid ${BORDER}` }}>
-              <div style={{ fontSize: '9px', letterSpacing: '1px', color: '#888', fontFamily: 'monospace', marginBottom: '8px' }}>📄 MON CV YELMA</div>
-              <div style={{ fontSize: '13px', color: DARK, marginBottom: '12px' }}>YELMA génère ton CV personnalisé basé sur tes compétences révélées.</div>
-              <a href={`/mon-espace?tab=cv&email=${email || ''}`} style={{ display: 'inline-block', background: DARK, color: 'white', borderRadius: '8px', padding: '10px 20px', fontSize: '12px', fontWeight: 600, textDecoration: 'none' }}>Générer mon CV →</a>
+
+            {/* CV Propulse */}
+            <div>
+              <div style={{ fontSize: '9px', letterSpacing: '2px', color: '#888', fontFamily: 'monospace', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                MON CV PROPULSE <div style={{ flex: 1, height: '1px', background: BORDER }} />
+              </div>
+              <div style={{ fontSize: '11px', color: '#888', lineHeight: 1.6, marginBottom: '12px' }}>Pas un CV traditionnel — un profil de compétences vivant en 3 modes selon le poste visé.</div>
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '12px' }}>
+                {[
+                  { id: 'ips' as const, label: String(data.objectif_carriere || 'Poste cible'), match: scoreCible },
+                  { id: 'coordination' as const, label: 'Coordination', match: Math.max(60, scoreCible - 10) },
+                  { id: 'formation' as const, label: 'Formation', match: Math.max(55, scoreCible - 15) },
+                ].map(m => (
+                  <button key={m.id} onClick={() => { setCvMode(m.id); setCvContent(null); }} style={{ padding: '8px 14px', borderRadius: '10px', border: `1px solid ${cvMode === m.id ? ORANGE : BORDER}`, background: cvMode === m.id ? '#FFF0EB' : 'white', fontSize: '12px', fontWeight: 500, cursor: 'pointer', color: cvMode === m.id ? '#993C1D' : '#555', fontFamily: 'Georgia, serif', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    {m.label}
+                    {cvMode === m.id && <span style={{ fontSize: '10px', background: ORANGE, color: 'white', borderRadius: '20px', padding: '1px 7px', fontFamily: 'monospace' }}>{m.match}%</span>}
+                  </button>
+                ))}
+              </div>
+              {!cvContent && !cvGenerating && (
+                <div style={{ border: `1.5px dashed ${BORDER}`, borderRadius: '12px', padding: '32px 20px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
+                  <div style={{ fontSize: '13px', fontWeight: 500, color: DARK }}>CV Propulse · {cvMode === 'ips' ? String(data.objectif_carriere || 'Poste cible') : cvMode === 'coordination' ? 'Coordination' : 'Formation'}</div>
+                  <div style={{ fontSize: '11px', color: '#888', maxWidth: '320px', lineHeight: 1.6 }}>Généré depuis tes compétences révélées, ton parcours et tes formations.</div>
+                  <button onClick={generateCV} style={{ background: ORANGE, color: 'white', border: 'none', borderRadius: '8px', padding: '10px 22px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: 'Georgia, serif' }}>Générer mon CV →</button>
+                </div>
+              )}
+              {cvGenerating && <div style={{ padding: '32px', textAlign: 'center', fontSize: '12px', color: '#888' }}>⏳ YELMA génère ton CV Propulse...</div>}
+              {cvContent && !cvGenerating && (
+                <div style={{ border: `1px solid ${BORDER}`, borderRadius: '12px', padding: '18px', background: 'white' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                    <span style={{ fontSize: '10px', background: '#FFF0EB', color: ORANGE, borderRadius: '20px', padding: '3px 10px', fontFamily: 'monospace' }}>✓ CV Propulse généré · Match {scoreCible}%</span>
+                    <button onClick={() => setCvContent(null)} style={{ fontSize: '10px', color: '#888', background: 'none', border: 'none', cursor: 'pointer' }}>Regénérer</button>
+                  </div>
+                  <div style={{ fontSize: '12px', lineHeight: 1.8, color: DARK, borderTop: `1px solid ${BORDER}`, paddingTop: '12px', marginBottom: '12px' }} dangerouslySetInnerHTML={{ __html: cvContent }} />
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <a href={`/mon-espace?tab=cv&email=${email || ''}`} style={{ display: 'inline-block', background: ORANGE, color: 'white', borderRadius: '8px', padding: '8px 18px', fontSize: '12px', fontWeight: 600, textDecoration: 'none' }}>Télécharger PDF</a>
+                    <button onClick={() => setCvContent(null)} style={{ background: '#F5F2EC', color: '#555', border: `1px solid ${BORDER}`, borderRadius: '8px', padding: '8px 16px', fontSize: '12px', cursor: 'pointer', fontFamily: 'Georgia, serif' }}>Regénérer</button>
+                  </div>
+                </div>
+              )}
+              {/* Lien sécurisé */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 14px', borderRadius: '10px', border: `1px solid ${BORDER}`, background: '#FAFAF8', marginTop: '10px' }}>
+                <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: '#FFF0EB', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: ORANGE, fontSize: '14px' }}>→</div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: '12px', fontWeight: 500, color: DARK, marginBottom: '2px' }}>Partager avec un employeur</div>
+                  <div style={{ fontSize: '10px', color: '#888' }}>Lien sécurisé · Pas de PDF · Révocable à tout moment</div>
+                </div>
+                <button onClick={createProfilLink} disabled={linkCreating} style={{ fontSize: '11px', color: ORANGE, background: 'none', border: `1px solid #F0997B`, borderRadius: '20px', padding: '5px 12px', cursor: 'pointer', fontFamily: 'Georgia, serif' }}>
+                  {linkCreating ? '...' : 'Créer le lien →'}
+                </button>
+              </div>
+              {profilLinks.filter(l => l.active).length > 0 && (
+                <div style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  {profilLinks.filter(l => l.active).map(link => (
+                    <div key={link.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '9px 12px', background: '#F5F2EC', borderRadius: '8px' }}>
+                      <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#22A06B', flexShrink: 0 }} />
+                      <div style={{ flex: 1, fontSize: '11px', color: ORANGE, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{link.url}</div>
+                      <div style={{ fontSize: '10px', color: '#888' }}>{link.views} vue{link.views !== 1 ? 's' : ''}</div>
+                      <button onClick={() => copyLink(link.url, link.id)} style={{ fontSize: '10px', color: '#555', background: 'white', border: `1px solid ${BORDER}`, borderRadius: '20px', padding: '3px 10px', cursor: 'pointer', fontFamily: 'Georgia, serif' }}>{linkCopied === link.id ? '✓ Copié' : 'Copier'}</button>
+                      <button onClick={() => revokeLink(link.id)} style={{ fontSize: '10px', color: '#A32D2D', background: 'none', border: 'none', cursor: 'pointer' }}>×</button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
-            <div style={{ background: CARD, borderRadius: '12px', padding: '20px', border: `1px solid ${BORDER}` }}>
-              <div style={{ fontSize: '9px', letterSpacing: '1px', color: '#888', fontFamily: 'monospace', marginBottom: '8px' }}>✉️ MA LETTRE DE MOTIVATION</div>
-              <div style={{ fontSize: '13px', color: DARK, marginBottom: '12px' }}>Génère une lettre personnalisée pour chaque offre qui correspond à ton profil.</div>
-              <a href={`/mon-espace?tab=lettre&email=${email || ''}`} style={{ display: 'inline-block', background: ORANGE, color: 'white', borderRadius: '8px', padding: '10px 20px', fontSize: '12px', fontWeight: 600, textDecoration: 'none' }}>Générer ma lettre →</a>
+
+            <div style={{ height: '1px', background: BORDER }} />
+
+            {/* Lettre de motivation */}
+            <div>
+              <div style={{ fontSize: '9px', letterSpacing: '2px', color: '#888', fontFamily: 'monospace', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                MA LETTRE DE MOTIVATION <div style={{ flex: 1, height: '1px', background: BORDER }} />
+              </div>
+              <div style={{ fontSize: '11px', color: '#888', lineHeight: 1.6, marginBottom: '12px' }}>Générée pour chaque offre spécifique. Personnalisée avec tes compétences révélées.</div>
+              <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
+                {[{ id: 'offre' as const, label: 'Pour une offre spécifique' }, { id: 'generale' as const, label: 'Lettre générale' }].map(m => (
+                  <button key={m.id} onClick={() => { setLettreMode(m.id); setLettreContent(null); }} style={{ padding: '7px 14px', borderRadius: '10px', border: `1px solid ${lettreMode === m.id ? '#22A06B' : BORDER}`, background: lettreMode === m.id ? '#E8FFF2' : 'white', fontSize: '12px', fontWeight: 500, cursor: 'pointer', color: lettreMode === m.id ? '#0F6E56' : '#555', fontFamily: 'Georgia, serif' }}>{m.label}</button>
+                ))}
+              </div>
+              {!lettreContent && !lettreGenerating && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {lettreMode === 'offre' && (
+                    <textarea value={lettreOffre} onChange={e => setLettreOffre(e.target.value)} placeholder="Colle le texte de l'offre d'emploi ici... YELMA va analyser les mots-clés et personnaliser ta lettre." rows={4} style={{ width: '100%', padding: '12px 14px', borderRadius: '10px', border: `1px solid ${BORDER}`, fontSize: '12px', fontFamily: 'Georgia, serif', color: DARK, resize: 'vertical', outline: 'none', background: 'white', boxSizing: 'border-box' }} />
+                  )}
+                  {lettreMode === 'generale' && (
+                    <div style={{ fontSize: '11px', color: '#888', lineHeight: 1.6, padding: '12px 14px', background: '#FAFAF8', borderRadius: '10px', border: `1px solid ${BORDER}` }}>Lettre polyvalente basée sur ton profil Propulse. Réutilisable pour les candidatures spontanées.</div>
+                  )}
+                  <button onClick={generateLettre} disabled={lettreMode === 'offre' && !lettreOffre.trim()} style={{ background: '#22A06B', color: 'white', border: 'none', borderRadius: '8px', padding: '10px 20px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: 'Georgia, serif', opacity: lettreMode === 'offre' && !lettreOffre.trim() ? 0.4 : 1 }}>Générer ma lettre →</button>
+                </div>
+              )}
+              {lettreGenerating && <div style={{ padding: '24px', textAlign: 'center', fontSize: '12px', color: '#888' }}>⏳ YELMA rédige ta lettre...</div>}
+              {lettreContent && !lettreGenerating && (
+                <div style={{ border: `1px solid ${BORDER}`, borderRadius: '12px', padding: '16px', background: 'white' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
+                    <span style={{ fontSize: '10px', background: '#E8FFF2', color: '#0F6E56', borderRadius: '20px', padding: '3px 10px', fontFamily: 'monospace' }}>✓ Lettre générée</span>
+                    <button onClick={() => setLettreContent(null)} style={{ fontSize: '10px', color: '#888', background: 'none', border: 'none', cursor: 'pointer' }}>Regénérer</button>
+                  </div>
+                  <div style={{ fontSize: '12px', lineHeight: 1.8, color: DARK, borderTop: `1px solid ${BORDER}`, paddingTop: '12px', marginBottom: '12px' }} dangerouslySetInnerHTML={{ __html: lettreContent }} />
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <a href={`/mon-espace?tab=lettre&email=${email || ''}`} style={{ display: 'inline-block', background: '#22A06B', color: 'white', borderRadius: '8px', padding: '8px 18px', fontSize: '12px', fontWeight: 600, textDecoration: 'none' }}>Télécharger PDF</a>
+                    <button onClick={() => navigator.clipboard.writeText(lettreContent || '')} style={{ background: '#F5F2EC', color: '#555', border: `1px solid ${BORDER}`, borderRadius: '8px', padding: '8px 16px', fontSize: '12px', cursor: 'pointer', fontFamily: 'Georgia, serif' }}>Copier le texte</button>
+                  </div>
+                </div>
+              )}
             </div>
+
+            <div style={{ height: '1px', background: BORDER }} />
+
+            {/* Suivi candidatures */}
+            <div>
+              <div style={{ fontSize: '9px', letterSpacing: '2px', color: '#888', fontFamily: 'monospace', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                MES CANDIDATURES <div style={{ flex: 1, height: '1px', background: BORDER }} />
+              </div>
+              <div style={{ fontSize: '11px', color: '#888', lineHeight: 1.6, marginBottom: '12px' }}>YELMA suit tes candidatures et te rappelle de relancer au bon moment.</div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: '8px', marginBottom: '16px' }}>
+                {[
+                  { label: 'Envoyées', val: candidaturesLocales.filter(c => c.statut === 'envoyee').length, color: ORANGE },
+                  { label: 'En attente', val: candidaturesLocales.filter(c => c.statut === 'en_attente').length, color: GOLD },
+                  { label: 'Sauvegardées', val: candidaturesLocales.filter(c => c.statut === 'sauvegardee').length, color: '#888' },
+                  { label: 'Entretiens', val: candidaturesLocales.filter(c => c.statut === 'entretien').length, color: GREEN },
+                ].map((s, i) => (
+                  <div key={i} style={{ background: '#F5F2EC', borderRadius: '10px', padding: '12px', textAlign: 'center' }}>
+                    <div style={{ fontSize: '26px', fontWeight: 700, color: s.color, lineHeight: 1, marginBottom: '3px', fontFamily: 'Georgia, serif' }}>{s.val}</div>
+                    <div style={{ fontSize: '10px', color: '#888' }}>{s.label}</div>
+                  </div>
+                ))}
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                {candidaturesLocales.map((c, i) => {
+                  const cfg: Record<string, { label: string; color: string; bg: string }> = {
+                    envoyee: { label: 'CV envoyé', color: '#0F6E56', bg: '#E1F5EE' },
+                    en_attente: { label: 'En attente', color: '#854F0B', bg: '#FAEEDA' },
+                    sauvegardee: { label: 'Sauvegardée', color: '#5F5E5A', bg: '#F1EFE8' },
+                    entretien: { label: 'Entretien prévu', color: '#185FA5', bg: '#E6F1FB' },
+                    refus: { label: 'Refus', color: '#A32D2D', bg: '#FCEBEB' },
+                  };
+                  const s = cfg[c.statut];
+                  const dotStyle = c.statut === 'envoyee' ? { background: GREEN } : c.statut === 'en_attente' ? { background: 'white', border: `2px solid ${ORANGE}` } : { background: 'white', border: '1.5px solid #ccc' };
+                  return (
+                    <div key={c.id} style={{ display: 'flex', gap: '14px', paddingBottom: i < candidaturesLocales.length - 1 ? '16px' : 0 }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '20px', flexShrink: 0 }}>
+                        <div style={{ width: '10px', height: '10px', borderRadius: '50%', flexShrink: 0, ...dotStyle }} />
+                        {i < candidaturesLocales.length - 1 && <div style={{ width: '1px', flex: 1, background: 'rgba(0,0,0,0.08)', marginTop: '3px' }} />}
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '8px', marginBottom: '3px' }}>
+                          <div style={{ fontSize: '13px', fontWeight: 500, color: DARK }}>{c.employeur} — {c.poste}</div>
+                          <span style={{ fontSize: '10px', fontWeight: 500, padding: '2px 8px', borderRadius: '999px', color: s.color, background: s.bg, flexShrink: 0 }}>{s.label}</span>
+                        </div>
+                        <div style={{ fontSize: '11px', color: '#888' }}>Match {c.match}%{c.rappel && <span style={{ color: GOLD }}> · {c.rappel}</span>}</div>
+                        <div style={{ fontSize: '10px', color: '#aaa', marginTop: '2px' }}>{c.statut === 'sauvegardee' ? 'À postuler avant le' : 'Postulé le'} {c.date}</div>
+                        {c.statut === 'en_attente' && (
+                          <button onClick={() => envoyerConseiller(`Aide-moi à rédiger une relance pour ${c.employeur}`)} style={{ marginTop: '6px', fontSize: '10px', color: ORANGE, background: 'none', border: `1px solid #F0997B`, borderRadius: '20px', padding: '3px 10px', cursor: 'pointer', fontFamily: 'Georgia, serif' }}>Générer une relance →</button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <button onClick={() => setCandidaturesLocales(prev => [...prev, { id: Date.now().toString(), employeur: 'Nouvelle candidature', poste: String(data.objectif_carriere || 'Poste cible'), statut: 'sauvegardee', match: scoreCible, date: new Date().toLocaleDateString('fr-CA') }])} style={{ width: '100%', marginTop: '14px', padding: '10px', borderRadius: '8px', border: `1px solid ${BORDER}`, background: 'white', fontSize: '12px', color: '#555', cursor: 'pointer', fontFamily: 'Georgia, serif' }}>
+                + Ajouter une candidature
+              </button>
+            </div>
+
+            {/* Note sécurité */}
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', padding: '12px 14px', background: '#F5F2EC', borderRadius: '10px' }}>
+              <div style={{ fontSize: '14px', flexShrink: 0 }}>🔒</div>
+              <div>
+                <div style={{ fontSize: '11px', fontWeight: 500, color: '#555', marginBottom: '2px' }}>Données sécurisées</div>
+                <div style={{ fontSize: '10px', color: '#888', lineHeight: 1.6 }}>L&apos;employeur voit uniquement ton profil Propulse. Aucune donnée personnelle partagée sans ton accord. Tu peux révoquer l&apos;accès à tout moment.</div>
+              </div>
+            </div>
+
           </div>
         )}
 
@@ -1008,17 +1180,13 @@ Le message doit mentionner QUAND elle devient réellement ${String(data.objectif
                       <div style={{ maxWidth: '80%', padding: '8px 12px', borderRadius: '10px', fontSize: '12px', lineHeight: 1.5, background: m.role === 'user' ? DARK : '#F5F2EC', color: m.role === 'user' ? 'white' : DARK }}>{m.text}</div>
                     </div>
                   ))}
-                  {conseillerLoading && (
-                    <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
-                      <div style={{ background: '#F5F2EC', padding: '8px 12px', borderRadius: '10px', fontSize: '12px', color: '#888' }}>En train de réfléchir...</div>
-                    </div>
-                  )}
+                  {conseillerLoading && <div style={{ display: 'flex', justifyContent: 'flex-start' }}><div style={{ background: '#F5F2EC', padding: '8px 12px', borderRadius: '10px', fontSize: '12px', color: '#888' }}>En train de réfléchir...</div></div>}
                 </div>
               )}
               {conseillerMessages.length === 0 && (
                 <>
                   <div style={{ padding: '14px 16px', borderBottom: `1px solid ${BORDER}` }}>
-                    <div style={{ fontSize: '12px', color: DARK, lineHeight: 1.6 }}>Tu as des questions sur <strong>ta cible</strong>, <strong>tes formations</strong> ou tu hésites sur la direction à prendre ?</div>
+                    <div style={{ fontSize: '12px', color: DARK, lineHeight: 1.6 }}>Tu as des questions sur <strong>ta cible</strong>, <strong>tes formations</strong> ou tu hésites sur la direction ?</div>
                   </div>
                   <div style={{ padding: '12px 16px', display: 'flex', flexWrap: 'wrap', gap: '8px', borderBottom: `1px solid ${BORDER}` }}>
                     {['Je doute de ma cible', 'Quelle formation prioriser ?', 'Améliorer mon score', 'Explorer un autre domaine'].map(q => (

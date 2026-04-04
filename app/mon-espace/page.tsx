@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import RapportGPS from "../components/RapportGPS";
+import RapportGPS from "@/app/components/RapportGPS";
 
 type Formation = { nom: string; type: string; plateforme: string; duree: string; prix?: string; lien?: string; note?: string };
 type Evenement = { nom: string; type: string; organisateur: string; date: string; lieu: string; prix: string; lien: string };
@@ -288,6 +288,7 @@ export default function MonEspace() {
   const [autoLoading, setAutoLoading] = useState(true);
 
   const [offres, setOffres] = useState<Offre[]>([]);
+  const [offresCibles, setOffresCibles] = useState<Offre[]>([]);
   const [offresLoading, setOffresLoading] = useState(false);
   const [formations, setFormations] = useState<{ renforcement: Formation[]; gap: Formation[]; prochain_poste: Formation[]; objectif_long_terme: Formation[] }>({ renforcement: [], gap: [], prochain_poste: [], objectif_long_terme: [] });
   const [evenements, setEvenements] = useState<Evenement[]>([]);
@@ -431,6 +432,7 @@ export default function MonEspace() {
       });
       const data = await res.json();
       if (data.offres) setOffres(data.offres);
+      if (data.offres_cibles) setOffresCibles(data.offres_cibles);
     } catch (e) { console.error("Offres error:", e); }
     finally { setOffresLoading(false); }
   };
@@ -473,7 +475,7 @@ export default function MonEspace() {
     setLettreLoading(true);
     const offreTarget = offre || offreSelectionnee;
     try {
-      const res = await fetch("/api/lettre", {
+     const res = await fetch("/api/lettre/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -533,9 +535,13 @@ export default function MonEspace() {
 
   useEffect(() => {
     if (candidat) {
-      console.log('CANDIDAT SCORES:', candidat.score_propulse, candidat.score_cible_pct, candidat.prenom);
+      console.log('SCORE CHECK:', {
+        score_propulse: candidat.score_propulse,
+        score_cible_pct: candidat.score_cible_pct,
+        verdict: candidat.verdict,
+      })
     }
-  }, [candidat]);
+  }, [candidat])
 
   useEffect(() => {
     if (candidat && activeTab === "offres" && offres.length === 0) chargerOffres();
@@ -613,8 +619,6 @@ export default function MonEspace() {
     { id: "offres", label: "💼 Offres" },
     { id: "formations", label: "📚 Formations" },
     { id: "evenements", label: "🎤 Événements" },
-    { id: "cv", label: "📄 CV" },
-    { id: "lettre", label: "✉️ Lettre" },
     { id: "candidatures", label: `📋 Suivi (${candidatures.length + inscriptions.length})` },
     { id: "profil", label: "👤 Profil" },
   ];
@@ -752,7 +756,7 @@ export default function MonEspace() {
                 )}
                 {o.gap && <div style={{ background: "#FFF8E1", borderRadius: "6px", padding: "4px 8px", fontSize: "10px", color: "#7A5F00", marginBottom: "6px" }}>⚠️ Gap : {o.gap}</div>}
                 <div style={{ display: "flex", gap: "6px", justifyContent: "flex-end" }}>
-                  <button onClick={() => { setOffreSelectionnee(o); genererLettre(o); }} style={{ background: "#F0F9FF", color: "#0C447C", border: "none", borderRadius: "20px", padding: "5px 10px", fontSize: "10px", fontWeight: 600, cursor: "pointer" }}>✉️ Lettre</button>
+                  <button onClick={() => { setOffreSelectionnee(o); genererLettre(o); setActiveTab("rapport"); }} style={{ background: "#F0F9FF", color: "#0C447C", border: "none", borderRadius: "20px", padding: "5px 10px", fontSize: "10px", fontWeight: 600, cursor: "pointer" }}>✉️ Lettre</button>
                   <a href={o.lien} target="_blank" rel="noopener noreferrer" onClick={() => {
                     setTimeout(() => {
                       if (window.confirm("Avez-vous postulé pour cette offre ?")) marquerPostule(o);
@@ -766,7 +770,33 @@ export default function MonEspace() {
                 </div>
               </div>
             ))}
-
+            {offresCibles.length > 0 && (
+  <div style={{ background: "#F0F9FF", borderRadius: "12px", padding: "14px", border: "0.5px solid #BFE0FF", marginTop: "8px" }}>
+    <div style={{ fontSize: "10px", fontWeight: 700, color: "#0C447C", marginBottom: "4px" }}>
+      🎯 MON OBJECTIF — {candidat.objectif_carriere || "Poste cible"}
+    </div>
+    <div style={{ fontSize: "10px", color: "#0C447C", marginBottom: "12px" }}>
+      Ces offres correspondent à votre poste cible — explorez pour vous préparer
+    </div>
+    {offresCibles.map((o, i) => (
+      <div key={i} style={{ background: "white", borderRadius: "10px", padding: "12px", marginBottom: "8px", border: "0.5px solid #E8E8F0" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "6px" }}>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: "13px", fontWeight: 600, color: "#1A1A2E" }}>{o.titre}</div>
+            {o.entreprise && <div style={{ fontSize: "11px", color: "#888" }}>{o.entreprise}</div>}
+          </div>
+          <span style={{ background: "#D6F0FF", color: "#0C447C", borderRadius: "20px", padding: "2px 8px", fontSize: "10px", fontWeight: 700 }}>
+            {o.score}% match cible
+          </span>
+        </div>
+        <div style={{ display: "flex", gap: "6px", justifyContent: "flex-end" }}>
+          <button onClick={() => { setOffreSelectionnee(o); genererLettre(o); }} style={{ background: "#F0F9FF", color: "#0C447C", border: "none", borderRadius: "20px", padding: "5px 10px", fontSize: "10px", fontWeight: 600, cursor: "pointer" }}>✉️ Lettre</button>
+          <a href={o.lien} target="_blank" rel="noopener noreferrer" style={{ background: "#0C447C", color: "white", borderRadius: "20px", padding: "5px 12px", fontSize: "10px", fontWeight: 700, textDecoration: "none" }}>Explorer →</a>
+        </div>
+      </div>
+    ))}
+  </div>
+)}
             {!offresLoading && candidatures.length > 0 && (
               <div style={{ background: "white", borderRadius: "12px", padding: "14px", border: "0.5px solid #E8E8F0" }}>
                 <div style={{ fontSize: "10px", fontWeight: 700, color: "#10B981", marginBottom: "8px" }}>✅ OFFRES OÙ VOUS AVEZ POSTULÉ</div>
@@ -1006,9 +1036,25 @@ export default function MonEspace() {
         {activeTab === "entretien" && (
           <EntretienDansMonEspace
             candidat={candidat}
-            onRapportGenere={(nouveauRapport) => {
+            onRapportGenere={async (nouveauRapport) => {
               setCandidat({ ...candidat, ...nouveauRapport });
               setActiveTab("rapport");
+
+              try {
+                await fetch("/api/candidats/update-score", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    email: candidat.email,
+                    score_propulse: (nouveauRapport as any).score_propulse,
+                    score_cible_pct: (nouveauRapport as any).score_cible_pct,
+                    scenario_objectif: (nouveauRapport as any).scenario_objectif,
+                    verdict: (nouveauRapport as any).verdict,
+                  }),
+                });
+              } catch {
+                console.error("Erreur sauvegarde score");
+              }
             }}
           />
         )}
