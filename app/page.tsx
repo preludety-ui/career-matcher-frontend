@@ -295,8 +295,13 @@ export default function Home() {
       const updatedMessages = [...newMessages, botMessage];
       setMessages(updatedMessages);
 
+
       if (rapport) {
         setRapportGenere(true);
+        setTimeout(() => {
+          localStorage.setItem("yelma_email", userInfo?.email || "");
+          window.location.href = `/mon-espace?email=${encodeURIComponent(userInfo?.email || "")}&tab=rapport`;
+        }, 3000);
       }
 
     } catch {
@@ -433,8 +438,8 @@ export default function Home() {
         {/* Boutons flottants — simplifiés */}
         {/* Boutons flottants — cachés sur mobile */}
         <a href="/pricing" style={{ position: "fixed", bottom: "20px", right: "20px", background: "#FF7043", color: "white", borderRadius: "20px", padding: "8px 16px", fontSize: "11px", fontWeight: 600, textDecoration: "none", zIndex: 100 }}>✦ Commencer — 4.99$/mois</a>
-        
-                {/* Popup marché — inchangé */}
+
+        {/* Popup marché — inchangé */}
         <div id="yelma-popup" style={{ display: "none", position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.5)", zIndex: 999, alignItems: "center", justifyContent: "center" }} onClick={(e) => { if (e.target === e.currentTarget) (e.currentTarget as HTMLElement).style.display = "none"; }}>
           <div style={{ background: "white", borderRadius: "16px", padding: "18px", width: "92%", maxWidth: "380px", maxHeight: "85vh", overflowY: "auto" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
