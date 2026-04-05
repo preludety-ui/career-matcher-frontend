@@ -611,7 +611,8 @@ export default function MonEspace() {
   const trialEnd = new Date(candidat.trial_end);
   const now = new Date();
   const joursRestants = Math.max(0, Math.ceil((trialEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
-  const isPropulse = candidat.plan === "propulse";
+  const enEssai = now <= trialEnd;
+  const isPropulse = candidat.plan === "propulse" || candidat.plan === "propulse_annuel" || enEssai;
 
   const tabs = [
     { id: "rapport", label: "📊 Rapport" },
@@ -724,106 +725,106 @@ export default function MonEspace() {
                 <div style={{ fontSize: "12px", color: "#888", marginBottom: "20px" }}>Accédez aux offres personnalisées selon votre profil et votre objectif de carrière.</div>
                 <a href="/pricing" style={{ display: "inline-block", background: "#FF7043", color: "white", borderRadius: "20px", padding: "10px 24px", fontSize: "13px", fontWeight: 700, textDecoration: "none" }}>
                   Débloquer mes offres — 4.99$/mois →
-                  
+
                 </a>
               </div>
-           ) : (
+            ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
 
-                <div style={{ fontSize: "12px", color: "#888" }}>
-                  {offresDisponibles.length > 0 ? `${offresDisponibles.length} offres disponibles` : offresLoading ? "Recherche..." : "Aucune offre"}
-                  {candidatures.length > 0 && <span style={{ marginLeft: "8px", color: "#10B981", fontWeight: 600 }}> · {candidatures.length} postulé(s)</span>}
-                </div>
-                <button onClick={chargerOffres} disabled={offresLoading} style={{ background: "#FF7043", color: "white", border: "none", borderRadius: "20px", padding: "6px 14px", fontSize: "11px", fontWeight: 600, cursor: "pointer" }}>
-                  {offresLoading ? "⏳ Recherche..." : "🔄 Actualiser"}
-                </button>
-              </div>
-            
-              {offresLoading && (
-              <div style={{ background: "white", borderRadius: "12px", padding: "24px", textAlign: "center", border: "0.5px solid #E8E8F0" }}>
-                <div style={{ fontSize: "24px", marginBottom: "8px" }}>🔍</div>
-                <div style={{ fontSize: "13px", color: "#888" }}>YELMA cherche les meilleures offres pour vous...</div>
-              </div>
-            )}
-
-            {!offresLoading && offresDisponibles.map((o, i) => (
-              <div key={i} style={{ background: "white", borderRadius: "12px", padding: "14px", border: "0.5px solid #E8E8F0" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "8px" }}>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: "13px", fontWeight: 600, color: "#1A1A2E" }}>{o.titre}</div>
-                    {o.entreprise && <div style={{ fontSize: "11px", color: "#888", marginTop: "2px" }}>{o.entreprise}</div>}
-                    {o.date_publication && <div style={{ fontSize: "10px", color: "#aaa", marginTop: "2px" }}>📅 {o.date_publication}</div>}
+                  <div style={{ fontSize: "12px", color: "#888" }}>
+                    {offresDisponibles.length > 0 ? `${offresDisponibles.length} offres disponibles` : offresLoading ? "Recherche..." : "Aucune offre"}
+                    {candidatures.length > 0 && <span style={{ marginLeft: "8px", color: "#10B981", fontWeight: 600 }}> · {candidatures.length} postulé(s)</span>}
                   </div>
-                  <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "4px", marginLeft: "8px" }}>
-                    <span style={{ background: o.score >= 85 ? "#D6FFE8" : o.score >= 70 ? "#FFF8E1" : "#F1EFE8", color: o.score >= 85 ? "#085041" : o.score >= 70 ? "#7A5F00" : "#888", borderRadius: "20px", padding: "2px 8px", fontSize: "10px", fontWeight: 700 }}>
-                      {o.score}% match
-                    </span>
-                    {o.salaire > 0 && <div style={{ fontSize: "12px", fontWeight: 700, color: "#FF7043" }}>{o.salaire.toLocaleString()} $</div>}
-                  </div>
-                </div>
-                {o.insights?.length > 0 && (
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: "4px", marginBottom: "6px" }}>
-                    {o.insights.map((ins, j) => <span key={j} style={{ background: "#F0F9FF", color: "#0C447C", borderRadius: "20px", padding: "2px 8px", fontSize: "9px" }}>{ins}</span>)}
-                  </div>
-                )}
-                {o.gap && <div style={{ background: "#FFF8E1", borderRadius: "6px", padding: "4px 8px", fontSize: "10px", color: "#7A5F00", marginBottom: "6px" }}>⚠️ Gap : {o.gap}</div>}
-                <div style={{ display: "flex", gap: "6px", justifyContent: "flex-end" }}>
-                  <button onClick={() => { setOffreSelectionnee(o); genererLettre(o); setActiveTab("rapport"); }} style={{ background: "#F0F9FF", color: "#0C447C", border: "none", borderRadius: "20px", padding: "5px 10px", fontSize: "10px", fontWeight: 600, cursor: "pointer" }}>✉️ Lettre</button>
-                  <a href={o.lien} target="_blank" rel="noopener noreferrer" onClick={() => {
-                    setTimeout(() => {
-                      if (window.confirm("Avez-vous postulé pour cette offre ?")) marquerPostule(o);
-                    }, 2000);
-                  }} style={{ background: "#FF7043", color: "white", borderRadius: "20px", padding: "5px 12px", fontSize: "10px", fontWeight: 700, textDecoration: "none" }}>
-                    {postulLoading === o.lien ? "⏳..." : "Postuler →"}
-                  </a>
-                  <button onClick={() => marquerPostule(o)} style={{ background: "#D6FFE8", color: "#085041", border: "none", borderRadius: "20px", padding: "5px 10px", fontSize: "10px", fontWeight: 600, cursor: "pointer" }}>
-                    ✅ J'ai postulé
+                  <button onClick={chargerOffres} disabled={offresLoading} style={{ background: "#FF7043", color: "white", border: "none", borderRadius: "20px", padding: "6px 14px", fontSize: "11px", fontWeight: 600, cursor: "pointer" }}>
+                    {offresLoading ? "⏳ Recherche..." : "🔄 Actualiser"}
                   </button>
                 </div>
-              </div>
-            ))}
-            {offresCibles.length > 0 && (
-              <div style={{ background: "#F0F9FF", borderRadius: "12px", padding: "14px", border: "0.5px solid #BFE0FF", marginTop: "8px" }}>
-                <div style={{ fontSize: "10px", fontWeight: 700, color: "#0C447C", marginBottom: "4px" }}>
-                  🎯 MON OBJECTIF — {candidat.objectif_carriere || "Poste cible"}
-                </div>
-                <div style={{ fontSize: "10px", color: "#0C447C", marginBottom: "12px" }}>
-                  Ces offres correspondent à votre poste cible — explorez pour vous préparer
-                </div>
-                {offresCibles.map((o, i) => (
-                  <div key={i} style={{ background: "white", borderRadius: "10px", padding: "12px", marginBottom: "8px", border: "0.5px solid #E8E8F0" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "6px" }}>
+
+                {offresLoading && (
+                  <div style={{ background: "white", borderRadius: "12px", padding: "24px", textAlign: "center", border: "0.5px solid #E8E8F0" }}>
+                    <div style={{ fontSize: "24px", marginBottom: "8px" }}>🔍</div>
+                    <div style={{ fontSize: "13px", color: "#888" }}>YELMA cherche les meilleures offres pour vous...</div>
+                  </div>
+                )}
+
+                {!offresLoading && offresDisponibles.map((o, i) => (
+                  <div key={i} style={{ background: "white", borderRadius: "12px", padding: "14px", border: "0.5px solid #E8E8F0" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "8px" }}>
                       <div style={{ flex: 1 }}>
                         <div style={{ fontSize: "13px", fontWeight: 600, color: "#1A1A2E" }}>{o.titre}</div>
-                        {o.entreprise && <div style={{ fontSize: "11px", color: "#888" }}>{o.entreprise}</div>}
+                        {o.entreprise && <div style={{ fontSize: "11px", color: "#888", marginTop: "2px" }}>{o.entreprise}</div>}
+                        {o.date_publication && <div style={{ fontSize: "10px", color: "#aaa", marginTop: "2px" }}>📅 {o.date_publication}</div>}
                       </div>
-                      <span style={{ background: "#D6F0FF", color: "#0C447C", borderRadius: "20px", padding: "2px 8px", fontSize: "10px", fontWeight: 700 }}>
-                        {o.score}% match cible
-                      </span>
+                      <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "4px", marginLeft: "8px" }}>
+                        <span style={{ background: o.score >= 85 ? "#D6FFE8" : o.score >= 70 ? "#FFF8E1" : "#F1EFE8", color: o.score >= 85 ? "#085041" : o.score >= 70 ? "#7A5F00" : "#888", borderRadius: "20px", padding: "2px 8px", fontSize: "10px", fontWeight: 700 }}>
+                          {o.score}% match
+                        </span>
+                        {o.salaire > 0 && <div style={{ fontSize: "12px", fontWeight: 700, color: "#FF7043" }}>{o.salaire.toLocaleString()} $</div>}
+                      </div>
                     </div>
+                    {o.insights?.length > 0 && (
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: "4px", marginBottom: "6px" }}>
+                        {o.insights.map((ins, j) => <span key={j} style={{ background: "#F0F9FF", color: "#0C447C", borderRadius: "20px", padding: "2px 8px", fontSize: "9px" }}>{ins}</span>)}
+                      </div>
+                    )}
+                    {o.gap && <div style={{ background: "#FFF8E1", borderRadius: "6px", padding: "4px 8px", fontSize: "10px", color: "#7A5F00", marginBottom: "6px" }}>⚠️ Gap : {o.gap}</div>}
                     <div style={{ display: "flex", gap: "6px", justifyContent: "flex-end" }}>
-                      <button onClick={() => { setOffreSelectionnee(o); genererLettre(o); }} style={{ background: "#F0F9FF", color: "#0C447C", border: "none", borderRadius: "20px", padding: "5px 10px", fontSize: "10px", fontWeight: 600, cursor: "pointer" }}>✉️ Lettre</button>
-                      <a href={o.lien} target="_blank" rel="noopener noreferrer" style={{ background: "#0C447C", color: "white", borderRadius: "20px", padding: "5px 12px", fontSize: "10px", fontWeight: 700, textDecoration: "none" }}>Explorer →</a>
+                      <button onClick={() => { setOffreSelectionnee(o); genererLettre(o); setActiveTab("rapport"); }} style={{ background: "#F0F9FF", color: "#0C447C", border: "none", borderRadius: "20px", padding: "5px 10px", fontSize: "10px", fontWeight: 600, cursor: "pointer" }}>✉️ Lettre</button>
+                      <a href={o.lien} target="_blank" rel="noopener noreferrer" onClick={() => {
+                        setTimeout(() => {
+                          if (window.confirm("Avez-vous postulé pour cette offre ?")) marquerPostule(o);
+                        }, 2000);
+                      }} style={{ background: "#FF7043", color: "white", borderRadius: "20px", padding: "5px 12px", fontSize: "10px", fontWeight: 700, textDecoration: "none" }}>
+                        {postulLoading === o.lien ? "⏳..." : "Postuler →"}
+                      </a>
+                      <button onClick={() => marquerPostule(o)} style={{ background: "#D6FFE8", color: "#085041", border: "none", borderRadius: "20px", padding: "5px 10px", fontSize: "10px", fontWeight: 600, cursor: "pointer" }}>
+                        ✅ J'ai postulé
+                      </button>
                     </div>
                   </div>
                 ))}
-              </div>
-            )}
-            {!offresLoading && candidatures.length > 0 && (
-              <div style={{ background: "white", borderRadius: "12px", padding: "14px", border: "0.5px solid #E8E8F0" }}>
-                <div style={{ fontSize: "10px", fontWeight: 700, color: "#10B981", marginBottom: "8px" }}>✅ OFFRES OÙ VOUS AVEZ POSTULÉ</div>
-                {candidatures.map((c, i) => (
-                  <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: "0.5px solid #F1EFE8" }}>
-                    <div>
-                      <div style={{ fontSize: "12px", fontWeight: 600, color: "#1A1A2E" }}>{c.offre_titre}</div>
-                      <div style={{ fontSize: "10px", color: "#888" }}>{c.offre_entreprise} · {new Date(c.date_candidature).toLocaleDateString("fr-CA")}</div>
+                {offresCibles.length > 0 && (
+                  <div style={{ background: "#F0F9FF", borderRadius: "12px", padding: "14px", border: "0.5px solid #BFE0FF", marginTop: "8px" }}>
+                    <div style={{ fontSize: "10px", fontWeight: 700, color: "#0C447C", marginBottom: "4px" }}>
+                      🎯 MON OBJECTIF — {candidat.objectif_carriere || "Poste cible"}
                     </div>
-                    <span style={{ background: "#D6FFE8", color: "#085041", borderRadius: "20px", padding: "2px 8px", fontSize: "9px", fontWeight: 600 }}>✅ Postulé</span>
+                    <div style={{ fontSize: "10px", color: "#0C447C", marginBottom: "12px" }}>
+                      Ces offres correspondent à votre poste cible — explorez pour vous préparer
+                    </div>
+                    {offresCibles.map((o, i) => (
+                      <div key={i} style={{ background: "white", borderRadius: "10px", padding: "12px", marginBottom: "8px", border: "0.5px solid #E8E8F0" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "6px" }}>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ fontSize: "13px", fontWeight: 600, color: "#1A1A2E" }}>{o.titre}</div>
+                            {o.entreprise && <div style={{ fontSize: "11px", color: "#888" }}>{o.entreprise}</div>}
+                          </div>
+                          <span style={{ background: "#D6F0FF", color: "#0C447C", borderRadius: "20px", padding: "2px 8px", fontSize: "10px", fontWeight: 700 }}>
+                            {o.score}% match cible
+                          </span>
+                        </div>
+                        <div style={{ display: "flex", gap: "6px", justifyContent: "flex-end" }}>
+                          <button onClick={() => { setOffreSelectionnee(o); genererLettre(o); }} style={{ background: "#F0F9FF", color: "#0C447C", border: "none", borderRadius: "20px", padding: "5px 10px", fontSize: "10px", fontWeight: 600, cursor: "pointer" }}>✉️ Lettre</button>
+                          <a href={o.lien} target="_blank" rel="noopener noreferrer" style={{ background: "#0C447C", color: "white", borderRadius: "20px", padding: "5px 12px", fontSize: "10px", fontWeight: 700, textDecoration: "none" }}>Explorer →</a>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                ))}
-         </div>
-            )}
+                )}
+                {!offresLoading && candidatures.length > 0 && (
+                  <div style={{ background: "white", borderRadius: "12px", padding: "14px", border: "0.5px solid #E8E8F0" }}>
+                    <div style={{ fontSize: "10px", fontWeight: 700, color: "#10B981", marginBottom: "8px" }}>✅ OFFRES OÙ VOUS AVEZ POSTULÉ</div>
+                    {candidatures.map((c, i) => (
+                      <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: "0.5px solid #F1EFE8" }}>
+                        <div>
+                          <div style={{ fontSize: "12px", fontWeight: 600, color: "#1A1A2E" }}>{c.offre_titre}</div>
+                          <div style={{ fontSize: "10px", color: "#888" }}>{c.offre_entreprise} · {new Date(c.date_candidature).toLocaleDateString("fr-CA")}</div>
+                        </div>
+                        <span style={{ background: "#D6FFE8", color: "#085041", borderRadius: "20px", padding: "2px 8px", fontSize: "9px", fontWeight: 600 }}>✅ Postulé</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </div>

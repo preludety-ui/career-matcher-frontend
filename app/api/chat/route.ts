@@ -30,19 +30,19 @@ function detecterProfil(candidatInfo: {
     exp.includes("3 à 5")
   );
 
- if (sansDiplome && avecAutreExp) return 1;
-if (sansDiplome) return 1;
-if (isReconversionSenior) return 10;
-if (isEtudiant && !avecAutreExp) return 2;
-if (isEtudiant && avecAutreExp) return 3;
-if (sansExp && !avecAutreExp) return 4;
-if (sansExp && avecAutreExp) return 5;
-if (exp.includes("moins") || exp.includes("1 à 2")) return 6;
-if (exp.includes("3 à 5")) return 7;
-if (exp.includes("6 à 10")) return 8;
-if (exp.includes("plus de 10")) return 9;
-if (isReconversion) return 10;
-return 6;
+  if (sansDiplome && avecAutreExp) return 1;
+  if (sansDiplome) return 1;
+  if (isReconversionSenior) return 10;
+  if (isEtudiant && !avecAutreExp) return 2;
+  if (isEtudiant && avecAutreExp) return 3;
+  if (sansExp && !avecAutreExp) return 4;
+  if (sansExp && avecAutreExp) return 5;
+  if (exp.includes("moins") || exp.includes("1 à 2")) return 6;
+  if (exp.includes("3 à 5")) return 7;
+  if (exp.includes("6 à 10")) return 8;
+  if (exp.includes("plus de 10")) return 9;
+  if (isReconversion) return 10;
+  return 6;
 }
 
 // ============================================
@@ -500,7 +500,7 @@ function buildSystemPrompt(
     candidatInfo?.annee_experience?.includes("6 à 10") ||
     candidatInfo?.annee_experience?.includes("plus de 10") ||
     candidatInfo?.annee_experience?.includes("3 à 5")
-  )|| false;
+  ) || false;
   const isSansDiplome = candidatInfo?.diplome?.toLowerCase().includes("autodidacte") ||
     candidatInfo?.diplome?.toLowerCase().includes("sans diplôme") || false;
   const nbEchanges = historiqueAnalyse.length;
@@ -909,6 +909,7 @@ Score faisabilité : ${resultatMatching.score_faisabilite}%` : "";
             trial_start: new Date().toISOString(),
             trial_end: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
             plan_choisi: "decouverte",
+            plan: "decouverte",
             domaine_actuel: candidatInfo?.domaine_actuel,
             diplome_max: candidatInfo?.diplome,
             duree_experience: candidatInfo?.annee_experience,
@@ -923,10 +924,10 @@ Score faisabilité : ${resultatMatching.score_faisabilite}%` : "";
             nb_entretiens: 1,
             dernier_entretien: new Date().toISOString(),
           }, { onConflict: "email", ignoreDuplicates: false })
-          .then(({ error, data }) => {
-            if (error) console.log("UPSERT ERROR:", JSON.stringify(error));
-            else console.log("UPSERT SUCCESS:", JSON.stringify(data));
-          });
+            .then(({ error, data }) => {
+              if (error) console.log("UPSERT ERROR:", JSON.stringify(error));
+              else console.log("UPSERT SUCCESS:", JSON.stringify(data));
+            });
 
           // Force update des scores
           await supabaseAdmin.from("candidats")
