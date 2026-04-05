@@ -33,6 +33,8 @@ type Candidat = {
   score_cible_5ans_pct?: number;
   verdict?: string;
   message_analyse?: string;
+  nb_entretiens?: number;
+  
 };
 
 function EntretienDansMonEspace({ candidat, onRapportGenere }: {
@@ -289,6 +291,7 @@ export default function MonEspace() {
 
   const [offres, setOffres] = useState<Offre[]>([]);
   const [offresCibles, setOffresCibles] = useState<Offre[]>([]);
+  const [showEntretienPopup, setShowEntretienPopup] = useState(false);
   const [offresLoading, setOffresLoading] = useState(false);
   const [formations, setFormations] = useState<{ renforcement: Formation[]; gap: Formation[]; prochain_poste: Formation[]; objectif_long_terme: Formation[] }>({ renforcement: [], gap: [], prochain_poste: [], objectif_long_terme: [] });
   const [evenements, setEvenements] = useState<Evenement[]>([]);
@@ -1069,29 +1072,109 @@ export default function MonEspace() {
         {/* PROFIL */}
 
         {activeTab === "entretien" && (
-          <EntretienDansMonEspace
-            candidat={candidat}
-            onRapportGenere={async (nouveauRapport) => {
-              setCandidat({ ...candidat, ...nouveauRapport });
-              setActiveTab("rapport");
+          <>
+            {/* POPUP OBLIGATOIRE */}
+            {showEntretienPopup && (
+              <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.6)", zIndex: 999, display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}>
+                <div style={{ background: "white", borderRadius: "16px", padding: "24px", maxWidth: "380px", width: "100%", position: "relative" }}>
+                  <button
+                    onClick={() => setShowEntretienPopup(false)}
+                    style={{ position: "absolute", top: "12px", right: "12px", background: "none", border: "none", fontSize: "20px", cursor: "pointer", color: "#888" }}
+                  >×</button>
+                  <div style={{ fontSize: "32px", textAlign: "center", marginBottom: "12px" }}>🎯</div>
+                  <div style={{ fontSize: "16px", fontWeight: 700, color: "#1A1A2E", marginBottom: "12px", textAlign: "center" }}>
+                    Avant de commencer
+                  </div>
+                  <div style={{ background: "#F1EFE8", borderRadius: "12px", padding: "14px", marginBottom: "16px" }}>
+                    <div style={{ fontSize: "12px", color: "#1A1A2E", lineHeight: 1.7 }}>
+                      <div style={{ marginBottom: "8px" }}>📊 Vous avez droit à :</div>
+                      <div style={{ fontWeight: 700, color: "#FF7043", fontSize: "14px", marginBottom: "4px" }}>
+                        {isPropulse ? "2 entretiens / mois" : "1 entretien / mois"}
+                      </div>
+                      <div style={{ fontSize: "11px", color: "#888", marginBottom: "12px" }}>
+                        {isPropulse ? "Plan Propulse" : enEssai ? "Période d'essai" : "Plan Découverte"}
+                      </div>
+                      <div style={{ borderTop: "0.5px solid #E8E8F0", paddingTop: "10px", fontSize: "11px", color: "#666" }}>
+                        ⚠️ Chaque entretien génère un nouveau rapport complet. Assurez-vous d'être prêt avant de commencer — répondez avec des exemples concrets pour obtenir le meilleur rapport possible.
+                      </div>
+                    </div>
+                  </div>
+                  <div style={{ fontSize: "11px", color: "#888", textAlign: "center", marginBottom: "16px" }}>
+                    Entretiens utilisés ce mois : <strong>{candidat.nb_entretiens || 0}</strong> / {isPropulse ? "2" : "1"}
+                  </div>
+                  <button
+                    onClick={() => setShowEntretienPopup(false)}
+                    style={{ width: "100%", background: "#FF7043", color: "white", border: "none", borderRadius: "12px", padding: "12px", fontSize: "14px", fontWeight: 700, cursor: "pointer" }}
+                  >
+                    J'ai compris — Commencer mon entretien →
+                  </button>
+                </div>
+              </div>
+            )}
 
-              try {
-                await fetch("/api/candidats/update-score", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({
-                    email: candidat.email,
-                    score_propulse: (nouveauRapport as any).score_propulse,
-                    score_cible_pct: (nouveauRapport as any).score_cible_pct,
-                    scenario_objectif: (nouveauRapport as any).scenario_objectif,
-                    verdict: (nouveauRapport as any).verdict,
-                  }),
-                });
-              } catch {
-                console.error("Erreur sauvegarde score");
+            {/* VÉRIFICATION LIMITE */}
+            {(() => {
+              const nbEntretiensMois = candidat.nb_entretiens || 0;
+              const limite = isPropulse ? 2 : 1;
+              const dernierEntretien = candidat.dernier_entretien ? new Date(candidat.dernier_entretien) : null;
+              const now = new Date();
+              const memesMois = dernierEntretien &&
+                dernierEntretien.getMonth() === now.getMonth() &&
+                dernierEntretien.getFullYear() === now.getFullYear();
+              const entretiensCeMois = memesMois ? nbEntretiensMois : 0;
+              const peutFaire = entretiensCeMois < limite;
+
+              if (!peutFaire) {
+                return (
+                  <div style={{ background: "white", borderRadius: "12px", padding: "32px 20px", textAlign: "center", border: "0.5px solid #E8E8F0" }}>
+                    <div style={{ fontSize: "32px", marginBottom: "12px" }}>⏳</div>
+                    <div style={{ fontSize: "16px", fontWeight: 700, color: "#1A1A2E", marginBottom: "8px" }}>
+                      Limite mensuelle atteinte
+                    </div>
+                    <div style={{ fontSize: "13px", color: "#888", marginBottom: "20px", lineHeight: 1.6 }}>
+                      Vous avez utilisé vos {limite} entretien{limite > 1 ? "s" : ""} ce mois-ci.<br />
+                      Revenez le mois prochain ou passez à {isPropulse ? "Propulse Annuel" : "Propulse"}.
+                    </div>
+                    {!isPropulse && (
+                      <a href="/pricing" style={{ display: "inline-block", background: "#FF7043", color: "white", borderRadius: "20px", padding: "10px 24px", fontSize: "13px", fontWeight: 700, textDecoration: "none" }}>
+                        Passer à Propulse — 2 entretiens/mois →
+                      </a>
+                    )}
+                  </div>
+                );
               }
-            }}
-          />
+
+              // Afficher le popup automatiquement à l'ouverture de l'onglet
+              if (!showEntretienPopup && peutFaire) {
+                setTimeout(() => setShowEntretienPopup(true), 100);
+              }
+
+              return (
+                <EntretienDansMonEspace
+                  candidat={candidat}
+                  onRapportGenere={async (nouveauRapport) => {
+                    setCandidat({ ...candidat, ...nouveauRapport });
+                    setActiveTab("rapport");
+                    try {
+                      await fetch("/api/candidats/update-score", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          email: candidat.email,
+                          score_propulse: (nouveauRapport as any).score_propulse,
+                          score_cible_pct: (nouveauRapport as any).score_cible_pct,
+                          scenario_objectif: (nouveauRapport as any).scenario_objectif,
+                          verdict: (nouveauRapport as any).verdict,
+                        }),
+                      });
+                    } catch {
+                      console.error("Erreur sauvegarde score");
+                    }
+                  }}
+                />
+              );
+            })()}
+          </>
         )}
 
         {activeTab === "profil" && (
