@@ -735,6 +735,7 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const { history, lang, email, nom, prenom, candidatInfo, historiqueAnalyse: historiqueAnalyseIn } = body;
+    console.log("EMAIL REÇU:", email, "| NOM:", nom, "| PRENOM:", prenom);
 
     const profil = detecterProfil(candidatInfo || {});
 
