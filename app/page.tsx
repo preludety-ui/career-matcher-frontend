@@ -142,6 +142,7 @@ export default function Home() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [rapportGenere, setRapportGenere] = useState(false);
+  const [showWelcomePopup, setShowWelcomePopup] = useState(false);
   const [marketData, setMarketData] = useState<MarketData>(defaultMarket);
   const [marketLoading, setMarketLoading] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -313,6 +314,12 @@ export default function Home() {
       setLoading(false);
     }
   };
+  
+  useEffect(() => {
+  if (userInfo) {
+    setShowWelcomePopup(true);
+  }
+}, [userInfo]);
 
   useEffect(() => {
     if (userInfo && messages.length === 0 && !loading) {
@@ -499,6 +506,7 @@ export default function Home() {
 
   if (!userInfo) {
     return (
+      
       <div className="min-h-screen flex flex-col items-center justify-center px-4 py-6" style={{ background: "#FAFBFF" }}>
         <div className="w-full max-w-sm">
           <div className="text-center mb-6">
@@ -674,7 +682,53 @@ export default function Home() {
   }
 
   return (
-    <div className="flex flex-col bg-gray-50" style={{ height: "100dvh" }}>
+  <div className="flex flex-col bg-gray-50" style={{ height: "100dvh" }}>
+  
+    {/* POPUP BIENVENUE */}
+    {showWelcomePopup && (
+      <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.6)", zIndex: 999, display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}>
+        <div style={{ background: "white", borderRadius: "16px", padding: "24px", maxWidth: "380px", width: "100%", position: "relative" }}>
+          <button
+            onClick={() => setShowWelcomePopup(false)}
+            style={{ position: "absolute", top: "12px", right: "12px", background: "none", border: "none", fontSize: "20px", cursor: "pointer", color: "#888" }}
+          >×</button>
+          <div style={{ fontSize: "32px", textAlign: "center", marginBottom: "12px" }}>🎯</div>
+          <div style={{ fontSize: "16px", fontWeight: 700, color: "#1A1A2E", marginBottom: "16px", textAlign: "center" }}>
+            Bienvenue dans votre entretien YELMA
+          </div>
+          <div style={{ background: "#F1EFE8", borderRadius: "12px", padding: "14px", marginBottom: "16px" }}>
+            <div style={{ fontSize: "11px", fontWeight: 700, color: "#888", marginBottom: "10px" }}>📊 VOS DROITS D'ENTRETIEN</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span style={{ fontSize: "12px", color: "#1A1A2E" }}>🎁 Période d'essai (2 semaines)</span>
+                <span style={{ fontSize: "12px", fontWeight: 700, color: "#FF7043" }}>1 entretien</span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span style={{ fontSize: "12px", color: "#1A1A2E" }}>🔓 Plan Découverte</span>
+                <span style={{ fontSize: "12px", fontWeight: 700, color: "#888" }}>1/mois</span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span style={{ fontSize: "12px", color: "#1A1A2E" }}>⭐ Plan Propulse</span>
+                <span style={{ fontSize: "12px", fontWeight: 700, color: "#10B981" }}>2/mois</span>
+              </div>
+            </div>
+          </div>
+          <div style={{ background: "#FFF8E1", borderRadius: "12px", padding: "14px", marginBottom: "16px", borderLeft: "4px solid #FF7043" }}>
+            <div style={{ fontSize: "11px", fontWeight: 700, color: "#FF7043", marginBottom: "6px" }}>💡 CONSEIL POUR UN MEILLEUR RAPPORT</div>
+            <div style={{ fontSize: "11px", color: "#444", lineHeight: 1.7 }}>
+              Répondez avec des <strong>exemples concrets</strong> — une situation réelle, une action que vous avez prise, un résultat obtenu. Plus vous êtes précis, plus YELMA révèle vos vraies forces.
+            </div>
+          </div>
+          <button
+            onClick={() => setShowWelcomePopup(false)}
+            style={{ width: "100%", background: "#FF7043", color: "white", border: "none", borderRadius: "12px", padding: "12px", fontSize: "14px", fontWeight: 700, cursor: "pointer" }}
+          >
+            J'ai compris — Commencer mon entretien →
+          </button>
+        </div>
+      </div>
+    )}
+
       <div className="text-white px-6 py-4 flex-shrink-0 flex justify-between items-center" style={{ background: "#1A1A2E" }}>
         <div>
           <h1 className="text-lg font-black" style={{ letterSpacing: "-1px" }}>YELMA</h1>
