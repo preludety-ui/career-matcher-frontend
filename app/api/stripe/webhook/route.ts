@@ -29,17 +29,39 @@ export async function POST(req: NextRequest) {
       const customer = await stripe.customers.retrieve(customerId) as Stripe.Customer;
       const email = customer.email;
 
-      if (email) {
-        const plan = status === "active" ? "propulse" : "gratuit";
-        
-        const { error } = await supabaseAdmin
-          .from("candidats")
-          .update({ plan })
-          .eq("email", email);
+   if (email) {
+  const plan = status === "active" ? "propulse" : "decouverte";
+  
+  // Vérifier si le candidat existe
+  const { data: candidatExistant } = await supabaseAdmin
+    .from("candidats")
+    .select("email")
+    .eq("email", email)
+    .single();
 
-        if (error) console.error("Supabase update error:", error);
-        else console.log(`Plan mis à jour: ${email} → ${plan}`);
-      }
+  if (candidatExistant) {
+    // Mettre à jour le plan existant
+    const { error } = await supabaseAdmin
+      .from("candidats")
+      .update({ plan })
+      .eq("email", email);
+    if (error) console.error("Supabase update error:", error);
+    else console.log(`Plan mis à jour: ${email} → ${plan}`);
+  } else {
+    // Créer le candidat avec plan propulse
+    const { error } = await supabaseAdmin
+      .from("candidats")
+      .insert({
+        email,
+        plan,
+        trial_start: new Date().toISOString(),
+        trial_end: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+        plan_choisi: plan,
+      });
+    if (error) console.error("Supabase insert error:", error);
+    else console.log(`Nouveau candidat créé: ${email} → ${plan}`);
+  }
+}
     }
 
     // Abonnement annulé
@@ -52,10 +74,10 @@ export async function POST(req: NextRequest) {
       if (email) {
         await supabaseAdmin
           .from("candidats")
-          .update({ plan: "gratuit" })
+          .update({ plan: "decouverte" })
           .eq("email", email);
         
-        console.log(`Abonnement annulé: ${email} → gratuit`);
+        console.log(`Abonnement annulé: ${email} → decouverte`);
       }
     }
 
