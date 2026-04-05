@@ -25,6 +25,15 @@ function detecterProfil(candidatInfo: {
   const sansDiplome = diplome.includes("autodidacte") || diplome.includes("sans diplôme");
   const isEtudiant = statut.includes("étudiant");
   const isReconversion = statut.includes("reconversion");
+  const isReconversionSenior = isReconversion && (
+    exp.includes("6 à 10") || exp.includes("plus de 10") ||
+    exp.includes("3 à 5")
+  );
+
+  if (sansDiplome && avecAutreExp) return 1; // Sans diplôme mais avec expérience vie
+  if (sansDiplome) return 1;
+  if (isReconversionSenior) return 10; // ← Priorité reconversion senior
+  if (isEtudiant && !avecAutreExp) return 2;
 
   if (sansDiplome) return 1;
   if (isEtudiant && !avecAutreExp) return 2;
@@ -386,6 +395,10 @@ const BANQUES_QUESTIONS: Record<number, Record<string, string[]>> = {
       "Quel déclencheur exact t'a poussé à faire ce changement maintenant et pas avant ?",
       "Comment tu gères la baisse de statut potentielle et le retour en bas de l'échelle ?",
       "Comment tu expliques cette reconversion à un recruteur sceptique ?",
+      "Tu as combien d'années d'expérience dans ton ancien domaine et qu'est-ce que ça t'a appris que les jeunes diplômés n'ont pas ?",
+      "Qu'est-ce que tu laisses derrière toi et pourquoi maintenant à ce stade de ta carrière ?",
+      "Comment tu gères financièrement cette transition avec tes responsabilités actuelles ?",
+      "Qu'est-ce que ton réseau professionnel actuel peut t'apporter dans ta nouvelle direction ?",
     ],
     creuser: [
       "Qu'est-ce que tu as fait concrètement pour te préparer à ce nouveau domaine ?",
@@ -486,6 +499,13 @@ function buildSystemPrompt(
   } | null
 ) {
   const isReconversion = candidatInfo?.statut_emploi?.toLowerCase().includes("reconversion") || false;
+  const isReconversionSenior = isReconversion && (
+    candidatInfo?.annee_experience?.includes("6 à 10") ||
+    candidatInfo?.annee_experience?.includes("plus de 10") ||
+    candidatInfo?.annee_experience?.includes("3 à 5")
+  );
+  const isSansDiplome = candidatInfo?.diplome?.toLowerCase().includes("autodidacte") ||
+    candidatInfo?.diplome?.toLowerCase().includes("sans diplôme") || false;
   const nbEchanges = historiqueAnalyse.length;
   const scoresMoyen = historiqueAnalyse.length > 0
     ? historiqueAnalyse.reduce((acc, h) => acc + (h.score || 2), 0) / historiqueAnalyse.length
@@ -508,6 +528,8 @@ PROFIL CONNU - NE JAMAIS REDEMANDER :
 - Fourchette salariale: ${candidatInfo?.salaire_min || 40000}$ — ${candidatInfo?.salaire_max || 60000}$
 - PROFIL DÉTECTÉ: ${profil}
 - Reconversion: ${isReconversion ? "OUI" : "NON"}
+- Reconversion senior (28-45 ans): ${isReconversionSenior ? "OUI — valoriser l'expérience accumulée, aborder risque financier" : "NON"}
+- Sans diplôme: ${isSansDiplome ? "OUI — valoriser compétences pratiques, apprentissage autodidacte, réalisations concrètes" : "NON"}
 - Échanges complétés: ${nbEchanges}/${SEUIL_MAX_RAPPORT}
 - Score comportemental moyen: ${scoresMoyen.toFixed(1)}/5
 - Mode actuel: ${dernierMode}
