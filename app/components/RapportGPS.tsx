@@ -838,6 +838,28 @@ Commence par "En ${new Date().getFullYear() + 5},"`,
 
         {/* ── GPS ── */}
         {activeSection === 'gps' && (
+  <>
+  {plan !== 'propulse' ? (
+    <div style={{ background: "white", borderRadius: "12px", padding: "32px 20px", textAlign: "center", border: "0.5px solid #E8E8F0" }}>
+      <div style={{ fontSize: "32px", marginBottom: "12px" }}>🔒</div>
+      <div style={{ fontSize: "14px", fontWeight: 700, color: "#1A1A2E", marginBottom: "8px" }}>GPS Complet 5 ans — Plan Propulse</div>
+      <div style={{ fontSize: "12px", color: "#888", marginBottom: "8px" }}>Vous voyez votre GPS Année 1 seulement.</div>
+      <div style={{ fontSize: "12px", color: "#888", marginBottom: "20px" }}>Passez à Propulse pour voir votre plan complet sur 5 ans.</div>
+      <a href="/pricing" style={{ display: "inline-block", background: "#FF7043", color: "white", borderRadius: "20px", padding: "10px 24px", fontSize: "13px", fontWeight: 700, textDecoration: "none" }}>
+        Débloquer mon GPS 5 ans — 4.99$/mois →
+      </a>
+      <div style={{ marginTop: "20px", background: "#F1EFE8", borderRadius: "12px", padding: "14px" }}>
+        <div style={{ fontSize: "10px", fontWeight: 700, color: "#888", marginBottom: "8px" }}>📍 VOTRE GPS ANNÉE 1</div>
+        {data.gps_an1 && (
+          <div style={{ textAlign: "center" }}>
+            <div style={{ fontSize: "13px", fontWeight: 600, color: "#1A1A2E" }}>{data.gps_an1.titre}</div>
+            <div style={{ fontSize: "12px", color: "#FF7043", fontWeight: 700 }}>{data.gps_an1.salaire?.toLocaleString()} $</div>
+            <div style={{ fontSize: "10px", color: "#888" }}>{data.gps_an1.action}</div>
+          </div>
+        )}
+      </div>
+    </div>
+  ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
             <div>
               <div style={{ fontSize: '9px', letterSpacing: '2px', color: '#888', fontFamily: 'monospace', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
@@ -913,7 +935,10 @@ Commence par "En ${new Date().getFullYear() + 5},"`,
               </div>
             </div>
           </div>
-        )}
+        
+  )}
+  </>
+  )}
 
         {/* ── FORMATIONS ── */}
         {activeSection === 'formations' && (
