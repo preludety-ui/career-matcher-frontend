@@ -189,7 +189,7 @@ export async function construireGPS(
     signaux: SignauxNormalises,
     top_metier: MetierScore
 ): Promise<GPSDeterm> {
-    
+
     // 1. Chercher le métier actuel dans Supabase
     const motCle = signaux.role_actuel_normalise.trim()
     const { data: metierActuelData } = await supabaseAdmin
@@ -199,7 +199,7 @@ export async function construireGPS(
         .limit(1)
         .single()
 
-   
+
     const metier_actuel = metierActuelData ?? {
         id: null as string | null,
         titre_fr: signaux.role_actuel_normalise,
@@ -215,7 +215,7 @@ export async function construireGPS(
     let annees_evolution_max = 5
 
     if (metier_actuel.id) {
-       
+
         const { data: evolutions } = await supabaseAdmin
             .from('metier_evolution')
             .select(`
@@ -229,7 +229,7 @@ export async function construireGPS(
             s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
 
         const objectif = normalize(signaux.objectif_normalise || '')
-        
+
         const evolution = evolutions?.find(e => {
             const titreCible = (e.metier_cible as unknown as { titre_fr: string })?.titre_fr || ''
             const cible = normalize(titreCible)
@@ -238,12 +238,12 @@ export async function construireGPS(
             const match = (
                 cible.includes(objectif) || objectif.includes(cible) || motsObjectif.every(mot => cible.includes(mot)) || motsCible.every(mot => objectif.includes(mot))
             )
-            
+
             return match
         }) ?? evolutions?.find(e => e.type_evolution === 'progression')
             ?? evolutions?.[0]
             ?? null
-       
+
         if (evolution?.metier_cible) {
             const cibleRaw = evolution.metier_cible as unknown as { id: string; titre_fr: string; code_cnp: string; secteur: string } | { id: string; titre_fr: string; code_cnp: string; secteur: string }[]
             const cibleData = Array.isArray(cibleRaw) ? cibleRaw[0] : cibleRaw
@@ -251,26 +251,36 @@ export async function construireGPS(
             type_evolution = evolution.type_evolution
             annees_evolution_min = evolution.annees_min
             annees_evolution_max = evolution.annees_max
-            
+
         }
     }
 
     // 3. Si pas trouvé dans metier_evolution → chercher dans metiers par secteur
     if (!metier_cible) {
-        const { data: metierCibleData } = await supabaseAdmin
-            .from('metiers')
-            .select('id, titre_fr, code_cnp, secteur')
-            .ilike('titre_fr', `%${signaux.objectif_normalise.split(' ')[0]}%`)
-            .eq('secteur', metier_actuel.secteur)
-            .limit(1)
-            .single()
+        // Chercher directement par objectif déclaré dans tous les métiers
+        const motsCles = signaux.objectif_normalise.split(' ').filter(m => m.length > 3);
+        for (const mot of motsCles) {
+            const { data: metierParObjectif } = await supabaseAdmin
+                .from('metiers')
+                .select('id, titre_fr, code_cnp, secteur')
+                .ilike('titre_fr', `%${mot}%`)
+                .limit(1)
+                .single();
 
-        metier_cible = metierCibleData ?? {
+            if (metierParObjectif) {
+                metier_cible = metierParObjectif;
+                break;
+            }
+        }
+    }
+
+    if (!metier_cible) {
+        metier_cible = {
             id: null,
             titre_fr: top_metier.titre_fr,
             code_cnp: top_metier.code_cnp,
             secteur: top_metier.secteur,
-        }
+        };
     }
 
     // 4. Chercher les salaires réels
@@ -316,7 +326,7 @@ export async function construireGPS(
 
     // ── Calculer Score CIBLE % ──
     const annees_experience = signaux.annees_experience ?? 1
-    const score_cible_pct = Math.min(100, Math.round((annees_experience / annees_necessaires) * 100))
+    const score_cible_pct = Math.min(95, Math.round((annees_experience / (annees_necessaires + 2)) * 100))
     const score_cible_5ans_pct = annees_necessaires > 5
         ? Math.min(100, Math.round((5 / annees_necessaires) * 100))
         : 100
@@ -334,7 +344,7 @@ export async function construireGPS(
     // ── Verdict ──
     const verdict = annees_necessaires <= 5 ? 'atteignable'
         : annees_necessaires <= 8 ? 'ambitieux'
-        : 'defi'
+            : 'defi'
 
     // ── Message analyse ──
     const prenom = signaux.prenom ?? 'Toi'
