@@ -343,7 +343,9 @@ RÈGLES :
 
     // ── Calculer Score CIBLE % ──
     const annees_experience = signaux.annees_experience ?? 1
-    const score_cible_pct = Math.min(95, Math.round((annees_experience / (annees_necessaires + 2)) * 100))
+    const score_cible_pct = Math.min(85, Math.round(
+        (annees_experience / Math.max(annees_necessaires + 3, 5)) * 100
+    ))
     const score_cible_5ans_pct = annees_necessaires > 5
         ? Math.min(100, Math.round((5 / annees_necessaires) * 100))
         : 100
