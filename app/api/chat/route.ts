@@ -30,22 +30,19 @@ function detecterProfil(candidatInfo: {
     exp.includes("3 à 5")
   );
 
-  if (sansDiplome && avecAutreExp) return 1; // Sans diplôme mais avec expérience vie
-  if (sansDiplome) return 1;
-  if (isReconversionSenior) return 10; // ← Priorité reconversion senior
-  if (isEtudiant && !avecAutreExp) return 2;
-
-  if (sansDiplome) return 1;
-  if (isEtudiant && !avecAutreExp) return 2;
-  if (isEtudiant && avecAutreExp) return 3;
-  if (sansExp && !avecAutreExp) return 4;
-  if (sansExp && avecAutreExp) return 5;
-  if (exp.includes("moins") || exp.includes("1 à 2")) return 6;
-  if (exp.includes("3 à 5")) return 7;
-  if (exp.includes("6 à 10")) return 8;
-  if (exp.includes("plus de 10")) return 9;
-  if (isReconversion) return 10;
-  return 6;
+ if (sansDiplome && avecAutreExp) return 1;
+if (sansDiplome) return 1;
+if (isReconversionSenior) return 10;
+if (isEtudiant && !avecAutreExp) return 2;
+if (isEtudiant && avecAutreExp) return 3;
+if (sansExp && !avecAutreExp) return 4;
+if (sansExp && avecAutreExp) return 5;
+if (exp.includes("moins") || exp.includes("1 à 2")) return 6;
+if (exp.includes("3 à 5")) return 7;
+if (exp.includes("6 à 10")) return 8;
+if (exp.includes("plus de 10")) return 9;
+if (isReconversion) return 10;
+return 6;
 }
 
 // ============================================
@@ -503,7 +500,7 @@ function buildSystemPrompt(
     candidatInfo?.annee_experience?.includes("6 à 10") ||
     candidatInfo?.annee_experience?.includes("plus de 10") ||
     candidatInfo?.annee_experience?.includes("3 à 5")
-  );
+  )|| false;
   const isSansDiplome = candidatInfo?.diplome?.toLowerCase().includes("autodidacte") ||
     candidatInfo?.diplome?.toLowerCase().includes("sans diplôme") || false;
   const nbEchanges = historiqueAnalyse.length;
@@ -528,7 +525,7 @@ PROFIL CONNU - NE JAMAIS REDEMANDER :
 - Fourchette salariale: ${candidatInfo?.salaire_min || 40000}$ — ${candidatInfo?.salaire_max || 60000}$
 - PROFIL DÉTECTÉ: ${profil}
 - Reconversion: ${isReconversion ? "OUI" : "NON"}
-- Reconversion senior (28-45 ans): ${isReconversionSenior ? "OUI — valoriser l'expérience accumulée, aborder risque financier" : "NON"}
+- Reconversion senior (28-45 ans): ${isReconversionSenior ? "OUI — valoriser l'expérience accumulée, aborder risque financier et réseau" : "NON"}
 - Sans diplôme: ${isSansDiplome ? "OUI — valoriser compétences pratiques, apprentissage autodidacte, réalisations concrètes" : "NON"}
 - Échanges complétés: ${nbEchanges}/${SEUIL_MAX_RAPPORT}
 - Score comportemental moyen: ${scoresMoyen.toFixed(1)}/5
