@@ -224,21 +224,22 @@ function Tuile({ titre, pct, desc, onClick }: { titre: string; pct: number; desc
 }
 
 export default function RapportGPS({
-  data, plan, ville, roleActuel, email
+  data, plan, ville, roleActuel, email, enEssai
 }: {
   data: RapportData;
   plan: string;
   ville?: string;
   roleActuel?: string;
   email?: string;
+  enEssai?: boolean;
 }) {
   if (!data) return null;
-  
+
   console.log('SCORE CHECK:', {
-  score_propulse: data.score_propulse,
-  score_cible_pct: data.score_cible_pct,
-  scenario_objectif: data.scenario_objectif,
-});
+    score_propulse: data.score_propulse,
+    score_cible_pct: data.score_cible_pct,
+    scenario_objectif: data.scenario_objectif,
+  });
 
   const salaire_min: number = (data.salaire_min as number) ?? 0;
   const salaire_max: number = (data.salaire_max as number) ?? 0;
@@ -277,16 +278,16 @@ export default function RapportGPS({
 
   // ── Score cible : données DB en priorité, sinon parseRapport ─
   const scoreCible = (() => {
-  if (data.score_cible_pct && data.score_cible_pct > 0) return data.score_cible_pct;
-  const scenario = data.scenario_objectif ?? 3;
-  if (scenario === 1) return 65;
-  if (scenario === 2) return 40;
-  return 20;
-})();
+    if (data.score_cible_pct && data.score_cible_pct > 0) return data.score_cible_pct;
+    const scenario = data.scenario_objectif ?? 3;
+    if (scenario === 1) return 65;
+    if (scenario === 2) return 40;
+    return 20;
+  })();
 
   const verdict = String(data.verdict || 'atteignable');
-  const messageAnalyse = String(data.message_analyse || '');
-  const prenom = String(data.prenom || '');
+  const prenom = String(data.prenom || '').split(' ')[0] || '';
+  const messageAnalyse = String(data.message_analyse || '').replace(/^,\s*/, prenom ? `${prenom}, ` : '');
   const nom = String(data.nom || '');
   const villeAffichee = ville || String(data.ville || 'Montréal');
   const roleAffiche = roleActuel || String(data.role_actuel || '');
@@ -838,107 +839,107 @@ Commence par "En ${new Date().getFullYear() + 5},"`,
 
         {/* ── GPS ── */}
         {activeSection === 'gps' && (
-  <>
-  {plan !== 'propulse' ? (
-    <div style={{ background: "white", borderRadius: "12px", padding: "32px 20px", textAlign: "center", border: "0.5px solid #E8E8F0" }}>
-      <div style={{ fontSize: "32px", marginBottom: "12px" }}>🔒</div>
-      <div style={{ fontSize: "14px", fontWeight: 700, color: "#1A1A2E", marginBottom: "8px" }}>GPS Complet 5 ans — Plan Propulse</div>
-      <div style={{ fontSize: "12px", color: "#888", marginBottom: "8px" }}>Vous voyez votre GPS Année 1 seulement.</div>
-      <div style={{ fontSize: "12px", color: "#888", marginBottom: "20px" }}>Passez à Propulse pour voir votre plan complet sur 5 ans.</div>
-      <a href="/pricing" style={{ display: "inline-block", background: "#FF7043", color: "white", borderRadius: "20px", padding: "10px 24px", fontSize: "13px", fontWeight: 700, textDecoration: "none" }}>
-        Débloquer mon GPS 5 ans — 4.99$/mois →
-      </a>
-      <div style={{ marginTop: "20px", background: "#F1EFE8", borderRadius: "12px", padding: "14px" }}>
-        <div style={{ fontSize: "10px", fontWeight: 700, color: "#888", marginBottom: "8px" }}>📍 VOTRE GPS ANNÉE 1</div>
-        {data.gps_an1 && (
-          <div style={{ textAlign: "center" }}>
-            <div style={{ fontSize: "13px", fontWeight: 600, color: "#1A1A2E" }}>{data.gps_an1.titre}</div>
-            <div style={{ fontSize: "12px", color: "#FF7043", fontWeight: 700 }}>{data.gps_an1.salaire?.toLocaleString()} $</div>
-            <div style={{ fontSize: "10px", color: "#888" }}>{data.gps_an1.action}</div>
-          </div>
-        )}
-      </div>
-    </div>
-  ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            <div>
-              <div style={{ fontSize: '9px', letterSpacing: '2px', color: '#888', fontFamily: 'monospace', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
-                ÉVOLUTION SALARIALE · GPS DE CARRIÈRE 5 ANS
-                <div style={{ flex: 1, height: '1px', background: BORDER }} />
-              </div>
-              <div style={{ fontSize: '28px', color: DARK, fontWeight: 400 }}>
-                {salaireMin.toLocaleString()} $ → <span style={{ color: ORANGE, fontWeight: 700 }}>{salaireMax.toLocaleString()} $</span>
-                <span style={{ fontSize: '13px', color: '#888', marginLeft: '8px' }}>CAD/an</span>
-              </div>
-              <div style={{ fontSize: '10px', color: '#888', marginTop: '4px' }}>Projection sur 5 ans · Données marché temps réel · {villeAffichee}</div>
-            </div>
-            <div style={{ background: CARD, borderRadius: '12px', padding: '20px', border: `1px solid ${BORDER}` }}>
-              <div style={{ position: 'relative', width: '100%', height: '220px' }}><canvas ref={chartRef}></canvas></div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '4px', marginTop: '8px' }}>
-                {[
-                  { gps: { titre: roleAffiche || 'Poste actuel', salaire: salaireMin, action: 'Point de départ' }, isMax: false },
-                  { gps: data.gps_an1, isMax: false }, { gps: data.gps_an2, isMax: false },
-                  { gps: data.gps_an3, isMax: false }, { gps: data.gps_an4, isMax: false },
-                  { gps: data.gps_an5, isMax: true },
-                ].filter(e => e.gps && (e.gps as GPS).salaire).map((e, i) => {
-                  const gps = e.gps as GPS;
-                  return (
-                    <div key={i} style={{ textAlign: 'center', paddingTop: '4px' }}>
-                      <div style={{ fontSize: '10px', fontWeight: 600, color: e.isMax ? ORANGE : DARK, lineHeight: 1.3, marginBottom: '2px' }}>{gps.titre}</div>
-                      <div style={{ fontSize: '10px', fontWeight: 700, color: e.isMax ? ORANGE : '#555' }}>{gps.salaire?.toLocaleString()} $</div>
-                      {gps.action && <div style={{ fontSize: '8px', color: '#aaa', marginTop: '2px', lineHeight: 1.3 }}>{gps.action}</div>}
+          <>
+            {plan !== 'propulse' && !enEssai ? (
+              <div style={{ background: "white", borderRadius: "12px", padding: "32px 20px", textAlign: "center", border: "0.5px solid #E8E8F0" }}>
+                <div style={{ fontSize: "32px", marginBottom: "12px" }}>🔒</div>
+                <div style={{ fontSize: "14px", fontWeight: 700, color: "#1A1A2E", marginBottom: "8px" }}>GPS Complet 5 ans — Plan Propulse</div>
+                <div style={{ fontSize: "12px", color: "#888", marginBottom: "8px" }}>Vous voyez votre GPS Année 1 seulement.</div>
+                <div style={{ fontSize: "12px", color: "#888", marginBottom: "20px" }}>Passez à Propulse pour voir votre plan complet sur 5 ans.</div>
+                <a href="/pricing" style={{ display: "inline-block", background: "#FF7043", color: "white", borderRadius: "20px", padding: "10px 24px", fontSize: "13px", fontWeight: 700, textDecoration: "none" }}>
+                  Débloquer mon GPS 5 ans — 4.99$/mois →
+                </a>
+                <div style={{ marginTop: "20px", background: "#F1EFE8", borderRadius: "12px", padding: "14px" }}>
+                  <div style={{ fontSize: "10px", fontWeight: 700, color: "#888", marginBottom: "8px" }}>📍 VOTRE GPS ANNÉE 1</div>
+                  {data.gps_an1 && (
+                    <div style={{ textAlign: "center" }}>
+                      <div style={{ fontSize: "13px", fontWeight: 600, color: "#1A1A2E" }}>{data.gps_an1.titre}</div>
+                      <div style={{ fontSize: "12px", color: "#FF7043", fontWeight: 700 }}>{data.gps_an1.salaire?.toLocaleString()} $</div>
+                      <div style={{ fontSize: "10px", color: "#888" }}>{data.gps_an1.action}</div>
                     </div>
-                  );
-                })}
+                  )}
+                </div>
               </div>
-            </div>
-            <div style={{ background: CARD, borderRadius: '12px', border: `1px solid ${BORDER}`, overflow: 'hidden' }}>
-              <div style={{ padding: '16px 20px', borderBottom: `1px solid ${BORDER}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                 <div>
-                  <div style={{ fontSize: '9px', letterSpacing: '2px', color: '#888', fontFamily: 'monospace', marginBottom: '4px' }}>PRÉVISION · {String(data.objectif_carriere || '').toUpperCase()} {new Date().getFullYear()}–{new Date().getFullYear() + 5}</div>
-                  <div style={{ fontSize: '14px', fontWeight: 500, color: DARK }}>Poste cible : <span style={{ color: ORANGE, fontStyle: 'italic' }}>{String(data.objectif_carriere || '')}</span></div>
-                  <div style={{ marginTop: '6px' }}><span style={{ background: '#FFF0EB', color: ORANGE, borderRadius: '20px', padding: '2px 10px', fontSize: '9px', fontFamily: 'monospace' }}>⊙ Ta cible · {verdict === 'atteignable' ? 'Atteignable en 5 ans' : 'Objectif ambitieux'}</span></div>
-                </div>
-                <div style={{ textAlign: 'right' }}><div style={{ fontSize: '9px', color: '#888', fontFamily: 'monospace' }}>Indice de tension</div><div style={{ fontSize: '18px', fontWeight: 700, color: ORANGE }}>Élevé</div></div>
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '60px 1fr 140px 80px', padding: '8px 20px', background: '#FAFAF8', borderBottom: `1px solid ${BORDER}` }}>
-                {['ANNÉE', 'SALAIRE MÉDIAN', 'CROISSANCE', 'DEMANDE'].map((h, i) => (<div key={i} style={{ fontSize: '8px', letterSpacing: '1px', color: '#aaa', fontFamily: 'monospace' }}>{h}</div>))}
-              </div>
-              {[
-                { an: new Date().getFullYear(), gps: { titre: roleAffiche, salaire: salaireMin, action: '' }, isTarget: false },
-                { an: new Date().getFullYear() + 1, gps: data.gps_an1, isTarget: false },
-                { an: new Date().getFullYear() + 2, gps: data.gps_an2, isTarget: false },
-                { an: new Date().getFullYear() + 3, gps: data.gps_an3, isTarget: false },
-                { an: new Date().getFullYear() + 4, gps: data.gps_an4, isTarget: false },
-                { an: new Date().getFullYear() + 5, gps: data.gps_an5, isTarget: true },
-              ].filter(e => e.gps && (e.gps as GPS).salaire).map((e, i) => {
-                const gps = e.gps as GPS;
-                const prevSalaire = i === 0 ? null : (() => { const prev = [salaireMin, data.gps_an1?.salaire, data.gps_an2?.salaire, data.gps_an3?.salaire, data.gps_an4?.salaire][i - 1]; return Number(prev) || salaireMin; })();
-                const croissance = prevSalaire ? Math.round(((gps.salaire - prevSalaire) / prevSalaire) * 100) : null;
-                const demande = Math.min(100, 55 + i * 7);
-                return (
-                  <div key={i} style={{ display: 'grid', gridTemplateColumns: '60px 1fr 140px 80px', padding: '12px 20px', borderBottom: `1px solid ${BORDER}`, background: e.isTarget ? '#FFF5F2' : 'white', alignItems: 'center' }}>
-                    <div style={{ fontSize: '12px', fontWeight: e.isTarget ? 700 : 400, color: e.isTarget ? ORANGE : '#888', fontFamily: 'monospace' }}>{e.an}</div>
-                    <div style={{ fontSize: '13px', fontWeight: e.isTarget ? 700 : 500, color: e.isTarget ? ORANGE : DARK }}>{gps.salaire?.toLocaleString()} $</div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      {croissance !== null ? (<><span style={{ fontSize: '10px', color: croissance > 0 ? GREEN : '#888', fontWeight: 600, minWidth: '36px' }}>{croissance > 0 ? `+${croissance}%` : '—'}</span><div style={{ flex: 1, height: '4px', background: '#F0EDE6', borderRadius: '2px', overflow: 'hidden' }}><div style={{ height: '100%', width: `${Math.min(100, Math.abs(croissance) * 3)}%`, background: e.isTarget ? ORANGE : GREEN, borderRadius: '2px' }} /></div></>) : <span style={{ fontSize: '10px', color: '#aaa' }}>—</span>}
-                    </div>
-                    <div style={{ fontSize: '12px', fontWeight: 500, color: e.isTarget ? ORANGE : '#555' }}>{demande}</div>
+                  <div style={{ fontSize: '9px', letterSpacing: '2px', color: '#888', fontFamily: 'monospace', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+                    ÉVOLUTION SALARIALE · GPS DE CARRIÈRE 5 ANS
+                    <div style={{ flex: 1, height: '1px', background: BORDER }} />
                   </div>
-                );
-              })}
-              <div style={{ padding: '14px 20px', background: '#FAFAF8' }}>
-                <div style={{ fontSize: '11px', color: '#555', lineHeight: 1.7 }}>
-                  {messageGPS || `En ${new Date().getFullYear() + 5}, le salaire médian ${String(data.objectif_carriere || '')} à ${villeAffichee} est projeté à `}
-                  {!messageGPS && <><strong style={{ color: ORANGE }}>{salaireMax.toLocaleString()} $</strong>. {prenom}, si tu suis ton GPS, tu arriveras exactement au bon moment sur le marché.</>}
+                  <div style={{ fontSize: '28px', color: DARK, fontWeight: 400 }}>
+                    {salaireMin.toLocaleString()} $ → <span style={{ color: ORANGE, fontWeight: 700 }}>{salaireMax.toLocaleString()} $</span>
+                    <span style={{ fontSize: '13px', color: '#888', marginLeft: '8px' }}>CAD/an</span>
+                  </div>
+                  <div style={{ fontSize: '10px', color: '#888', marginTop: '4px' }}>Projection sur 5 ans · Données marché temps réel · {villeAffichee}</div>
+                </div>
+                <div style={{ background: CARD, borderRadius: '12px', padding: '20px', border: `1px solid ${BORDER}` }}>
+                  <div style={{ position: 'relative', width: '100%', height: '220px' }}><canvas ref={chartRef}></canvas></div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '4px', marginTop: '8px' }}>
+                    {[
+                      { gps: { titre: roleAffiche || 'Poste actuel', salaire: salaireMin, action: 'Point de départ' }, isMax: false },
+                      { gps: data.gps_an1, isMax: false }, { gps: data.gps_an2, isMax: false },
+                      { gps: data.gps_an3, isMax: false }, { gps: data.gps_an4, isMax: false },
+                      { gps: data.gps_an5, isMax: true },
+                    ].filter(e => e.gps && (e.gps as GPS).salaire).map((e, i) => {
+                      const gps = e.gps as GPS;
+                      return (
+                        <div key={i} style={{ textAlign: 'center', paddingTop: '4px' }}>
+                          <div style={{ fontSize: '10px', fontWeight: 600, color: e.isMax ? ORANGE : DARK, lineHeight: 1.3, marginBottom: '2px' }}>{gps.titre}</div>
+                          <div style={{ fontSize: '10px', fontWeight: 700, color: e.isMax ? ORANGE : '#555' }}>{gps.salaire?.toLocaleString()} $</div>
+                          {gps.action && <div style={{ fontSize: '8px', color: '#aaa', marginTop: '2px', lineHeight: 1.3 }}>{gps.action}</div>}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+                <div style={{ background: CARD, borderRadius: '12px', border: `1px solid ${BORDER}`, overflow: 'hidden' }}>
+                  <div style={{ padding: '16px 20px', borderBottom: `1px solid ${BORDER}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <div style={{ fontSize: '9px', letterSpacing: '2px', color: '#888', fontFamily: 'monospace', marginBottom: '4px' }}>PRÉVISION · {String(data.objectif_carriere || '').toUpperCase()} {new Date().getFullYear()}–{new Date().getFullYear() + 5}</div>
+                      <div style={{ fontSize: '14px', fontWeight: 500, color: DARK }}>Poste cible : <span style={{ color: ORANGE, fontStyle: 'italic' }}>{String(data.objectif_carriere || '')}</span></div>
+                      <div style={{ marginTop: '6px' }}><span style={{ background: '#FFF0EB', color: ORANGE, borderRadius: '20px', padding: '2px 10px', fontSize: '9px', fontFamily: 'monospace' }}>⊙ Ta cible · {verdict === 'atteignable' ? 'Atteignable en 5 ans' : 'Objectif ambitieux'}</span></div>
+                    </div>
+                    <div style={{ textAlign: 'right' }}><div style={{ fontSize: '9px', color: '#888', fontFamily: 'monospace' }}>Indice de tension</div><div style={{ fontSize: '18px', fontWeight: 700, color: ORANGE }}>Élevé</div></div>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '60px 1fr 140px 80px', padding: '8px 20px', background: '#FAFAF8', borderBottom: `1px solid ${BORDER}` }}>
+                    {['ANNÉE', 'SALAIRE MÉDIAN', 'CROISSANCE', 'DEMANDE'].map((h, i) => (<div key={i} style={{ fontSize: '8px', letterSpacing: '1px', color: '#aaa', fontFamily: 'monospace' }}>{h}</div>))}
+                  </div>
+                  {[
+                    { an: new Date().getFullYear(), gps: { titre: roleAffiche, salaire: salaireMin, action: '' }, isTarget: false },
+                    { an: new Date().getFullYear() + 1, gps: data.gps_an1, isTarget: false },
+                    { an: new Date().getFullYear() + 2, gps: data.gps_an2, isTarget: false },
+                    { an: new Date().getFullYear() + 3, gps: data.gps_an3, isTarget: false },
+                    { an: new Date().getFullYear() + 4, gps: data.gps_an4, isTarget: false },
+                    { an: new Date().getFullYear() + 5, gps: data.gps_an5, isTarget: true },
+                  ].filter(e => e.gps && (e.gps as GPS).salaire).map((e, i) => {
+                    const gps = e.gps as GPS;
+                    const prevSalaire = i === 0 ? null : (() => { const prev = [salaireMin, data.gps_an1?.salaire, data.gps_an2?.salaire, data.gps_an3?.salaire, data.gps_an4?.salaire][i - 1]; return Number(prev) || salaireMin; })();
+                    const croissance = prevSalaire ? Math.round(((gps.salaire - prevSalaire) / prevSalaire) * 100) : null;
+                    const demande = Math.min(100, 55 + i * 7);
+                    return (
+                      <div key={i} style={{ display: 'grid', gridTemplateColumns: '60px 1fr 140px 80px', padding: '12px 20px', borderBottom: `1px solid ${BORDER}`, background: e.isTarget ? '#FFF5F2' : 'white', alignItems: 'center' }}>
+                        <div style={{ fontSize: '12px', fontWeight: e.isTarget ? 700 : 400, color: e.isTarget ? ORANGE : '#888', fontFamily: 'monospace' }}>{e.an}</div>
+                        <div style={{ fontSize: '13px', fontWeight: e.isTarget ? 700 : 500, color: e.isTarget ? ORANGE : DARK }}>{gps.salaire?.toLocaleString()} $</div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          {croissance !== null ? (<><span style={{ fontSize: '10px', color: croissance > 0 ? GREEN : '#888', fontWeight: 600, minWidth: '36px' }}>{croissance > 0 ? `+${croissance}%` : '—'}</span><div style={{ flex: 1, height: '4px', background: '#F0EDE6', borderRadius: '2px', overflow: 'hidden' }}><div style={{ height: '100%', width: `${Math.min(100, Math.abs(croissance) * 3)}%`, background: e.isTarget ? ORANGE : GREEN, borderRadius: '2px' }} /></div></>) : <span style={{ fontSize: '10px', color: '#aaa' }}>—</span>}
+                        </div>
+                        <div style={{ fontSize: '12px', fontWeight: 500, color: e.isTarget ? ORANGE : '#555' }}>{demande}</div>
+                      </div>
+                    );
+                  })}
+                  <div style={{ padding: '14px 20px', background: '#FAFAF8' }}>
+                    <div style={{ fontSize: '11px', color: '#555', lineHeight: 1.7 }}>
+                      {messageGPS || `En ${new Date().getFullYear() + 5}, le salaire médian ${String(data.objectif_carriere || '')} à ${villeAffichee} est projeté à `}
+                      {!messageGPS && <><strong style={{ color: ORANGE }}>{salaireMax.toLocaleString()} $</strong>. {prenom}, si tu suis ton GPS, tu arriveras exactement au bon moment sur le marché.</>}
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
-          </div>
-        
-  )}
-  </>
-  )}
+
+            )}
+          </>
+        )}
 
         {/* ── FORMATIONS ── */}
         {activeSection === 'formations' && (

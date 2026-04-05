@@ -702,6 +702,7 @@ export default function MonEspace() {
                 ville={candidat.ville}
                 roleActuel={candidat.role_actuel}
                 email={candidat.email}
+                enEssai={enEssai}
               />
 
 
