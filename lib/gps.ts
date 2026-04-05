@@ -207,80 +207,95 @@ export async function construireGPS(
         secteur: signaux.domaine_code,
     }
 
-
-    // 2. Chercher le métier cible via metier_evolution (source de vérité)
+    // 2. Générer le GPS via Claude
     let metier_cible: { id: string | null; titre_fr: string; code_cnp: string; secteur: string } | null = null
-    let type_evolution = 'progression'
     let annees_evolution_min = 2
     let annees_evolution_max = 5
 
-    if (metier_actuel.id) {
+    try {
+        const gpsPrompt = `Tu es un expert en orientation de carrière au Québec.
+Génère un plan de carrière réaliste pour cette personne :
+- Rôle actuel : ${signaux.role_actuel_normalise}
+- Objectif : ${signaux.objectif_normalise}
+- Expérience : ${signaux.annees_experience} ans
+- Diplôme : ${signaux.diplome || 'non précisé'}
+- Ville : ${signaux.ville || 'Montréal'}
 
-        const { data: evolutions } = await supabaseAdmin
-            .from('metier_evolution')
-            .select(`
-                type_evolution, annees_min, annees_max,
-                diplome_requis, ordre_requis, nom_ordre,
-                metier_cible:metier_id_cible (id, titre_fr, code_cnp, secteur)
-            `)
-            .eq('metier_id_source', metier_actuel.id)
-            .order('annees_min', { ascending: true })
-        const normalize = (s: string) =>
-            s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+Réponds UNIQUEMENT avec ce JSON valide, rien d'autre :
+{
+  "titre_cible": "titre exact du poste cible au Québec",
+  "secteur_cible": "secteur (ex: Gestion, TI, Santé, Construction)",
+  "annees_min": 2,
+  "annees_max": 5,
+  "etapes": [
+    {"annee": 1, "titre": "titre poste année 1", "action": "action concrète année 1"},
+    {"annee": 2, "titre": "titre poste année 2", "action": "action concrète année 2"},
+    {"annee": 3, "titre": "titre poste année 3", "action": "action concrète année 3"},
+    {"annee": 4, "titre": "titre poste année 4", "action": "action concrète année 4"},
+    {"annee": 5, "titre": "titre poste année 5", "action": "action concrète année 5"}
+  ]
+}
 
-        const objectif = normalize(signaux.objectif_normalise || '')
+RÈGLES :
+- Titres de postes réels et reconnus au Québec
+- Si sans diplôme → proposer certifications reconnues (PMP, CAPM, etc.) dans les actions
+- Progression réaliste et atteignable
+- Actions concrètes et spécifiques au domaine`
 
-        const evolution = evolutions?.find(e => {
-            const titreCible = (e.metier_cible as unknown as { titre_fr: string })?.titre_fr || ''
-            const cible = normalize(titreCible)
-            const motsObjectif = objectif.split(' ').filter(mot => mot.length > 3)
-            const motsCible = cible.split(' ').filter(mot => mot.length > 3)
-            const match = (
-                cible.includes(objectif) || objectif.includes(cible) || motsObjectif.every(mot => cible.includes(mot)) || motsCible.every(mot => objectif.includes(mot))
-            )
+        const claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'x-api-key': process.env.ANTHROPIC_API_KEY!,
+                'anthropic-version': '2023-06-01',
+            },
+            body: JSON.stringify({
+                model: 'claude-haiku-4-5-20251001',
+                max_tokens: 800,
+                messages: [{ role: 'user', content: gpsPrompt }],
+            }),
+        })
 
-            return match
-        }) ?? evolutions?.find(e => e.type_evolution === 'progression')
-            ?? evolutions?.[0]
-            ?? null
+        const claudeData = await claudeRes.json()
+        const claudeText = claudeData.content?.[0]?.text || ''
+        const jsonMatch = claudeText.match(/\{[\s\S]*\}/)
 
-        if (evolution?.metier_cible) {
-            const cibleRaw = evolution.metier_cible as unknown as { id: string; titre_fr: string; code_cnp: string; secteur: string } | { id: string; titre_fr: string; code_cnp: string; secteur: string }[]
-            const cibleData = Array.isArray(cibleRaw) ? cibleRaw[0] : cibleRaw
-            metier_cible = cibleData
-            type_evolution = evolution.type_evolution
-            annees_evolution_min = evolution.annees_min
-            annees_evolution_max = evolution.annees_max
-
-        }
-    }
-
-    // 3. Si pas trouvé dans metier_evolution → chercher dans metiers par secteur
-    if (!metier_cible) {
-        // Chercher directement par objectif déclaré dans tous les métiers
-        const motsCles = signaux.objectif_normalise.split(' ').filter(m => m.length > 3);
-        for (const mot of motsCles) {
-            const { data: metierParObjectif } = await supabaseAdmin
-                .from('metiers')
-                .select('id, titre_fr, code_cnp, secteur')
-                .ilike('titre_fr', `%${mot}%`)
-                .limit(1)
-                .single();
-
-            if (metierParObjectif) {
-                metier_cible = metierParObjectif;
-                break;
+        if (jsonMatch) {
+            const gpsJson = JSON.parse(jsonMatch[0])
+            metier_cible = {
+                id: null,
+                titre_fr: gpsJson.titre_cible,
+                code_cnp: top_metier.code_cnp,
+                secteur: gpsJson.secteur_cible,
             }
+            annees_evolution_min = gpsJson.annees_min || 2
+            annees_evolution_max = gpsJson.annees_max || 5
+
+            // Remplacer les actions génériques par celles de Claude
+            const actionsParAnnee: Record<number, string[]> = {}
+            for (const etape of gpsJson.etapes) {
+                actionsParAnnee[etape.annee] = [etape.action]
+            }
+
+            // Stocker pour utilisation dans construireGPS
+            ; (signaux as any)._actionsClaudeGPS = actionsParAnnee
+                ; (signaux as any)._titresClaudeGPS = gpsJson.etapes.reduce((acc: Record<number, string>, e: { annee: number, titre: string }) => {
+                    acc[e.annee] = e.titre
+                    return acc
+                }, {})
         }
+    } catch (e) {
+        console.error('GPS Claude error:', e)
     }
 
+    // Fallback si Claude échoue
     if (!metier_cible) {
         metier_cible = {
             id: null,
-            titre_fr: top_metier.titre_fr,
+            titre_fr: signaux.objectif_normalise,
             code_cnp: top_metier.code_cnp,
             secteur: top_metier.secteur,
-        };
+        }
     }
 
     // 4. Chercher les salaires réels
@@ -311,11 +326,13 @@ export async function construireGPS(
 
         etapes.push({
             annee,
-            titre: est_objectif ? metier_cible.titre_fr : signaux.role_actuel_normalise,
+            titre: (signaux as any)._titresClaudeGPS?.[annee] || (est_objectif ? metier_cible.titre_fr : signaux.role_actuel_normalise),
             code_cnp: est_objectif ? metier_cible.code_cnp : metier_actuel.code_cnp,
             salaire_min,
             salaire_max,
-            actions: genererActions(annee, est_objectif ? metier_cible.secteur : metier_actuel.secteur, est_objectif),
+            actions: (signaux as any)._actionsClaudeGPS?.[annee]
+                ? [(signaux as any)._actionsClaudeGPS[annee]]
+                : genererActions(annee, est_objectif ? metier_cible.secteur : metier_actuel.secteur, est_objectif),
             est_objectif,
         })
     }

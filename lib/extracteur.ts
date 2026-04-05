@@ -88,7 +88,9 @@ export interface SignauxNormalises {
   diplome_niveau:        number
   annees_experience:     number
   est_reconversion:      boolean
-  prenom?:                string
+  prenom?:               string
+  diplome?:              string
+  ville?:                string
 }
 
 export interface SignauxBruts {
