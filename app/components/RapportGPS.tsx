@@ -974,15 +974,18 @@ Commence par "En ${new Date().getFullYear() + 5},"`,
                   CERTIFICATIONS
                   <div style={{ flex: 1, height: '1px', background: BORDER }} />
                 </div>
-                {((data.certifications as Certification[]) || []).map((c, i) => (
-                  <div key={i} style={{ background: CARD, borderRadius: '12px', padding: '14px 16px', border: `1px solid ${BORDER}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div>
-                      <div style={{ fontSize: '13px', fontWeight: 500, color: DARK }}>{c.nom}</div>
-                      <div style={{ fontSize: '11px', color: '#888' }}>{c.organisme}</div>
+                {((data.certifications as any[]) || []).map((c: any, i: number) => {
+                  const cert = typeof c === 'string' ? JSON.parse(c) : c;
+                  return (
+                    <div key={i} style={{ background: CARD, borderRadius: '12px', padding: '14px 16px', border: `1px solid ${BORDER}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div>
+                        <div style={{ fontSize: '13px', fontWeight: 500, color: DARK }}>{cert.nom}</div>
+                        <div style={{ fontSize: '11px', color: '#888' }}>{cert.organisme}</div>
+                      </div>
+                      <span style={{ fontSize: '11px', color: ORANGE, fontWeight: 500 }}>Détail →</span>
                     </div>
-                    <span style={{ fontSize: '11px', color: ORANGE, fontWeight: 500 }}>Détail →</span>
-                  </div>
-                ))}
+                  );
+                })}
               </>
             )}
           </div>
