@@ -333,7 +333,7 @@ Commence par "En ${new Date().getFullYear() + 5},"`,
       const res = await fetch('/api/marche-score', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, objectif: data.objectif_carriere, ville: villeAffichee, domaine: String(data.domaine_actuel || '') }),
+        body: JSON.stringify({ email, objectif: data.objectif_carriere, ville: villeAffichee, domaine: String(data.objectif_carriere || data.domaine_actuel || '')}),
       });
       const d = await res.json();
       if (d.marche) { setMarcheScore(d.marche.score_marche); setMarcheDetails(d.marche); }
