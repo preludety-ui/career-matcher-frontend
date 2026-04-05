@@ -37,7 +37,7 @@ export default function Pricing() {
         </div>
 
         {/* 3 plans côte à côte */}
-        <div className="grid grid-cols-3 gap-4 items-start">
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "16px", alignItems: "start" }}>
 
           {/* Plan Gratuit */}
           <div className="bg-white rounded-2xl p-5" style={{ border: "0.5px solid #E8E8F0" }}>
