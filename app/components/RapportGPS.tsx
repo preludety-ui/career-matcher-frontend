@@ -654,7 +654,7 @@ Commence par "En ${new Date().getFullYear() + 5},"`,
                 TON TABLEAU DE BORD
                 <div style={{ flex: 1, height: '1px', background: BORDER }} />
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '10px' }}>
                 <Tuile titre="Mes compétences" pct={
                   Math.round(
                     [data.force1 ? 92 : 0, data.force2 ? 85 : 0, data.force3 ? 78 : 0]
