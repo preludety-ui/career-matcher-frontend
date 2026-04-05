@@ -475,7 +475,7 @@ export default function MonEspace() {
     setLettreLoading(true);
     const offreTarget = offre || offreSelectionnee;
     try {
-     const res = await fetch("/api/lettre/generate", {
+      const res = await fetch("/api/lettre/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -717,17 +717,30 @@ export default function MonEspace() {
         {/* OFFRES */}
         {activeTab === "offres" && (
           <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <div style={{ fontSize: "12px", color: "#888" }}>
-                {offresDisponibles.length > 0 ? `${offresDisponibles.length} offres disponibles` : offresLoading ? "Recherche..." : "Aucune offre"}
-                {candidatures.length > 0 && <span style={{ marginLeft: "8px", color: "#10B981", fontWeight: 600 }}> · {candidatures.length} postulé(s)</span>}
+            {!isPropulse ? (
+              <div style={{ background: "white", borderRadius: "12px", padding: "32px 20px", textAlign: "center", border: "0.5px solid #E8E8F0" }}>
+                <div style={{ fontSize: "32px", marginBottom: "12px" }}>🔒</div>
+                <div style={{ fontSize: "14px", fontWeight: 700, color: "#1A1A2E", marginBottom: "8px" }}>Offres ciblées — Plan Propulse</div>
+                <div style={{ fontSize: "12px", color: "#888", marginBottom: "20px" }}>Accédez aux offres personnalisées selon votre profil et votre objectif de carrière.</div>
+                <a href="/pricing" style={{ display: "inline-block", background: "#FF7043", color: "white", borderRadius: "20px", padding: "10px 24px", fontSize: "13px", fontWeight: 700, textDecoration: "none" }}>
+                  Débloquer mes offres — 4.99$/mois →
+                  
+                </a>
               </div>
-              <button onClick={chargerOffres} disabled={offresLoading} style={{ background: "#FF7043", color: "white", border: "none", borderRadius: "20px", padding: "6px 14px", fontSize: "11px", fontWeight: 600, cursor: "pointer" }}>
-                {offresLoading ? "⏳ Recherche..." : "🔄 Actualiser"}
-              </button>
-            </div>
+           ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
 
-            {offresLoading && (
+                <div style={{ fontSize: "12px", color: "#888" }}>
+                  {offresDisponibles.length > 0 ? `${offresDisponibles.length} offres disponibles` : offresLoading ? "Recherche..." : "Aucune offre"}
+                  {candidatures.length > 0 && <span style={{ marginLeft: "8px", color: "#10B981", fontWeight: 600 }}> · {candidatures.length} postulé(s)</span>}
+                </div>
+                <button onClick={chargerOffres} disabled={offresLoading} style={{ background: "#FF7043", color: "white", border: "none", borderRadius: "20px", padding: "6px 14px", fontSize: "11px", fontWeight: 600, cursor: "pointer" }}>
+                  {offresLoading ? "⏳ Recherche..." : "🔄 Actualiser"}
+                </button>
+              </div>
+            
+              {offresLoading && (
               <div style={{ background: "white", borderRadius: "12px", padding: "24px", textAlign: "center", border: "0.5px solid #E8E8F0" }}>
                 <div style={{ fontSize: "24px", marginBottom: "8px" }}>🔍</div>
                 <div style={{ fontSize: "13px", color: "#888" }}>YELMA cherche les meilleures offres pour vous...</div>
@@ -771,32 +784,32 @@ export default function MonEspace() {
               </div>
             ))}
             {offresCibles.length > 0 && (
-  <div style={{ background: "#F0F9FF", borderRadius: "12px", padding: "14px", border: "0.5px solid #BFE0FF", marginTop: "8px" }}>
-    <div style={{ fontSize: "10px", fontWeight: 700, color: "#0C447C", marginBottom: "4px" }}>
-      🎯 MON OBJECTIF — {candidat.objectif_carriere || "Poste cible"}
-    </div>
-    <div style={{ fontSize: "10px", color: "#0C447C", marginBottom: "12px" }}>
-      Ces offres correspondent à votre poste cible — explorez pour vous préparer
-    </div>
-    {offresCibles.map((o, i) => (
-      <div key={i} style={{ background: "white", borderRadius: "10px", padding: "12px", marginBottom: "8px", border: "0.5px solid #E8E8F0" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "6px" }}>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: "13px", fontWeight: 600, color: "#1A1A2E" }}>{o.titre}</div>
-            {o.entreprise && <div style={{ fontSize: "11px", color: "#888" }}>{o.entreprise}</div>}
-          </div>
-          <span style={{ background: "#D6F0FF", color: "#0C447C", borderRadius: "20px", padding: "2px 8px", fontSize: "10px", fontWeight: 700 }}>
-            {o.score}% match cible
-          </span>
-        </div>
-        <div style={{ display: "flex", gap: "6px", justifyContent: "flex-end" }}>
-          <button onClick={() => { setOffreSelectionnee(o); genererLettre(o); }} style={{ background: "#F0F9FF", color: "#0C447C", border: "none", borderRadius: "20px", padding: "5px 10px", fontSize: "10px", fontWeight: 600, cursor: "pointer" }}>✉️ Lettre</button>
-          <a href={o.lien} target="_blank" rel="noopener noreferrer" style={{ background: "#0C447C", color: "white", borderRadius: "20px", padding: "5px 12px", fontSize: "10px", fontWeight: 700, textDecoration: "none" }}>Explorer →</a>
-        </div>
-      </div>
-    ))}
-  </div>
-)}
+              <div style={{ background: "#F0F9FF", borderRadius: "12px", padding: "14px", border: "0.5px solid #BFE0FF", marginTop: "8px" }}>
+                <div style={{ fontSize: "10px", fontWeight: 700, color: "#0C447C", marginBottom: "4px" }}>
+                  🎯 MON OBJECTIF — {candidat.objectif_carriere || "Poste cible"}
+                </div>
+                <div style={{ fontSize: "10px", color: "#0C447C", marginBottom: "12px" }}>
+                  Ces offres correspondent à votre poste cible — explorez pour vous préparer
+                </div>
+                {offresCibles.map((o, i) => (
+                  <div key={i} style={{ background: "white", borderRadius: "10px", padding: "12px", marginBottom: "8px", border: "0.5px solid #E8E8F0" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "6px" }}>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: "13px", fontWeight: 600, color: "#1A1A2E" }}>{o.titre}</div>
+                        {o.entreprise && <div style={{ fontSize: "11px", color: "#888" }}>{o.entreprise}</div>}
+                      </div>
+                      <span style={{ background: "#D6F0FF", color: "#0C447C", borderRadius: "20px", padding: "2px 8px", fontSize: "10px", fontWeight: 700 }}>
+                        {o.score}% match cible
+                      </span>
+                    </div>
+                    <div style={{ display: "flex", gap: "6px", justifyContent: "flex-end" }}>
+                      <button onClick={() => { setOffreSelectionnee(o); genererLettre(o); }} style={{ background: "#F0F9FF", color: "#0C447C", border: "none", borderRadius: "20px", padding: "5px 10px", fontSize: "10px", fontWeight: 600, cursor: "pointer" }}>✉️ Lettre</button>
+                      <a href={o.lien} target="_blank" rel="noopener noreferrer" style={{ background: "#0C447C", color: "white", borderRadius: "20px", padding: "5px 12px", fontSize: "10px", fontWeight: 700, textDecoration: "none" }}>Explorer →</a>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
             {!offresLoading && candidatures.length > 0 && (
               <div style={{ background: "white", borderRadius: "12px", padding: "14px", border: "0.5px solid #E8E8F0" }}>
                 <div style={{ fontSize: "10px", fontWeight: 700, color: "#10B981", marginBottom: "8px" }}>✅ OFFRES OÙ VOUS AVEZ POSTULÉ</div>
@@ -809,6 +822,8 @@ export default function MonEspace() {
                     <span style={{ background: "#D6FFE8", color: "#085041", borderRadius: "20px", padding: "2px 8px", fontSize: "9px", fontWeight: 600 }}>✅ Postulé</span>
                   </div>
                 ))}
+         </div>
+            )}
               </div>
             )}
           </div>
@@ -926,84 +941,84 @@ export default function MonEspace() {
         )}
 
         {/* CV */}
-{activeTab === "cv" && (
-  <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-    <div style={{ background: "white", borderRadius: "12px", padding: "14px", border: "0.5px solid #E8E8F0" }}>
-      <div style={{ fontSize: "10px", fontWeight: 700, color: "#888", marginBottom: "10px" }}>📄 MON CV YELMA</div>
-      {!isPropulse ? (
-        <div style={{ textAlign: "center", padding: "20px" }}>
-          <div style={{ fontSize: "32px", marginBottom: "12px" }}>🔒</div>
-          <div style={{ fontSize: "13px", fontWeight: 600, color: "#1A1A2E", marginBottom: "8px" }}>Fonctionnalité Propulse</div>
-          <div style={{ fontSize: "12px", color: "#888", marginBottom: "16px" }}>Le CV personnalisé est disponible avec le plan Propulse</div>
-          <a href="/pricing" style={{ display: "inline-block", background: "#FF7043", color: "white", borderRadius: "20px", padding: "10px 24px", fontSize: "13px", fontWeight: 700, textDecoration: "none" }}>
-            Passer à Propulse — 4.99$/mois →
-          </a>
-        </div>
-      ) : !cv ? (
-        <div style={{ textAlign: "center", padding: "20px" }}>
-          <div style={{ fontSize: "32px", marginBottom: "12px" }}>📄</div>
-          <div style={{ fontSize: "13px", color: "#888", marginBottom: "16px" }}>YELMA génère votre CV personnalisé basé sur vos compétences révélées</div>
-          <button onClick={genererCV} disabled={cvLoading} style={{ background: "#FF7043", color: "white", border: "none", borderRadius: "20px", padding: "10px 24px", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>
-            {cvLoading ? "⏳ Génération en cours..." : "✨ Générer mon CV YELMA"}
-          </button>
-        </div>
-      ) : (
-        <div>
-          <div style={{ background: "#FAFBFF", borderRadius: "10px", padding: "16px", marginBottom: "10px", whiteSpace: "pre-wrap", fontSize: "11px", lineHeight: 1.8, color: "#1A1A2E", border: "0.5px solid #E8E8F0", maxHeight: "400px", overflowY: "auto" }}>{cv}</div>
-          <div style={{ display: "flex", gap: "8px" }}>
-            <button onClick={() => { navigator.clipboard.writeText(cv); setCvCopied(true); setTimeout(() => setCvCopied(false), 2000); }} style={{ flex: 1, background: "#1A1A2E", color: "white", border: "none", borderRadius: "10px", padding: "10px", fontSize: "12px", fontWeight: 600, cursor: "pointer" }}>
-              {cvCopied ? "✅ Copié !" : "📋 Copier le CV"}
-            </button>
-            <button onClick={genererCV} disabled={cvLoading} style={{ background: "#F1EFE8", color: "#888", border: "none", borderRadius: "10px", padding: "10px 16px", fontSize: "12px", fontWeight: 600, cursor: "pointer" }}>{cvLoading ? "⏳" : "🔄"}</button>
-          </div>
-        </div>
-      )}
-    </div>
-  </div>
-)}
-
-{/* LETTRE */}
-{activeTab === "lettre" && (
-  <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-    <div style={{ background: "white", borderRadius: "12px", padding: "14px", border: "0.5px solid #E8E8F0" }}>
-      <div style={{ fontSize: "10px", fontWeight: 700, color: "#888", marginBottom: "10px" }}>✉️ MA LETTRE DE MOTIVATION</div>
-      {!isPropulse ? (
-        <div style={{ textAlign: "center", padding: "20px" }}>
-          <div style={{ fontSize: "32px", marginBottom: "12px" }}>🔒</div>
-          <div style={{ fontSize: "13px", fontWeight: 600, color: "#1A1A2E", marginBottom: "8px" }}>Fonctionnalité Propulse</div>
-          <div style={{ fontSize: "12px", color: "#888", marginBottom: "16px" }}>La lettre de motivation IA est disponible avec le plan Propulse</div>
-          <a href="/pricing" style={{ display: "inline-block", background: "#FF7043", color: "white", borderRadius: "20px", padding: "10px 24px", fontSize: "13px", fontWeight: 700, textDecoration: "none" }}>
-            Passer à Propulse — 4.99$/mois →
-          </a>
-        </div>
-      ) : !lettre ? (
-        <div style={{ textAlign: "center", padding: "20px" }}>
-          <div style={{ fontSize: "32px", marginBottom: "12px" }}>✉️</div>
-          <div style={{ fontSize: "13px", color: "#888", marginBottom: "8px" }}>Générez une lettre pour une offre spécifique</div>
-          <div style={{ fontSize: "11px", color: "#aaa", marginBottom: "16px" }}>Allez dans Offres et cliquez "✉️ Lettre" pour une offre précise</div>
-          <button onClick={() => genererLettre()} disabled={lettreLoading} style={{ background: "#FF7043", color: "white", border: "none", borderRadius: "20px", padding: "10px 24px", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>
-            {lettreLoading ? "⏳ Génération..." : "✨ Générer une lettre générique"}
-          </button>
-        </div>
-      ) : (
-        <div>
-          {offreSelectionnee && (
-            <div style={{ background: "#F0F9FF", borderRadius: "8px", padding: "8px 12px", marginBottom: "10px", fontSize: "11px", color: "#0C447C" }}>
-              Pour : <strong>{offreSelectionnee.titre}</strong>{offreSelectionnee.entreprise ? ` — ${offreSelectionnee.entreprise}` : ""}
+        {activeTab === "cv" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+            <div style={{ background: "white", borderRadius: "12px", padding: "14px", border: "0.5px solid #E8E8F0" }}>
+              <div style={{ fontSize: "10px", fontWeight: 700, color: "#888", marginBottom: "10px" }}>📄 MON CV YELMA</div>
+              {!isPropulse ? (
+                <div style={{ textAlign: "center", padding: "20px" }}>
+                  <div style={{ fontSize: "32px", marginBottom: "12px" }}>🔒</div>
+                  <div style={{ fontSize: "13px", fontWeight: 600, color: "#1A1A2E", marginBottom: "8px" }}>Fonctionnalité Propulse</div>
+                  <div style={{ fontSize: "12px", color: "#888", marginBottom: "16px" }}>Le CV personnalisé est disponible avec le plan Propulse</div>
+                  <a href="/pricing" style={{ display: "inline-block", background: "#FF7043", color: "white", borderRadius: "20px", padding: "10px 24px", fontSize: "13px", fontWeight: 700, textDecoration: "none" }}>
+                    Passer à Propulse — 4.99$/mois →
+                  </a>
+                </div>
+              ) : !cv ? (
+                <div style={{ textAlign: "center", padding: "20px" }}>
+                  <div style={{ fontSize: "32px", marginBottom: "12px" }}>📄</div>
+                  <div style={{ fontSize: "13px", color: "#888", marginBottom: "16px" }}>YELMA génère votre CV personnalisé basé sur vos compétences révélées</div>
+                  <button onClick={genererCV} disabled={cvLoading} style={{ background: "#FF7043", color: "white", border: "none", borderRadius: "20px", padding: "10px 24px", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>
+                    {cvLoading ? "⏳ Génération en cours..." : "✨ Générer mon CV YELMA"}
+                  </button>
+                </div>
+              ) : (
+                <div>
+                  <div style={{ background: "#FAFBFF", borderRadius: "10px", padding: "16px", marginBottom: "10px", whiteSpace: "pre-wrap", fontSize: "11px", lineHeight: 1.8, color: "#1A1A2E", border: "0.5px solid #E8E8F0", maxHeight: "400px", overflowY: "auto" }}>{cv}</div>
+                  <div style={{ display: "flex", gap: "8px" }}>
+                    <button onClick={() => { navigator.clipboard.writeText(cv); setCvCopied(true); setTimeout(() => setCvCopied(false), 2000); }} style={{ flex: 1, background: "#1A1A2E", color: "white", border: "none", borderRadius: "10px", padding: "10px", fontSize: "12px", fontWeight: 600, cursor: "pointer" }}>
+                      {cvCopied ? "✅ Copié !" : "📋 Copier le CV"}
+                    </button>
+                    <button onClick={genererCV} disabled={cvLoading} style={{ background: "#F1EFE8", color: "#888", border: "none", borderRadius: "10px", padding: "10px 16px", fontSize: "12px", fontWeight: 600, cursor: "pointer" }}>{cvLoading ? "⏳" : "🔄"}</button>
+                  </div>
+                </div>
+              )}
             </div>
-          )}
-          <div style={{ background: "#FAFBFF", borderRadius: "10px", padding: "16px", marginBottom: "10px", whiteSpace: "pre-wrap", fontSize: "11px", lineHeight: 1.8, color: "#1A1A2E", border: "0.5px solid #E8E8F0", maxHeight: "400px", overflowY: "auto" }}>{lettre}</div>
-          <div style={{ display: "flex", gap: "8px" }}>
-            <button onClick={() => { navigator.clipboard.writeText(lettre); setLettreCopied(true); setTimeout(() => setLettreCopied(false), 2000); }} style={{ flex: 1, background: "#1A1A2E", color: "white", border: "none", borderRadius: "10px", padding: "10px", fontSize: "12px", fontWeight: 600, cursor: "pointer" }}>
-              {lettreCopied ? "✅ Copié !" : "📋 Copier la lettre"}
-            </button>
-            <button onClick={() => genererLettre()} disabled={lettreLoading} style={{ background: "#F1EFE8", color: "#888", border: "none", borderRadius: "10px", padding: "10px 16px", fontSize: "12px", fontWeight: 600, cursor: "pointer" }}>{lettreLoading ? "⏳" : "🔄"}</button>
           </div>
-        </div>
-      )}
-    </div>
-  </div>
-)}
+        )}
+
+        {/* LETTRE */}
+        {activeTab === "lettre" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+            <div style={{ background: "white", borderRadius: "12px", padding: "14px", border: "0.5px solid #E8E8F0" }}>
+              <div style={{ fontSize: "10px", fontWeight: 700, color: "#888", marginBottom: "10px" }}>✉️ MA LETTRE DE MOTIVATION</div>
+              {!isPropulse ? (
+                <div style={{ textAlign: "center", padding: "20px" }}>
+                  <div style={{ fontSize: "32px", marginBottom: "12px" }}>🔒</div>
+                  <div style={{ fontSize: "13px", fontWeight: 600, color: "#1A1A2E", marginBottom: "8px" }}>Fonctionnalité Propulse</div>
+                  <div style={{ fontSize: "12px", color: "#888", marginBottom: "16px" }}>La lettre de motivation IA est disponible avec le plan Propulse</div>
+                  <a href="/pricing" style={{ display: "inline-block", background: "#FF7043", color: "white", borderRadius: "20px", padding: "10px 24px", fontSize: "13px", fontWeight: 700, textDecoration: "none" }}>
+                    Passer à Propulse — 4.99$/mois →
+                  </a>
+                </div>
+              ) : !lettre ? (
+                <div style={{ textAlign: "center", padding: "20px" }}>
+                  <div style={{ fontSize: "32px", marginBottom: "12px" }}>✉️</div>
+                  <div style={{ fontSize: "13px", color: "#888", marginBottom: "8px" }}>Générez une lettre pour une offre spécifique</div>
+                  <div style={{ fontSize: "11px", color: "#aaa", marginBottom: "16px" }}>Allez dans Offres et cliquez "✉️ Lettre" pour une offre précise</div>
+                  <button onClick={() => genererLettre()} disabled={lettreLoading} style={{ background: "#FF7043", color: "white", border: "none", borderRadius: "20px", padding: "10px 24px", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>
+                    {lettreLoading ? "⏳ Génération..." : "✨ Générer une lettre générique"}
+                  </button>
+                </div>
+              ) : (
+                <div>
+                  {offreSelectionnee && (
+                    <div style={{ background: "#F0F9FF", borderRadius: "8px", padding: "8px 12px", marginBottom: "10px", fontSize: "11px", color: "#0C447C" }}>
+                      Pour : <strong>{offreSelectionnee.titre}</strong>{offreSelectionnee.entreprise ? ` — ${offreSelectionnee.entreprise}` : ""}
+                    </div>
+                  )}
+                  <div style={{ background: "#FAFBFF", borderRadius: "10px", padding: "16px", marginBottom: "10px", whiteSpace: "pre-wrap", fontSize: "11px", lineHeight: 1.8, color: "#1A1A2E", border: "0.5px solid #E8E8F0", maxHeight: "400px", overflowY: "auto" }}>{lettre}</div>
+                  <div style={{ display: "flex", gap: "8px" }}>
+                    <button onClick={() => { navigator.clipboard.writeText(lettre); setLettreCopied(true); setTimeout(() => setLettreCopied(false), 2000); }} style={{ flex: 1, background: "#1A1A2E", color: "white", border: "none", borderRadius: "10px", padding: "10px", fontSize: "12px", fontWeight: 600, cursor: "pointer" }}>
+                      {lettreCopied ? "✅ Copié !" : "📋 Copier la lettre"}
+                    </button>
+                    <button onClick={() => genererLettre()} disabled={lettreLoading} style={{ background: "#F1EFE8", color: "#888", border: "none", borderRadius: "10px", padding: "10px 16px", fontSize: "12px", fontWeight: 600, cursor: "pointer" }}>{lettreLoading ? "⏳" : "🔄"}</button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* SUIVI CANDIDATURES */}
         {activeTab === "candidatures" && (
