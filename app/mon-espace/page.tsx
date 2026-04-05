@@ -546,9 +546,15 @@ export default function MonEspace() {
     }
   }, [candidat])
   
-  useEffect(() => {
-  if (activeTab === "entretien") {
+  const [popupVu, setPopupVu] = useState(false);
+
+useEffect(() => {
+  if (activeTab === "entretien" && !popupVu) {
     setShowEntretienPopup(true);
+    setPopupVu(true);
+  }
+  if (activeTab !== "entretien") {
+    setPopupVu(false);
   }
 }, [activeTab]);
 
