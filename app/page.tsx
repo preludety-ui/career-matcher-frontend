@@ -301,7 +301,7 @@ export default function Home() {
         setTimeout(() => {
           localStorage.setItem("yelma_email", userInfo?.email || "");
           window.location.href = `/mon-espace?email=${encodeURIComponent(userInfo?.email || "")}&tab=rapport`;
-        }, 3000);
+        }, 8000);
       }
 
     } catch {
