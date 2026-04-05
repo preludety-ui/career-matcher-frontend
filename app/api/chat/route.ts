@@ -655,9 +655,9 @@ JSON attendu:
     {"nom": "nom", "organisme": "organisme"},
     {"nom": "nom", "organisme": "organisme"}
   ],
-  "capacite_adaptation": 0.7,
-  "capacite_apprentissage": 0.8,
-  "transferabilite": 0.6
+ "capacite_adaptation": "<calculer selon les réponses>",
+"capacite_apprentissage": "<calculer selon les réponses>",
+"transferabilite": "<calculer selon les réponses>"
 }
 
 REGLES:
