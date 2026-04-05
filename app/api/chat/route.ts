@@ -923,6 +923,10 @@ Score faisabilité : ${resultatMatching.score_faisabilite}%` : "";
             nb_entretiens: 1,
             dernier_entretien: new Date().toISOString(),
           }, { onConflict: "email", ignoreDuplicates: false })
+          .then(({ error, data }) => {
+            if (error) console.log("UPSERT ERROR:", JSON.stringify(error));
+            else console.log("UPSERT SUCCESS:", JSON.stringify(data));
+          });
 
           // Force update des scores
           await supabaseAdmin.from("candidats")
