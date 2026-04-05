@@ -545,6 +545,12 @@ export default function MonEspace() {
       })
     }
   }, [candidat])
+  
+  useEffect(() => {
+  if (activeTab === "entretien") {
+    setShowEntretienPopup(true);
+  }
+}, [activeTab]);
 
   useEffect(() => {
     if (candidat && activeTab === "offres" && offres.length === 0) chargerOffres();
@@ -1145,10 +1151,7 @@ export default function MonEspace() {
               }
 
               // Afficher le popup automatiquement à l'ouverture de l'onglet
-              if (!showEntretienPopup && peutFaire) {
-                setTimeout(() => setShowEntretienPopup(true), 100);
-              }
-
+              
               return (
                 <EntretienDansMonEspace
                   candidat={candidat}
