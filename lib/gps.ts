@@ -262,10 +262,21 @@ RÈGLES :
 
         if (jsonMatch) {
             const gpsJson = JSON.parse(jsonMatch[0])
+            // Chercher le vrai code CNP du métier cible
+            let code_cnp_cible = top_metier.code_cnp
+            const { data: metierCibleDB } = await supabaseAdmin
+                .from('metiers')
+                .select('code_cnp')
+                .ilike('titre_fr', `%${gpsJson.titre_cible.split(' ')[0]}%`)
+                .limit(1)
+                .single()
+
+            if (metierCibleDB) code_cnp_cible = metierCibleDB.code_cnp
+
             metier_cible = {
                 id: null,
                 titre_fr: gpsJson.titre_cible,
-                code_cnp: top_metier.code_cnp,
+                code_cnp: code_cnp_cible,
                 secteur: gpsJson.secteur_cible,
             }
             annees_evolution_min = gpsJson.annees_min || 2
