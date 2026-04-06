@@ -655,7 +655,7 @@ Commence par "En ${new Date().getFullYear() + 5},"`,
                 <div style={{ flex: 1, height: '1px', background: BORDER }} />
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '10px' }}>
-                <Tuile titre="Mes compétences" pct={(data as any).score_competences || Math.round(
+                <Tuile titre="Mes compétences" pct={(data as any).score_competences > 0 ? (data as any).score_competences : Math.round(
                 [data.force1 ? 92 : 0, data.force2 ? 85 : 0, data.force3 ? 78 : 0]
                     .filter(Boolean)
                     .reduce((a, b) => a + b, 0) /
