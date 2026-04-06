@@ -655,14 +655,14 @@ Commence par "En ${new Date().getFullYear() + 5},"`,
                 <div style={{ flex: 1, height: '1px', background: BORDER }} />
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '10px' }}>
-                <Tuile titre="Mes compétences" pct={
-                  Math.round(
-                    [data.force1 ? 92 : 0, data.force2 ? 85 : 0, data.force3 ? 78 : 0]
-                      .filter(Boolean)
-                      .reduce((a, b) => a + b, 0) /
-                    ([data.force1, data.force2, data.force3].filter(Boolean).length || 1)
-                  )
-                } desc={`${[data.force1, data.force2, data.force3].filter(Boolean).length} forces identifiées par YELMA.`} onClick={() => setActiveSection('competences')} />
+                <Tuile titre="Mes compétences" pct={(data as any).score_competences || Math.round(
+                [data.force1 ? 92 : 0, data.force2 ? 85 : 0, data.force3 ? 78 : 0]
+                    .filter(Boolean)
+                    .reduce((a, b) => a + b, 0) /
+                  ([data.force1, data.force2, data.force3].filter(Boolean).length || 1)
+                )}
+
+                  desc={`${[data.force1, data.force2, data.force3].filter(Boolean).length} forces identifiées par YELMA.`} onClick={() => setActiveSection('competences')} />
                 <Tuile titre="Mes formations" pct={35} desc={`${(data.formations as Formation[] || []).length} formations clés.`} onClick={() => setActiveSection('formations')} />
                 <Tuile titre="Mon parcours" pct={scorePropulse} desc="Ton parcours analysé par YELMA." onClick={() => setActiveSection('parcours')} />
                 <Tuile titre={`Mon marché · ${villeAffichee}`} pct={marcheScore !== null ? marcheScore : Number(data.score_marche) || 80} desc={`${salaireMin.toLocaleString()} $ → ${salaireMax.toLocaleString()} $ en 5 ans.`} onClick={() => setActiveSection('marche')} />

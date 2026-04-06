@@ -658,6 +658,9 @@ JSON attendu:
  "capacite_adaptation": "<calculer selon les réponses>",
 "capacite_apprentissage": "<calculer selon les réponses>",
 "transferabilite": "<calculer selon les réponses>"
+"competences_requises_cible": ["comp1", "comp2", "comp3", "comp4", "comp5"],
+"competences_match": ["comp qui matchent entre candidat et poste cible"],
+"score_competences": 0
 }
 
 REGLES:
@@ -670,7 +673,14 @@ REGLES:
 - force1/2/3 doivent refléter ce que le candidat FAIT aujourd'hui, pas ce qu'il veut faire
 - capacite_adaptation: score 0 à 1 basé sur les exemples de changement, flexibilité, nouveaux contextes mentionnés
 - capacite_apprentissage: score 0 à 1 basé sur la vitesse de progression, formations autodidactes, nouvelles compétences acquises
-- transferabilite: score 0 à 1 basé sur les compétences actuelles utiles pour la cible déclarée`;
+- transferabilite: score 0 à 1 basé sur les compétences actuelles utiles pour la cible déclarée
+- competences_requises_cible: liste de 5-8 compétences clés réellement requises pour le poste objectif déclaré
+- competences_match: sous-ensemble de force1/force2/force3 qui correspondent directement aux compétences requises
+- score_competences: calcul STRICT = (len(competences_match) / len(competences_requises_cible)) * 100, puis appliquer plafond selon contexte:
+  - Reconversion totale (domaine different) max 25%
+  - Meme domaine evolution max 60%
+  - Evolution naturelle meme poste max 85%
+  - Ne jamais depasser ces plafonds`;
 }
 
 // ============================================
@@ -714,6 +724,7 @@ function parseExtractedData(json: Record<string, unknown>, candidatInfo: {
     delai_objectif: String(json.delai_objectif || "atteignable avec un plan structuré"),
     analyse_comparative: String(json.analyse || ""),
     capacite_adaptation: Number(json.capacite_adaptation || 0),
+    score_competences: Number(json.score_competences || 0),
     capacite_apprentissage: Number(json.capacite_apprentissage || 0),
     transferabilite: Number(json.transferabilite || 0),
     gps_an1: undefined as { titre: string; salaire: number; action: string } | undefined,
