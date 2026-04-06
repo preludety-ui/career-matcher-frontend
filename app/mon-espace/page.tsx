@@ -29,6 +29,7 @@ type Candidat = {
   diplome_max?: string; duree_experience?: string;
   domaine_actuel?: string; statut_emploi?: string; objectif_declare?: string;
   score_propulse?: number;
+  score_competences?: number;
   score_cible_pct?: number;
   score_cible_5ans_pct?: number;
   verdict?: string;
