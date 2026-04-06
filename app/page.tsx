@@ -146,6 +146,10 @@ export default function Home() {
   const [marketData, setMarketData] = useState<MarketData>(defaultMarket);
   const [marketLoading, setMarketLoading] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [showContactPopup, setShowContactPopup] = useState(false);
+  const [contactForm, setContactForm] = useState({ nom: "", email: "", message: "" });
+  const [contactSent, setContactSent] = useState(false);
+  const [contactLoading, setContactLoading] = useState(false);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -314,12 +318,12 @@ export default function Home() {
       setLoading(false);
     }
   };
-  
+
   useEffect(() => {
-  if (userInfo) {
-    setShowWelcomePopup(true);
-  }
-}, [userInfo]);
+    if (userInfo) {
+      setShowWelcomePopup(true);
+    }
+  }, [userInfo]);
 
   useEffect(() => {
     if (userInfo && messages.length === 0 && !loading) {
@@ -445,7 +449,68 @@ export default function Home() {
         {/* Boutons flottants — simplifiés */}
         {/* Boutons flottants — cachés sur mobile */}
         <a href="/pricing" style={{ position: "fixed", bottom: "20px", right: "20px", background: "#FF7043", color: "white", borderRadius: "20px", padding: "8px 16px", fontSize: "11px", fontWeight: 600, textDecoration: "none", zIndex: 100 }}>✦ Commencer — 4.99$/mois</a>
+        {/* Bouton Support */}
+<button
+  onClick={() => setShowContactPopup(true)}
+  style={{ position: "fixed", bottom: "60px", right: "20px", background: "white", color: "#1A1A2E", border: "1px solid #E8E8F0", borderRadius: "20px", padding: "8px 16px", fontSize: "11px", fontWeight: 600, zIndex: 100, cursor: "pointer" }}
+>
+  💬 Support
+</button>
 
+{/* Popup Contact */}
+{showContactPopup && (
+  <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.6)", zIndex: 999, display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}>
+    <div style={{ background: "white", borderRadius: "16px", padding: "24px", maxWidth: "380px", width: "100%", position: "relative" }}>
+      <button onClick={() => { setShowContactPopup(false); setContactSent(false); setContactForm({ nom: "", email: "", message: "" }); }} style={{ position: "absolute", top: "12px", right: "12px", background: "none", border: "none", fontSize: "20px", cursor: "pointer", color: "#888" }}>×</button>
+      
+      <div style={{ fontSize: "20px", textAlign: "center", marginBottom: "8px" }}>💬</div>
+      <div style={{ fontSize: "16px", fontWeight: 700, color: "#1A1A2E", marginBottom: "4px", textAlign: "center" }}>Contactez-nous</div>
+      <div style={{ fontSize: "12px", color: "#888", marginBottom: "16px", textAlign: "center" }}>Notre équipe vous répond sous 24h</div>
+
+      {contactSent ? (
+        <div style={{ textAlign: "center", padding: "20px" }}>
+          <div style={{ fontSize: "32px", marginBottom: "12px" }}>✅</div>
+          <div style={{ fontSize: "14px", fontWeight: 600, color: "#1A1A2E", marginBottom: "8px" }}>Message envoyé !</div>
+          <div style={{ fontSize: "12px", color: "#888" }}>Nous vous répondrons sous 24h.</div>
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+          <div>
+            <label style={{ fontSize: "11px", fontWeight: 600, color: "#1A1A2E", display: "block", marginBottom: "4px" }}>Votre nom</label>
+            <input value={contactForm.nom} onChange={e => setContactForm({ ...contactForm, nom: e.target.value })} placeholder="Prénom Nom" style={{ width: "100%", border: "1px solid #E8E8F0", borderRadius: "10px", padding: "8px 12px", fontSize: "13px", boxSizing: "border-box" }} />
+          </div>
+          <div>
+            <label style={{ fontSize: "11px", fontWeight: 600, color: "#1A1A2E", display: "block", marginBottom: "4px" }}>Votre email</label>
+            <input value={contactForm.email} onChange={e => setContactForm({ ...contactForm, email: e.target.value })} placeholder="votre@email.com" type="email" style={{ width: "100%", border: "1px solid #E8E8F0", borderRadius: "10px", padding: "8px 12px", fontSize: "13px", boxSizing: "border-box" }} />
+          </div>
+          <div>
+            <label style={{ fontSize: "11px", fontWeight: 600, color: "#1A1A2E", display: "block", marginBottom: "4px" }}>Votre message</label>
+            <textarea value={contactForm.message} onChange={e => setContactForm({ ...contactForm, message: e.target.value })} placeholder="Décrivez votre problème..." rows={4} style={{ width: "100%", border: "1px solid #E8E8F0", borderRadius: "10px", padding: "8px 12px", fontSize: "13px", boxSizing: "border-box", resize: "none" }} />
+          </div>
+          <button
+            onClick={async () => {
+              if (!contactForm.nom || !contactForm.email || !contactForm.message) return;
+              setContactLoading(true);
+              try {
+                await fetch("/api/contact", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify(contactForm),
+                });
+                setContactSent(true);
+              } catch { console.error("Erreur envoi contact"); }
+              finally { setContactLoading(false); }
+            }}
+            disabled={contactLoading}
+            style={{ background: "#FF7043", color: "white", border: "none", borderRadius: "12px", padding: "12px", fontSize: "14px", fontWeight: 700, cursor: "pointer", opacity: contactLoading ? 0.7 : 1 }}
+          >
+            {contactLoading ? "Envoi en cours..." : "Envoyer le message →"}
+          </button>
+        </div>
+      )}
+    </div>
+  </div>
+)}
         {/* Popup marché — inchangé */}
         <div id="yelma-popup" style={{ display: "none", position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.5)", zIndex: 999, alignItems: "center", justifyContent: "center" }} onClick={(e) => { if (e.target === e.currentTarget) (e.currentTarget as HTMLElement).style.display = "none"; }}>
           <div style={{ background: "white", borderRadius: "16px", padding: "18px", width: "92%", maxWidth: "380px", maxHeight: "85vh", overflowY: "auto" }}>
@@ -506,7 +571,7 @@ export default function Home() {
 
   if (!userInfo) {
     return (
-      
+
       <div className="min-h-screen flex flex-col items-center justify-center px-4 py-6" style={{ background: "#FAFBFF" }}>
         <div className="w-full max-w-sm">
           <div className="text-center mb-6">
@@ -682,52 +747,52 @@ export default function Home() {
   }
 
   return (
-  <div className="flex flex-col bg-gray-50" style={{ height: "100dvh" }}>
-  
-    {/* POPUP BIENVENUE */}
-    {showWelcomePopup && (
-      <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.6)", zIndex: 999, display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}>
-        <div style={{ background: "white", borderRadius: "16px", padding: "24px", maxWidth: "380px", width: "100%", position: "relative" }}>
-          <button
-            onClick={() => setShowWelcomePopup(false)}
-            style={{ position: "absolute", top: "12px", right: "12px", background: "none", border: "none", fontSize: "20px", cursor: "pointer", color: "#888" }}
-          >×</button>
-          <div style={{ fontSize: "32px", textAlign: "center", marginBottom: "12px" }}>🎯</div>
-          <div style={{ fontSize: "16px", fontWeight: 700, color: "#1A1A2E", marginBottom: "16px", textAlign: "center" }}>
-            Bienvenue dans votre entretien YELMA
-          </div>
-          <div style={{ background: "#F1EFE8", borderRadius: "12px", padding: "14px", marginBottom: "16px" }}>
-            <div style={{ fontSize: "11px", fontWeight: 700, color: "#888", marginBottom: "10px" }}>📊 VOS DROITS D'ENTRETIEN</div>
-            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <span style={{ fontSize: "12px", color: "#1A1A2E" }}>🎁 Période d'essai (2 semaines)</span>
-                <span style={{ fontSize: "12px", fontWeight: 700, color: "#FF7043" }}>1 entretien</span>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <span style={{ fontSize: "12px", color: "#1A1A2E" }}>🔓 Plan Découverte</span>
-                <span style={{ fontSize: "12px", fontWeight: 700, color: "#888" }}>1/mois</span>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <span style={{ fontSize: "12px", color: "#1A1A2E" }}>⭐ Plan Propulse</span>
-                <span style={{ fontSize: "12px", fontWeight: 700, color: "#10B981" }}>2/mois</span>
+    <div className="flex flex-col bg-gray-50" style={{ height: "100dvh" }}>
+
+      {/* POPUP BIENVENUE */}
+      {showWelcomePopup && (
+        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.6)", zIndex: 999, display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}>
+          <div style={{ background: "white", borderRadius: "16px", padding: "24px", maxWidth: "380px", width: "100%", position: "relative" }}>
+            <button
+              onClick={() => setShowWelcomePopup(false)}
+              style={{ position: "absolute", top: "12px", right: "12px", background: "none", border: "none", fontSize: "20px", cursor: "pointer", color: "#888" }}
+            >×</button>
+            <div style={{ fontSize: "32px", textAlign: "center", marginBottom: "12px" }}>🎯</div>
+            <div style={{ fontSize: "16px", fontWeight: 700, color: "#1A1A2E", marginBottom: "16px", textAlign: "center" }}>
+              Bienvenue dans votre entretien YELMA
+            </div>
+            <div style={{ background: "#F1EFE8", borderRadius: "12px", padding: "14px", marginBottom: "16px" }}>
+              <div style={{ fontSize: "11px", fontWeight: 700, color: "#888", marginBottom: "10px" }}>📊 VOS DROITS D'ENTRETIEN</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ fontSize: "12px", color: "#1A1A2E" }}>🎁 Période d'essai (2 semaines)</span>
+                  <span style={{ fontSize: "12px", fontWeight: 700, color: "#FF7043" }}>1 entretien</span>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ fontSize: "12px", color: "#1A1A2E" }}>🔓 Plan Découverte</span>
+                  <span style={{ fontSize: "12px", fontWeight: 700, color: "#888" }}>1/mois</span>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ fontSize: "12px", color: "#1A1A2E" }}>⭐ Plan Propulse</span>
+                  <span style={{ fontSize: "12px", fontWeight: 700, color: "#10B981" }}>2/mois</span>
+                </div>
               </div>
             </div>
-          </div>
-          <div style={{ background: "#FFF8E1", borderRadius: "12px", padding: "14px", marginBottom: "16px", borderLeft: "4px solid #FF7043" }}>
-            <div style={{ fontSize: "11px", fontWeight: 700, color: "#FF7043", marginBottom: "6px" }}>💡 CONSEIL POUR UN MEILLEUR RAPPORT</div>
-            <div style={{ fontSize: "11px", color: "#444", lineHeight: 1.7 }}>
-              Répondez avec des <strong>exemples concrets</strong> — une situation réelle, une action que vous avez prise, un résultat obtenu. Plus vous êtes précis, plus YELMA révèle vos vraies forces.
+            <div style={{ background: "#FFF8E1", borderRadius: "12px", padding: "14px", marginBottom: "16px", borderLeft: "4px solid #FF7043" }}>
+              <div style={{ fontSize: "11px", fontWeight: 700, color: "#FF7043", marginBottom: "6px" }}>💡 CONSEIL POUR UN MEILLEUR RAPPORT</div>
+              <div style={{ fontSize: "11px", color: "#444", lineHeight: 1.7 }}>
+                Répondez avec des <strong>exemples concrets</strong> — une situation réelle, une action que vous avez prise, un résultat obtenu. Plus vous êtes précis, plus YELMA révèle vos vraies forces.
+              </div>
             </div>
+            <button
+              onClick={() => setShowWelcomePopup(false)}
+              style={{ width: "100%", background: "#FF7043", color: "white", border: "none", borderRadius: "12px", padding: "12px", fontSize: "14px", fontWeight: 700, cursor: "pointer" }}
+            >
+              J'ai compris — Commencer mon entretien →
+            </button>
           </div>
-          <button
-            onClick={() => setShowWelcomePopup(false)}
-            style={{ width: "100%", background: "#FF7043", color: "white", border: "none", borderRadius: "12px", padding: "12px", fontSize: "14px", fontWeight: 700, cursor: "pointer" }}
-          >
-            J'ai compris — Commencer mon entretien →
-          </button>
         </div>
-      </div>
-    )}
+      )}
 
       <div className="text-white px-6 py-4 flex-shrink-0 flex justify-between items-center" style={{ background: "#1A1A2E" }}>
         <div>
