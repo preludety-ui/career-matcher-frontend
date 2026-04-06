@@ -314,7 +314,7 @@ RÈGLES :
     const salairesCible = await chercherSalaires(metier_cible.code_cnp)
 
     const salaire_actuel = salairesActuel.salaire_low
-    const salaire_cible = getSalaireParAnnee(salairesCible, 5).salaire_max
+    const salaire_cible = getSalaireParAnnee(salairesCible, 5).salaire_min
 
     // 5. Calculer le nombre d'années nécessaires
     const objectifDifferent = signaux.objectif_normalise.toLowerCase() !== signaux.role_actuel_normalise.toLowerCase()
