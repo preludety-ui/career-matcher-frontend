@@ -665,7 +665,9 @@ REGLES:
 - certifications: exactement 2
 - axe1 et axe2: competences NON mentionnees par le candidat mais demandees par le marche
 - force1/2/3 INTERDITS : Communication, Gestion du temps, Esprit critique, Adaptabilite, Creativite, Travail en equipe, Resolution de problemes, Leadership seul
-- force1/2/3 OBLIGATOIRE : format Verbe + objet + contexte ex: Gestion des protocoles de soins, Supervision equipe clinique, Analyse donnees financieres
+- force1/2/3 OBLIGATOIRE : extraites UNIQUEMENT des réponses réelles du candidat dans l'entretien ci-dessus — format Verbe + objet + contexte spécifique au rôle actuel (ex: si caissier → Gestion des transactions clients, Optimisation des files d'attente; si monteur électrique → Installation équipements électriques, Gestion sécurité chantier)
+- force1/2/3 INTERDITES si elles correspondent à l'objectif déclaré et non au rôle actuel
+- force1/2/3 doivent refléter ce que le candidat FAIT aujourd'hui, pas ce qu'il veut faire
 - capacite_adaptation: score 0 à 1 basé sur les exemples de changement, flexibilité, nouveaux contextes mentionnés
 - capacite_apprentissage: score 0 à 1 basé sur la vitesse de progression, formations autodidactes, nouvelles compétences acquises
 - transferabilite: score 0 à 1 basé sur les compétences actuelles utiles pour la cible déclarée`;
