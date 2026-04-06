@@ -930,6 +930,7 @@ Score faisabilité : ${resultatMatching.score_faisabilite}%` : "";
             objectif_declare: candidatInfo?.objectif_declare,
             ...rapportData,
             score_propulse: rapportData.score_propulse,
+            score_competences: rapportData.score_competences,
             score_cible_pct: rapportData.score_cible_pct,
             score_cible_5ans_pct: rapportData.score_cible_5ans_pct,
             verdict: rapportData.verdict,
