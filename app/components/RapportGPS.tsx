@@ -937,7 +937,7 @@ Commence par "En ${new Date().getFullYear() + 5},"`,
                   })}
                   <div style={{ padding: '14px 20px', background: '#FAFAF8' }}>
                     <div style={{ fontSize: '11px', color: '#555', lineHeight: 1.7 }}>
-                      {messageGPS ? messageGPS : verdict === 'atteignable' ? (
+                      {verdict === 'atteignable' ? (
                         <>En {new Date().getFullYear() + 5}, <strong style={{ color: ORANGE }}>{prenom}</strong>, tu occupes le poste de <strong style={{ color: ORANGE }}>{String(data.objectif_carriere || '')}</strong> à {villeAffichee}, avec un salaire projeté à <strong style={{ color: ORANGE }}>{salaireMax.toLocaleString()} $</strong>. Si tu suis ton GPS, tu arriveras exactement au bon moment.</>
                       ) : verdict === 'ambitieux' ? (
                         <>En {new Date().getFullYear() + 5}, <strong style={{ color: ORANGE }}>{prenom}</strong>, tu seras bien avancé vers ton objectif <strong style={{ color: ORANGE }}>{String(data.objectif_carriere || '')}</strong>. Ce chemin demande de la détermination — chaque étape te rapproche.</>
