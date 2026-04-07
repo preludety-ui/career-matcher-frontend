@@ -45,12 +45,12 @@ Ville: ${ville || 'Montréal'}
 Domaine: ${domaine || ''}
 
 {
-  "D": 75,
-  "S": 80,
-  "T": 65,
-  "G": 70,
-  "score_marche": 74,
-  "nb_offres_estimees": 47,
+  "D": 0,
+  "S": 0,
+  "T": 0,
+  "G": 0,
+  "score_marche": 0,
+  "nb_offres_estimees": 0,
   "tendance": "en croissance",
   "explication": "1 phrase sur le marché"
 }
