@@ -448,7 +448,7 @@ export default function Home() {
 
         {/* Boutons flottants — simplifiés */}
         {/* Boutons flottants — cachés sur mobile */}
-        <a href="/pricing" style={{ position: "fixed", bottom: "20px", right: "20px", background: "#FF7043", color: "white", borderRadius: "20px", padding: "8px 16px", fontSize: "11px", fontWeight: 600, textDecoration: "none", zIndex: 100 }}>✦ Commencer — 4.99$/mois</a>
+        <a href="/pricing" style={{ position: "fixed", bottom: "20px", right: "20px", background: "#FF7043", color: "white", borderRadius: "20px", padding: "8px 16px", fontSize: "11px", fontWeight: 600, textDecoration: "none", zIndex: 100 }}>✦ Commencer gratuitement</a>
         {/* Bouton Support */}
 <button
   onClick={() => setShowContactPopup(true)}
