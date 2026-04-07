@@ -677,10 +677,12 @@ REGLES:
 - competences_requises_cible: liste de 5-8 compétences clés réellement requises pour le poste objectif déclaré
 - competences_match: sous-ensemble de force1/force2/force3 qui correspondent directement aux compétences requises
 - score_competences: calcul STRICT = (len(competences_match) / len(competences_requises_cible)) * 100, puis appliquer plafond selon contexte:
-  - Reconversion totale (domaine different) max 25%
+- Reconversion totale (domaine different) max 25%
   - Meme domaine evolution max 60%
   - Evolution naturelle meme poste max 85%
-  - Ne jamais depasser ces plafonds`;
+  - Ne jamais depasser ces plafonds
+- formations: tenir compte du parcours GPS — si le candidat doit faire des etudes (DEC, BAC, Maitrise), proposer des formations courtes compatibles avec les etudes (max 4-6 semaines en ligne) ou des formations a faire APRES l obtention du diplome
+- certifications: proposer des certifications reconnues dans le domaine cible pas dans le domaine actuel`;
 }
 
 // ============================================
