@@ -335,12 +335,19 @@ RÈGLES :
         const salairesEtape = est_objectif ? salairesCible : salairesActuel
         const { salaire_min, salaire_max } = getSalaireParAnnee(salairesEtape, annee)
 
+        const titreEtape = (signaux as any)._titresClaudeGPS?.[annee] || (est_objectif ? metier_cible.titre_fr : signaux.role_actuel_normalise);
+        const isEtudiant = titreEtape.toLowerCase().includes('étudiant') ||
+            titreEtape.toLowerCase().includes('stagiaire') ||
+            titreEtape.toLowerCase().includes('cégep') ||
+            titreEtape.toLowerCase().includes('stage') ||
+            titreEtape.toLowerCase().includes('formation');
+
         etapes.push({
             annee,
-            titre: (signaux as any)._titresClaudeGPS?.[annee] || (est_objectif ? metier_cible.titre_fr : signaux.role_actuel_normalise),
+            titre: titreEtape,
             code_cnp: est_objectif ? metier_cible.code_cnp : metier_actuel.code_cnp,
-            salaire_min,
-            salaire_max,
+            salaire_min: isEtudiant ? 18000 : salaire_min,
+            salaire_max: isEtudiant ? 22000 : salaire_max,
             actions: (signaux as any)._actionsClaudeGPS?.[annee]
                 ? [(signaux as any)._actionsClaudeGPS[annee]]
                 : genererActions(annee, est_objectif ? metier_cible.secteur : metier_actuel.secteur, est_objectif),
