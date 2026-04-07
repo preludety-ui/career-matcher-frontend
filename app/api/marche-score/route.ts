@@ -37,12 +37,20 @@ export async function POST(req: NextRequest) {
     }
 
     // 2. Fallback : IA si pas de données réelles
-    const prompt = `Tu es un expert du marché du travail québécois.
-Évalue le marché pour ce profil et retourne UNIQUEMENT ce JSON sans backticks:
+   const prompt = `Tu es un expert du marché du travail québécois avec accès aux données réelles de 2026.
+Évalue le marché SPECIFIQUEMENT pour ce profil et retourne UNIQUEMENT ce JSON sans backticks:
 
 Poste cible: ${objectif}
 Ville: ${ville || 'Montréal'}
 Domaine: ${domaine || ''}
+
+IMPORTANT: Les valeurs doivent être DIFFERENTES pour chaque poste. 
+Exemples réels 2026:
+- Infirmière Montréal: D=90, S=85, T=80, G=75, offres=200+
+- Gestionnaire projet Montréal: D=70, S=75, T=65, G=70, offres=120
+- Caissier Montréal: D=85, S=40, T=30, G=35, offres=300+
+- Chirurgien Montréal: D=60, S=95, T=90, G=70, offres=30
+- Développeur web Montréal: D=80, S=85, T=75, G=90, offres=150
 
 {
   "D": 0,
