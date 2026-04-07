@@ -240,7 +240,11 @@ RÈGLES :
 - Titres de postes réels et reconnus au Québec
 - Si sans diplôme → proposer certifications reconnues (PMP, CAPM, etc.) dans les actions
 - Progression réaliste et atteignable
-- Actions concrètes et spécifiques au domaine`
+- Actions concrètes et spécifiques au domaine
+- Si le parcours inclut des études (DEC, BAC, Maitrise), respecter les durees reelles quebecoises : DEC = 3 ans, BAC = 3-4 ans, Maitrise = 2 ans
+- Ne jamais compresser les etudes en moins d'annees que leur duree reelle
+- Si l'objectif necessite plus de 5 ans, montrer les 5 premieres annees du parcours honnetement`
+
 
         const claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
             method: 'POST',
