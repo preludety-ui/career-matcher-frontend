@@ -150,6 +150,7 @@ export default function Home() {
   const [contactForm, setContactForm] = useState({ nom: "", email: "", message: "" });
   const [contactSent, setContactSent] = useState(false);
   const [contactLoading, setContactLoading] = useState(false);
+  const [demoTab, setDemoTab] = useState("resume");
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -465,7 +466,7 @@ export default function Home() {
 
             {/* Tabs */}
             {(() => {
-              const [demoTab, setDemoTab] = React.useState("resume");
+              
               return (
                 <>
                   <div style={{ display: "flex", gap: "4px", marginBottom: "10px", overflowX: "auto" }}>
