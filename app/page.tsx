@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import RapportGPSComponent from "./components/RapportGPS";
 
 type Message = {
@@ -444,6 +444,193 @@ export default function Home() {
             <a href="/mon-espace" style={{ flex: 1, background: "#FF7043", color: "white", borderRadius: "12px", padding: "10px", fontSize: "12px", fontWeight: 700, textDecoration: "none", textAlign: "center" }}>🎯 Espace candidat</a>
             <a href="/dashboard" style={{ flex: 1, background: "#1A1A2E", color: "white", borderRadius: "12px", padding: "10px", fontSize: "12px", fontWeight: 700, textDecoration: "none", textAlign: "center" }}>👔 Espace recruteur</a>
           </div>
+
+          {/* DÉMO INTERACTIVE */}
+<div style={{ background: "#1A1A2E", borderRadius: "16px", padding: "16px", marginBottom: "12px" }}>
+  <div style={{ fontSize: "9px", fontWeight: 700, color: "#FF7043", letterSpacing: "2px", marginBottom: "10px", textAlign: "center" }}>
+    EXEMPLE RÉEL — AMINA, PRÉPOSÉE AUX BÉNÉFICIAIRES
+  </div>
+  
+  {/* Header candidat */}
+  <div style={{ background: "rgba(255,255,255,0.05)", borderRadius: "10px", padding: "10px 12px", marginBottom: "10px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+    <div>
+      <div style={{ fontSize: "13px", fontWeight: 600, color: "white" }}>Amina Traoré</div>
+      <div style={{ fontSize: "10px", color: "#aaa" }}>Préposée aux bénéficiaires · Montréal</div>
+    </div>
+    <div style={{ textAlign: "right" }}>
+      <div style={{ fontSize: "32px", fontWeight: 800, color: "#FF7043", lineHeight: 1 }}>79</div>
+      <div style={{ fontSize: "9px", color: "#aaa" }}>SCORE PROPULSE</div>
+    </div>
+  </div>
+
+  {/* Tabs */}
+  {(() => {
+    const [demoTab, setDemoTab] = React.useState("resume");
+    return (
+      <>
+        <div style={{ display: "flex", gap: "4px", marginBottom: "10px", overflowX: "auto" }}>
+          {[
+            { id: "resume", label: "Résumé" },
+            { id: "forces", label: "Forces" },
+            { id: "gps", label: "GPS" },
+            { id: "marche", label: "Marché" },
+            { id: "action", label: "Action" },
+          ].map(tab => (
+            <button key={tab.id} onClick={() => setDemoTab(tab.id)} style={{ padding: "5px 10px", borderRadius: "20px", fontSize: "10px", fontWeight: 600, cursor: "pointer", border: "none", whiteSpace: "nowrap", background: demoTab === tab.id ? "#FF7043" : "rgba(255,255,255,0.1)", color: demoTab === tab.id ? "white" : "#aaa" }}>
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Résumé */}
+        {demoTab === "resume" && (
+          <div>
+            <div style={{ background: "rgba(255,255,255,0.05)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: "12px", padding: "12px", marginBottom: "8px" }}>
+              <div style={{ fontSize: "9px", letterSpacing: "1.5px", color: "#888", fontWeight: 700, marginBottom: "8px" }}>SCORE CIBLE</div>
+              <div style={{ display: "flex", gap: "8px", marginBottom: "8px" }}>
+                <div style={{ flex: 1, background: "rgba(255,112,67,0.15)", borderRadius: "8px", padding: "8px", border: "0.5px solid #FF7043" }}>
+                  <div style={{ fontSize: "9px", color: "#FF7043" }}>Cible déclarée</div>
+                  <div style={{ fontSize: "11px", fontWeight: 600, color: "white" }}>Infirmière diplômée</div>
+                  <div style={{ fontSize: "10px", color: "#FF7043" }}>89,700 $/an</div>
+                </div>
+                <div style={{ flex: 1, background: "rgba(16,185,129,0.15)", borderRadius: "8px", padding: "8px", border: "0.5px solid #10B981" }}>
+                  <div style={{ fontSize: "9px", color: "#10B981" }}>Verdict</div>
+                  <div style={{ fontSize: "11px", fontWeight: 600, color: "white" }}>Atteignable</div>
+                  <div style={{ fontSize: "10px", color: "#10B981" }}>en 5 ans</div>
+                </div>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
+                <div style={{ background: "rgba(255,255,255,0.05)", borderRadius: "8px", padding: "10px", textAlign: "center" }}>
+                  <div style={{ fontSize: "10px", color: "#888" }}>Compétences</div>
+                  <div style={{ fontSize: "22px", fontWeight: 800, color: "#10B981" }}>40%</div>
+                  <div style={{ fontSize: "9px", color: "#aaa" }}>3 forces révélées</div>
+                </div>
+                <div style={{ background: "rgba(255,255,255,0.05)", borderRadius: "8px", padding: "10px", textAlign: "center" }}>
+                  <div style={{ fontSize: "10px", color: "#888" }}>Marché</div>
+                  <div style={{ fontSize: "22px", fontWeight: 800, color: "#0EA5E9" }}>76</div>
+                  <div style={{ fontSize: "9px", color: "#aaa" }}>250 offres</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Forces */}
+        {demoTab === "forces" && (
+          <div style={{ background: "rgba(255,255,255,0.05)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: "12px", padding: "12px" }}>
+            <div style={{ fontSize: "9px", letterSpacing: "1.5px", color: "#888", fontWeight: 700, marginBottom: "10px" }}>TES 3 FORCES RÉVÉLÉES</div>
+            {[
+              { nom: "Coordination d'équipe", val: 92, color: "#FF7043", badge: "Top 10% marché", valeur: "+4 200 $/an" },
+              { nom: "Écoute clinique", val: 85, color: "#10B981", badge: "Très demandée", valeur: "+2 800 $/an" },
+              { nom: "Gestion urgences", val: 78, color: "#7B5EA7", badge: "Rare", valeur: "+3 500 $/an" },
+            ].map((f, i) => (
+              <div key={i} style={{ marginBottom: "12px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "2px" }}>
+                  <div style={{ fontSize: "12px", fontWeight: 600, color: "white" }}>{f.nom}</div>
+                  <span style={{ background: "rgba(255,255,255,0.1)", color: "#aaa", borderRadius: "20px", padding: "2px 8px", fontSize: "9px" }}>{f.badge}</span>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: "10px", color: "#888", marginBottom: "4px" }}>
+                  <span style={{ color: f.color }}>{f.valeur}</span>
+                  <span>{f.val}%</span>
+                </div>
+                <div style={{ background: "rgba(255,255,255,0.1)", borderRadius: "4px", height: "6px", overflow: "hidden" }}>
+                  <div style={{ width: `${f.val}%`, height: "100%", background: f.color, borderRadius: "4px" }} />
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* GPS */}
+        {demoTab === "gps" && (
+          <div style={{ background: "rgba(255,255,255,0.05)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: "12px", padding: "12px" }}>
+            <div style={{ fontSize: "9px", letterSpacing: "1.5px", color: "#888", fontWeight: 700, marginBottom: "6px" }}>GPS DE CARRIÈRE 5 ANS</div>
+            <div style={{ fontSize: "18px", fontWeight: 800, color: "white", marginBottom: "12px" }}>45,000 $ <span style={{ color: "#FF7043" }}>→ 89,700 $</span></div>
+            {[
+              { an: "Auj.", titre: "Préposée aux bénéficiaires", sal: "45,000 $", color: "#888" },
+              { an: "An 1", titre: "Préposée + inscription DEC", sal: "42,750 $", color: "#FF7043" },
+              { an: "An 2", titre: "Étudiante DEC (année 1)", sal: "18,000 $", color: "#0EA5E9" },
+              { an: "An 3", titre: "Étudiante DEC (année 2)", sal: "18,000 $", color: "#0EA5E9" },
+              { an: "An 4", titre: "Infirmière diplômée", sal: "89,700 $", color: "#10B981" },
+              { an: "An 5", titre: "Infirmière confirmée", sal: "89,700 $", color: "#FF7043" },
+            ].map((s, i) => (
+              <div key={i} style={{ display: "flex", gap: "10px", alignItems: "flex-start", marginBottom: "8px" }}>
+                <div style={{ width: "28px", height: "28px", borderRadius: "50%", background: s.color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "8px", fontWeight: 700, color: "white", flexShrink: 0 }}>{s.an}</div>
+                <div>
+                  <div style={{ fontSize: "11px", fontWeight: 600, color: i === 5 ? "#FF7043" : "white" }}>{s.titre}</div>
+                  <div style={{ fontSize: "10px", color: i === 5 ? "#FF7043" : "#888", fontWeight: i === 5 ? 700 : 400 }}>{s.sal}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Marché */}
+        {demoTab === "marche" && (
+          <div style={{ background: "rgba(255,255,255,0.05)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: "12px", padding: "12px" }}>
+            <div style={{ fontSize: "9px", letterSpacing: "1.5px", color: "#888", fontWeight: 700, marginBottom: "10px" }}>MON MARCHÉ · MONTRÉAL</div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+              <div>
+                <div style={{ fontSize: "36px", fontWeight: 800, color: "#10B981" }}>76</div>
+                <div style={{ fontSize: "9px", color: "#888" }}>SCORE MARCHÉ</div>
+              </div>
+              <div style={{ textAlign: "right" }}>
+                <div style={{ fontSize: "20px", fontWeight: 700, color: "#10B981" }}>250</div>
+                <div style={{ fontSize: "9px", color: "#888" }}>offres estimées</div>
+                <div style={{ fontSize: "10px", color: "#10B981" }}>Marché en croissance</div>
+              </div>
+            </div>
+            {[
+              { label: "DEMANDE OFFRES", val: 85, color: "#10B981" },
+              { label: "ATTRACTIVITÉ SALARIALE", val: 80, color: "#10B981" },
+              { label: "TENSION MÉTIER", val: 75, color: "#FF7043" },
+              { label: "CROISSANCE SECTEUR", val: 70, color: "#0EA5E9" },
+            ].map((m, i) => (
+              <div key={i} style={{ marginBottom: "8px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: "9px", color: "#888", marginBottom: "3px" }}>
+                  <span>{m.label}</span><span>{m.val}</span>
+                </div>
+                <div style={{ background: "rgba(255,255,255,0.1)", borderRadius: "3px", height: "5px", overflow: "hidden" }}>
+                  <div style={{ width: `${m.val}%`, height: "100%", background: m.color, borderRadius: "3px" }} />
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Action */}
+        {demoTab === "action" && (
+          <div>
+            <div style={{ background: "rgba(255,255,255,0.05)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: "12px", padding: "12px", marginBottom: "8px" }}>
+              <div style={{ fontSize: "9px", letterSpacing: "1.5px", color: "#888", fontWeight: 700, marginBottom: "8px" }}>MON CV PROPULSE</div>
+              <div style={{ background: "rgba(255,255,255,0.05)", borderRadius: "8px", padding: "10px", border: "0.5px solid rgba(255,112,67,0.3)" }}>
+                <div style={{ fontSize: "12px", fontWeight: 700, color: "#FF7043", textAlign: "center", marginBottom: "4px" }}>AMINA TRAORÉ</div>
+                <div style={{ fontSize: "10px", color: "#aaa", textAlign: "center", marginBottom: "8px" }}>Préposée → Infirmière · Montréal</div>
+                {["Coordination d'équipe — 92%", "Écoute clinique — 85%", "Gestion urgences — 78%"].map((c, i) => (
+                  <div key={i} style={{ fontSize: "10px", color: "#aaa", padding: "2px 0" }}>• {c}</div>
+                ))}
+              </div>
+            </div>
+            <div style={{ background: "rgba(255,255,255,0.05)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: "12px", padding: "12px" }}>
+              <div style={{ fontSize: "9px", letterSpacing: "1.5px", color: "#888", fontWeight: 700, marginBottom: "8px" }}>OFFRES CIBLÉES</div>
+              {["Infirmière — CHUM", "Infirmière — CLSC Montréal-Nord", "Préposée senior — Hôpital Maisonneuve"].map((o, i) => (
+                <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: "0.5px solid rgba(255,255,255,0.05)" }}>
+                  <div style={{ fontSize: "11px", color: "white" }}>{o}</div>
+                  <span style={{ background: "rgba(16,185,129,0.2)", color: "#10B981", borderRadius: "20px", padding: "2px 8px", fontSize: "9px" }}>{85 - i * 5}% match</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </>
+    );
+  })()}
+
+  <div style={{ background: "#FF7043", borderRadius: "12px", padding: "12px", textAlign: "center", marginTop: "10px", cursor: "pointer" }} onClick={() => selectLang("fr")}>
+    <div style={{ fontSize: "13px", fontWeight: 700, color: "white" }}>Commencer gratuitement →</div>
+    <div style={{ fontSize: "10px", color: "rgba(255,255,255,0.8)" }}>2 semaines gratuites · Pas de carte de crédit</div>
+  </div>
+</div>
           <p style={{ fontSize: "10px", color: "#888", margin: "0 0 8px" }}>Choisissez votre langue / Choose your language</p>
           <div style={{ display: "flex", gap: "8px" }}>
             <button onClick={() => selectLang("fr")} style={{ flex: 1, background: "#1A1A2E", color: "white", border: "none", padding: "13px", borderRadius: "12px", fontSize: "14px", fontWeight: 700, cursor: "pointer" }}>Français</button>
