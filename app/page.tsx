@@ -465,10 +465,8 @@ export default function Home() {
             </div>
 
             {/* Tabs */}
-            {(() => {
-              
-              return (
-                <>
+         
+                
                   <div style={{ display: "flex", gap: "4px", marginBottom: "10px", overflowX: "auto" }}>
                     {[
                       { id: "resume", label: "Résumé" },
@@ -507,9 +505,7 @@ export default function Home() {
                   {demoTab === "action" && (
                     <img src="/demo-action.png" alt="Action Amina" style={{ width: "100%", borderRadius: "12px" }} />
                   )}
-                </>
-              );
-            })()}
+               
 
 
             <div style={{ background: "#FF7043", borderRadius: "12px", padding: "12px", textAlign: "center", marginTop: "10px", cursor: "pointer" }} onClick={() => selectLang("fr")}>
