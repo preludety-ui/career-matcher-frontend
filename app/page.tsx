@@ -415,7 +415,12 @@ export default function Home() {
               <a href="/temoignages" style={{ fontSize: "10px", color: "#FF7043", fontWeight: 600, textDecoration: "none" }}>Voir tous les témoignages →</a>
             </div>
           </div>
-
+          {/* Lien À propos */}
+          <div style={{ textAlign: "center", marginBottom: "12px" }}>
+            <a href="/a-propos" style={{ fontSize: "12px", color: "#1A1A2E", fontWeight: 600, textDecoration: "none", background: "#F1EFE8", borderRadius: "20px", padding: "8px 16px" }}>
+              En savoir plus sur YELMA →
+            </a>
+          </div>
           {/* Pour toi si */}
           <div style={{ background: "white", borderRadius: "10px", padding: "10px 12px", border: "0.5px solid #E8E8F0", marginBottom: "16px", textAlign: "left" }}>
             <div style={{ fontSize: "9px", fontWeight: 700, color: "#FF7043", marginBottom: "8px" }}>YELMA C'EST POUR TOI SI...</div>
@@ -450,67 +455,67 @@ export default function Home() {
         {/* Boutons flottants — cachés sur mobile */}
         <a href="/pricing" style={{ position: "fixed", bottom: "20px", right: "20px", background: "#FF7043", color: "white", borderRadius: "20px", padding: "8px 16px", fontSize: "11px", fontWeight: 600, textDecoration: "none", zIndex: 100 }}>✦ Commencer gratuitement</a>
         {/* Bouton Support */}
-<button
-  onClick={() => setShowContactPopup(true)}
-  style={{ position: "fixed", bottom: "60px", right: "20px", background: "white", color: "#1A1A2E", border: "1px solid #E8E8F0", borderRadius: "20px", padding: "8px 16px", fontSize: "11px", fontWeight: 600, zIndex: 100, cursor: "pointer" }}
->
-  💬 Support
-</button>
+        <button
+          onClick={() => setShowContactPopup(true)}
+          style={{ position: "fixed", bottom: "60px", right: "20px", background: "white", color: "#1A1A2E", border: "1px solid #E8E8F0", borderRadius: "20px", padding: "8px 16px", fontSize: "11px", fontWeight: 600, zIndex: 100, cursor: "pointer" }}
+        >
+          💬 Support
+        </button>
 
-{/* Popup Contact */}
-{showContactPopup && (
-  <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.6)", zIndex: 999, display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}>
-    <div style={{ background: "white", borderRadius: "16px", padding: "24px", maxWidth: "380px", width: "100%", position: "relative" }}>
-      <button onClick={() => { setShowContactPopup(false); setContactSent(false); setContactForm({ nom: "", email: "", message: "" }); }} style={{ position: "absolute", top: "12px", right: "12px", background: "none", border: "none", fontSize: "20px", cursor: "pointer", color: "#888" }}>×</button>
-      
-      <div style={{ fontSize: "20px", textAlign: "center", marginBottom: "8px" }}>💬</div>
-      <div style={{ fontSize: "16px", fontWeight: 700, color: "#1A1A2E", marginBottom: "4px", textAlign: "center" }}>Contactez-nous</div>
-      <div style={{ fontSize: "12px", color: "#888", marginBottom: "16px", textAlign: "center" }}>Notre équipe vous répond sous 24h</div>
+        {/* Popup Contact */}
+        {showContactPopup && (
+          <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.6)", zIndex: 999, display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}>
+            <div style={{ background: "white", borderRadius: "16px", padding: "24px", maxWidth: "380px", width: "100%", position: "relative" }}>
+              <button onClick={() => { setShowContactPopup(false); setContactSent(false); setContactForm({ nom: "", email: "", message: "" }); }} style={{ position: "absolute", top: "12px", right: "12px", background: "none", border: "none", fontSize: "20px", cursor: "pointer", color: "#888" }}>×</button>
 
-      {contactSent ? (
-        <div style={{ textAlign: "center", padding: "20px" }}>
-          <div style={{ fontSize: "32px", marginBottom: "12px" }}>✅</div>
-          <div style={{ fontSize: "14px", fontWeight: 600, color: "#1A1A2E", marginBottom: "8px" }}>Message envoyé !</div>
-          <div style={{ fontSize: "12px", color: "#888" }}>Nous vous répondrons sous 24h.</div>
-        </div>
-      ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-          <div>
-            <label style={{ fontSize: "11px", fontWeight: 600, color: "#1A1A2E", display: "block", marginBottom: "4px" }}>Votre nom</label>
-            <input value={contactForm.nom} onChange={e => setContactForm({ ...contactForm, nom: e.target.value })} placeholder="Prénom Nom" style={{ width: "100%", border: "1px solid #E8E8F0", borderRadius: "10px", padding: "8px 12px", fontSize: "13px", boxSizing: "border-box" }} />
+              <div style={{ fontSize: "20px", textAlign: "center", marginBottom: "8px" }}>💬</div>
+              <div style={{ fontSize: "16px", fontWeight: 700, color: "#1A1A2E", marginBottom: "4px", textAlign: "center" }}>Contactez-nous</div>
+              <div style={{ fontSize: "12px", color: "#888", marginBottom: "16px", textAlign: "center" }}>Notre équipe vous répond sous 24h</div>
+
+              {contactSent ? (
+                <div style={{ textAlign: "center", padding: "20px" }}>
+                  <div style={{ fontSize: "32px", marginBottom: "12px" }}>✅</div>
+                  <div style={{ fontSize: "14px", fontWeight: 600, color: "#1A1A2E", marginBottom: "8px" }}>Message envoyé !</div>
+                  <div style={{ fontSize: "12px", color: "#888" }}>Nous vous répondrons sous 24h.</div>
+                </div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                  <div>
+                    <label style={{ fontSize: "11px", fontWeight: 600, color: "#1A1A2E", display: "block", marginBottom: "4px" }}>Votre nom</label>
+                    <input value={contactForm.nom} onChange={e => setContactForm({ ...contactForm, nom: e.target.value })} placeholder="Prénom Nom" style={{ width: "100%", border: "1px solid #E8E8F0", borderRadius: "10px", padding: "8px 12px", fontSize: "13px", boxSizing: "border-box" }} />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: "11px", fontWeight: 600, color: "#1A1A2E", display: "block", marginBottom: "4px" }}>Votre email</label>
+                    <input value={contactForm.email} onChange={e => setContactForm({ ...contactForm, email: e.target.value })} placeholder="votre@email.com" type="email" style={{ width: "100%", border: "1px solid #E8E8F0", borderRadius: "10px", padding: "8px 12px", fontSize: "13px", boxSizing: "border-box" }} />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: "11px", fontWeight: 600, color: "#1A1A2E", display: "block", marginBottom: "4px" }}>Votre message</label>
+                    <textarea value={contactForm.message} onChange={e => setContactForm({ ...contactForm, message: e.target.value })} placeholder="Décrivez votre problème..." rows={4} style={{ width: "100%", border: "1px solid #E8E8F0", borderRadius: "10px", padding: "8px 12px", fontSize: "13px", boxSizing: "border-box", resize: "none" }} />
+                  </div>
+                  <button
+                    onClick={async () => {
+                      if (!contactForm.nom || !contactForm.email || !contactForm.message) return;
+                      setContactLoading(true);
+                      try {
+                        await fetch("/api/contact", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify(contactForm),
+                        });
+                        setContactSent(true);
+                      } catch { console.error("Erreur envoi contact"); }
+                      finally { setContactLoading(false); }
+                    }}
+                    disabled={contactLoading}
+                    style={{ background: "#FF7043", color: "white", border: "none", borderRadius: "12px", padding: "12px", fontSize: "14px", fontWeight: 700, cursor: "pointer", opacity: contactLoading ? 0.7 : 1 }}
+                  >
+                    {contactLoading ? "Envoi en cours..." : "Envoyer le message →"}
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
-          <div>
-            <label style={{ fontSize: "11px", fontWeight: 600, color: "#1A1A2E", display: "block", marginBottom: "4px" }}>Votre email</label>
-            <input value={contactForm.email} onChange={e => setContactForm({ ...contactForm, email: e.target.value })} placeholder="votre@email.com" type="email" style={{ width: "100%", border: "1px solid #E8E8F0", borderRadius: "10px", padding: "8px 12px", fontSize: "13px", boxSizing: "border-box" }} />
-          </div>
-          <div>
-            <label style={{ fontSize: "11px", fontWeight: 600, color: "#1A1A2E", display: "block", marginBottom: "4px" }}>Votre message</label>
-            <textarea value={contactForm.message} onChange={e => setContactForm({ ...contactForm, message: e.target.value })} placeholder="Décrivez votre problème..." rows={4} style={{ width: "100%", border: "1px solid #E8E8F0", borderRadius: "10px", padding: "8px 12px", fontSize: "13px", boxSizing: "border-box", resize: "none" }} />
-          </div>
-          <button
-            onClick={async () => {
-              if (!contactForm.nom || !contactForm.email || !contactForm.message) return;
-              setContactLoading(true);
-              try {
-                await fetch("/api/contact", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify(contactForm),
-                });
-                setContactSent(true);
-              } catch { console.error("Erreur envoi contact"); }
-              finally { setContactLoading(false); }
-            }}
-            disabled={contactLoading}
-            style={{ background: "#FF7043", color: "white", border: "none", borderRadius: "12px", padding: "12px", fontSize: "14px", fontWeight: 700, cursor: "pointer", opacity: contactLoading ? 0.7 : 1 }}
-          >
-            {contactLoading ? "Envoi en cours..." : "Envoyer le message →"}
-          </button>
-        </div>
-      )}
-    </div>
-  </div>
-)}
+        )}
         {/* Popup marché — inchangé */}
         <div id="yelma-popup" style={{ display: "none", position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.5)", zIndex: 999, alignItems: "center", justifyContent: "center" }} onClick={(e) => { if (e.target === e.currentTarget) (e.currentTarget as HTMLElement).style.display = "none"; }}>
           <div style={{ background: "white", borderRadius: "16px", padding: "18px", width: "92%", maxWidth: "380px", maxHeight: "85vh", overflowY: "auto" }}>
