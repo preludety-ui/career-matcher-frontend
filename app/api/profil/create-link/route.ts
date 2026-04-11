@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({
     link: {
       id: data.id,
-      url: `${process.env.NEXT_PUBLIC_BASE_URL}/p/${token}`,
+      url: `${process.env.NEXT_PUBLIC_URL}/p/${token}`,
       createdAt: new Date().toISOString().split("T")[0],
       views: 0,
       active: true,
